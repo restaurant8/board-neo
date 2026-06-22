@@ -20,7 +20,6 @@ import {
   Puzzle,
   RefreshCw,
   Mail,
-  ShieldCheck,
   Command,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
@@ -83,7 +82,6 @@ export const sidebarData: SidebarData = {
         { title: '主题管理', url: '/theme', icon: Palette },
         { title: '插件管理', url: '/plugin', icon: Puzzle },
         { title: '系统状态', url: '/system', icon: Activity },
-        { title: '登录', url: '/sign-in', icon: ShieldCheck },
       ],
     },
   ],

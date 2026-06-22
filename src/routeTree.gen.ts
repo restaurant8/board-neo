@@ -26,9 +26,24 @@ import { Route as ClerkAuthenticatedRouteRouteImport } from './routes/clerk/_aut
 import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
+import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
+import { Route as AuthenticatedTrafficResetIndexRouteImport } from './routes/_authenticated/traffic-reset/index'
+import { Route as AuthenticatedTicketIndexRouteImport } from './routes/_authenticated/ticket/index'
+import { Route as AuthenticatedThemeIndexRouteImport } from './routes/_authenticated/theme/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
+import { Route as AuthenticatedSystemIndexRouteImport } from './routes/_authenticated/system/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedPluginIndexRouteImport } from './routes/_authenticated/plugin/index'
+import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan/index'
+import { Route as AuthenticatedPaymentIndexRouteImport } from './routes/_authenticated/payment/index'
+import { Route as AuthenticatedOrderIndexRouteImport } from './routes/_authenticated/order/index'
+import { Route as AuthenticatedNoticeIndexRouteImport } from './routes/_authenticated/notice/index'
+import { Route as AuthenticatedMailTemplateIndexRouteImport } from './routes/_authenticated/mail-template/index'
+import { Route as AuthenticatedKnowledgeIndexRouteImport } from './routes/_authenticated/knowledge/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
+import { Route as AuthenticatedGiftCardIndexRouteImport } from './routes/_authenticated/gift-card/index'
+import { Route as AuthenticatedCouponIndexRouteImport } from './routes/_authenticated/coupon/index'
+import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ClerkAuthenticatedUserManagementRouteImport } from './routes/clerk/_authenticated/user-management'
@@ -39,6 +54,11 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedServerRouteIndexRouteImport } from './routes/_authenticated/server/route/index'
+import { Route as AuthenticatedServerManageIndexRouteImport } from './routes/_authenticated/server/manage/index'
+import { Route as AuthenticatedServerMachineIndexRouteImport } from './routes/_authenticated/server/machine/index'
+import { Route as AuthenticatedServerGroupIndexRouteImport } from './routes/_authenticated/server/group/index'
+import { Route as AuthenticatedServerDnsIndexRouteImport } from './routes/_authenticated/server/dns/index'
 
 const ClerkRouteRoute = ClerkRouteRouteImport.update({
   id: '/clerk',
@@ -123,21 +143,107 @@ const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUserIndexRoute = AuthenticatedUserIndexRouteImport.update({
+  id: '/user/',
+  path: '/user/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTrafficResetIndexRoute =
+  AuthenticatedTrafficResetIndexRouteImport.update({
+    id: '/traffic-reset/',
+    path: '/traffic-reset/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTicketIndexRoute =
+  AuthenticatedTicketIndexRouteImport.update({
+    id: '/ticket/',
+    path: '/ticket/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedThemeIndexRoute = AuthenticatedThemeIndexRouteImport.update({
+  id: '/theme/',
+  path: '/theme/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSystemIndexRoute =
+  AuthenticatedSystemIndexRouteImport.update({
+    id: '/system/',
+    path: '/system/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedPluginIndexRoute =
+  AuthenticatedPluginIndexRouteImport.update({
+    id: '/plugin/',
+    path: '/plugin/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPlanIndexRoute = AuthenticatedPlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPaymentIndexRoute =
+  AuthenticatedPaymentIndexRouteImport.update({
+    id: '/payment/',
+    path: '/payment/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOrderIndexRoute = AuthenticatedOrderIndexRouteImport.update({
+  id: '/order/',
+  path: '/order/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedNoticeIndexRoute =
+  AuthenticatedNoticeIndexRouteImport.update({
+    id: '/notice/',
+    path: '/notice/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMailTemplateIndexRoute =
+  AuthenticatedMailTemplateIndexRouteImport.update({
+    id: '/mail-template/',
+    path: '/mail-template/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedKnowledgeIndexRoute =
+  AuthenticatedKnowledgeIndexRouteImport.update({
+    id: '/knowledge/',
+    path: '/knowledge/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedHelpCenterIndexRoute =
   AuthenticatedHelpCenterIndexRouteImport.update({
     id: '/help-center/',
     path: '/help-center/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGiftCardIndexRoute =
+  AuthenticatedGiftCardIndexRouteImport.update({
+    id: '/gift-card/',
+    path: '/gift-card/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCouponIndexRoute =
+  AuthenticatedCouponIndexRouteImport.update({
+    id: '/coupon/',
+    path: '/coupon/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfigIndexRoute =
+  AuthenticatedConfigIndexRouteImport.update({
+    id: '/config/',
+    path: '/config/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
@@ -196,10 +302,40 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedServerRouteIndexRoute =
+  AuthenticatedServerRouteIndexRouteImport.update({
+    id: '/server/route/',
+    path: '/server/route/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServerManageIndexRoute =
+  AuthenticatedServerManageIndexRouteImport.update({
+    id: '/server/manage/',
+    path: '/server/manage/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServerMachineIndexRoute =
+  AuthenticatedServerMachineIndexRouteImport.update({
+    id: '/server/machine/',
+    path: '/server/machine/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServerGroupIndexRoute =
+  AuthenticatedServerGroupIndexRouteImport.update({
+    id: '/server/group/',
+    path: '/server/group/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServerDnsIndexRoute =
+  AuthenticatedServerDnsIndexRouteImport.update({
+    id: '/server/dns/',
+    path: '/server/dns/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
-  '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
+  '/clerk': typeof ClerkauthRouteRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
@@ -221,13 +357,33 @@ export interface FileRoutesByFullPath {
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
+  '/config/': typeof AuthenticatedConfigIndexRoute
+  '/coupon/': typeof AuthenticatedCouponIndexRoute
+  '/gift-card/': typeof AuthenticatedGiftCardIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/knowledge/': typeof AuthenticatedKnowledgeIndexRoute
+  '/mail-template/': typeof AuthenticatedMailTemplateIndexRoute
+  '/notice/': typeof AuthenticatedNoticeIndexRoute
+  '/order/': typeof AuthenticatedOrderIndexRoute
+  '/payment/': typeof AuthenticatedPaymentIndexRoute
+  '/plan/': typeof AuthenticatedPlanIndexRoute
+  '/plugin/': typeof AuthenticatedPluginIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/system/': typeof AuthenticatedSystemIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/theme/': typeof AuthenticatedThemeIndexRoute
+  '/ticket/': typeof AuthenticatedTicketIndexRoute
+  '/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
+  '/user/': typeof AuthenticatedUserIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/server/dns/': typeof AuthenticatedServerDnsIndexRoute
+  '/server/group/': typeof AuthenticatedServerGroupIndexRoute
+  '/server/machine/': typeof AuthenticatedServerMachineIndexRoute
+  '/server/manage/': typeof AuthenticatedServerManageIndexRoute
+  '/server/route/': typeof AuthenticatedServerRouteIndexRoute
 }
 export interface FileRoutesByTo {
-  '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
+  '/clerk': typeof ClerkauthRouteRouteWithChildren
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
   '/sign-in': typeof authSignInRoute
@@ -249,10 +405,30 @@ export interface FileRoutesByTo {
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
+  '/config': typeof AuthenticatedConfigIndexRoute
+  '/coupon': typeof AuthenticatedCouponIndexRoute
+  '/gift-card': typeof AuthenticatedGiftCardIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
+  '/knowledge': typeof AuthenticatedKnowledgeIndexRoute
+  '/mail-template': typeof AuthenticatedMailTemplateIndexRoute
+  '/notice': typeof AuthenticatedNoticeIndexRoute
+  '/order': typeof AuthenticatedOrderIndexRoute
+  '/payment': typeof AuthenticatedPaymentIndexRoute
+  '/plan': typeof AuthenticatedPlanIndexRoute
+  '/plugin': typeof AuthenticatedPluginIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/system': typeof AuthenticatedSystemIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
+  '/theme': typeof AuthenticatedThemeIndexRoute
+  '/ticket': typeof AuthenticatedTicketIndexRoute
+  '/traffic-reset': typeof AuthenticatedTrafficResetIndexRoute
+  '/user': typeof AuthenticatedUserIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/server/dns': typeof AuthenticatedServerDnsIndexRoute
+  '/server/group': typeof AuthenticatedServerGroupIndexRoute
+  '/server/machine': typeof AuthenticatedServerMachineIndexRoute
+  '/server/manage': typeof AuthenticatedServerManageIndexRoute
+  '/server/route': typeof AuthenticatedServerRouteIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -282,10 +458,30 @@ export interface FileRoutesById {
   '/clerk/_authenticated/user-management': typeof ClerkAuthenticatedUserManagementRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
+  '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
+  '/_authenticated/coupon/': typeof AuthenticatedCouponIndexRoute
+  '/_authenticated/gift-card/': typeof AuthenticatedGiftCardIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/_authenticated/knowledge/': typeof AuthenticatedKnowledgeIndexRoute
+  '/_authenticated/mail-template/': typeof AuthenticatedMailTemplateIndexRoute
+  '/_authenticated/notice/': typeof AuthenticatedNoticeIndexRoute
+  '/_authenticated/order/': typeof AuthenticatedOrderIndexRoute
+  '/_authenticated/payment/': typeof AuthenticatedPaymentIndexRoute
+  '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
+  '/_authenticated/plugin/': typeof AuthenticatedPluginIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/system/': typeof AuthenticatedSystemIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/_authenticated/theme/': typeof AuthenticatedThemeIndexRoute
+  '/_authenticated/ticket/': typeof AuthenticatedTicketIndexRoute
+  '/_authenticated/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
+  '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/server/dns/': typeof AuthenticatedServerDnsIndexRoute
+  '/_authenticated/server/group/': typeof AuthenticatedServerGroupIndexRoute
+  '/_authenticated/server/machine/': typeof AuthenticatedServerMachineIndexRoute
+  '/_authenticated/server/manage/': typeof AuthenticatedServerManageIndexRoute
+  '/_authenticated/server/route/': typeof AuthenticatedServerRouteIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -313,10 +509,30 @@ export interface FileRouteTypes {
     | '/clerk/user-management'
     | '/apps/'
     | '/chats/'
+    | '/config/'
+    | '/coupon/'
+    | '/gift-card/'
     | '/help-center/'
+    | '/knowledge/'
+    | '/mail-template/'
+    | '/notice/'
+    | '/order/'
+    | '/payment/'
+    | '/plan/'
+    | '/plugin/'
     | '/settings/'
+    | '/system/'
     | '/tasks/'
+    | '/theme/'
+    | '/ticket/'
+    | '/traffic-reset/'
+    | '/user/'
     | '/users/'
+    | '/server/dns/'
+    | '/server/group/'
+    | '/server/machine/'
+    | '/server/manage/'
+    | '/server/route/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/clerk'
@@ -341,10 +557,30 @@ export interface FileRouteTypes {
     | '/clerk/user-management'
     | '/apps'
     | '/chats'
+    | '/config'
+    | '/coupon'
+    | '/gift-card'
     | '/help-center'
+    | '/knowledge'
+    | '/mail-template'
+    | '/notice'
+    | '/order'
+    | '/payment'
+    | '/plan'
+    | '/plugin'
     | '/settings'
+    | '/system'
     | '/tasks'
+    | '/theme'
+    | '/ticket'
+    | '/traffic-reset'
+    | '/user'
     | '/users'
+    | '/server/dns'
+    | '/server/group'
+    | '/server/machine'
+    | '/server/manage'
+    | '/server/route'
   id:
     | '__root__'
     | '/_authenticated'
@@ -373,10 +609,30 @@ export interface FileRouteTypes {
     | '/clerk/_authenticated/user-management'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
+    | '/_authenticated/config/'
+    | '/_authenticated/coupon/'
+    | '/_authenticated/gift-card/'
     | '/_authenticated/help-center/'
+    | '/_authenticated/knowledge/'
+    | '/_authenticated/mail-template/'
+    | '/_authenticated/notice/'
+    | '/_authenticated/order/'
+    | '/_authenticated/payment/'
+    | '/_authenticated/plan/'
+    | '/_authenticated/plugin/'
     | '/_authenticated/settings/'
+    | '/_authenticated/system/'
     | '/_authenticated/tasks/'
+    | '/_authenticated/theme/'
+    | '/_authenticated/ticket/'
+    | '/_authenticated/traffic-reset/'
+    | '/_authenticated/user/'
     | '/_authenticated/users/'
+    | '/_authenticated/server/dns/'
+    | '/_authenticated/server/group/'
+    | '/_authenticated/server/machine/'
+    | '/_authenticated/server/manage/'
+    | '/_authenticated/server/route/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -515,11 +771,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/user/': {
+      id: '/_authenticated/user/'
+      path: '/user'
+      fullPath: '/user/'
+      preLoaderRoute: typeof AuthenticatedUserIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/traffic-reset/': {
+      id: '/_authenticated/traffic-reset/'
+      path: '/traffic-reset'
+      fullPath: '/traffic-reset/'
+      preLoaderRoute: typeof AuthenticatedTrafficResetIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ticket/': {
+      id: '/_authenticated/ticket/'
+      path: '/ticket'
+      fullPath: '/ticket/'
+      preLoaderRoute: typeof AuthenticatedTicketIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/theme/': {
+      id: '/_authenticated/theme/'
+      path: '/theme'
+      fullPath: '/theme/'
+      preLoaderRoute: typeof AuthenticatedThemeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tasks/': {
       id: '/_authenticated/tasks/'
       path: '/tasks'
       fullPath: '/tasks/'
       preLoaderRoute: typeof AuthenticatedTasksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/system/': {
+      id: '/_authenticated/system/'
+      path: '/system'
+      fullPath: '/system/'
+      preLoaderRoute: typeof AuthenticatedSystemIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings/': {
@@ -529,11 +820,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/plugin/': {
+      id: '/_authenticated/plugin/'
+      path: '/plugin'
+      fullPath: '/plugin/'
+      preLoaderRoute: typeof AuthenticatedPluginIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plan/': {
+      id: '/_authenticated/plan/'
+      path: '/plan'
+      fullPath: '/plan/'
+      preLoaderRoute: typeof AuthenticatedPlanIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/payment/': {
+      id: '/_authenticated/payment/'
+      path: '/payment'
+      fullPath: '/payment/'
+      preLoaderRoute: typeof AuthenticatedPaymentIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/order/': {
+      id: '/_authenticated/order/'
+      path: '/order'
+      fullPath: '/order/'
+      preLoaderRoute: typeof AuthenticatedOrderIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notice/': {
+      id: '/_authenticated/notice/'
+      path: '/notice'
+      fullPath: '/notice/'
+      preLoaderRoute: typeof AuthenticatedNoticeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mail-template/': {
+      id: '/_authenticated/mail-template/'
+      path: '/mail-template'
+      fullPath: '/mail-template/'
+      preLoaderRoute: typeof AuthenticatedMailTemplateIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/knowledge/': {
+      id: '/_authenticated/knowledge/'
+      path: '/knowledge'
+      fullPath: '/knowledge/'
+      preLoaderRoute: typeof AuthenticatedKnowledgeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/help-center/': {
       id: '/_authenticated/help-center/'
       path: '/help-center'
       fullPath: '/help-center/'
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gift-card/': {
+      id: '/_authenticated/gift-card/'
+      path: '/gift-card'
+      fullPath: '/gift-card/'
+      preLoaderRoute: typeof AuthenticatedGiftCardIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/coupon/': {
+      id: '/_authenticated/coupon/'
+      path: '/coupon'
+      fullPath: '/coupon/'
+      preLoaderRoute: typeof AuthenticatedCouponIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/config/': {
+      id: '/_authenticated/config/'
+      path: '/config'
+      fullPath: '/config/'
+      preLoaderRoute: typeof AuthenticatedConfigIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/chats/': {
@@ -606,6 +967,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server/route/': {
+      id: '/_authenticated/server/route/'
+      path: '/server/route'
+      fullPath: '/server/route/'
+      preLoaderRoute: typeof AuthenticatedServerRouteIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/server/manage/': {
+      id: '/_authenticated/server/manage/'
+      path: '/server/manage'
+      fullPath: '/server/manage/'
+      preLoaderRoute: typeof AuthenticatedServerManageIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/server/machine/': {
+      id: '/_authenticated/server/machine/'
+      path: '/server/machine'
+      fullPath: '/server/machine/'
+      preLoaderRoute: typeof AuthenticatedServerMachineIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/server/group/': {
+      id: '/_authenticated/server/group/'
+      path: '/server/group'
+      fullPath: '/server/group/'
+      preLoaderRoute: typeof AuthenticatedServerGroupIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/server/dns/': {
+      id: '/_authenticated/server/dns/'
+      path: '/server/dns'
+      fullPath: '/server/dns/'
+      preLoaderRoute: typeof AuthenticatedServerDnsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -638,9 +1034,29 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
+  AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
+  AuthenticatedCouponIndexRoute: typeof AuthenticatedCouponIndexRoute
+  AuthenticatedGiftCardIndexRoute: typeof AuthenticatedGiftCardIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
+  AuthenticatedKnowledgeIndexRoute: typeof AuthenticatedKnowledgeIndexRoute
+  AuthenticatedMailTemplateIndexRoute: typeof AuthenticatedMailTemplateIndexRoute
+  AuthenticatedNoticeIndexRoute: typeof AuthenticatedNoticeIndexRoute
+  AuthenticatedOrderIndexRoute: typeof AuthenticatedOrderIndexRoute
+  AuthenticatedPaymentIndexRoute: typeof AuthenticatedPaymentIndexRoute
+  AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
+  AuthenticatedPluginIndexRoute: typeof AuthenticatedPluginIndexRoute
+  AuthenticatedSystemIndexRoute: typeof AuthenticatedSystemIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+  AuthenticatedThemeIndexRoute: typeof AuthenticatedThemeIndexRoute
+  AuthenticatedTicketIndexRoute: typeof AuthenticatedTicketIndexRoute
+  AuthenticatedTrafficResetIndexRoute: typeof AuthenticatedTrafficResetIndexRoute
+  AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedServerDnsIndexRoute: typeof AuthenticatedServerDnsIndexRoute
+  AuthenticatedServerGroupIndexRoute: typeof AuthenticatedServerGroupIndexRoute
+  AuthenticatedServerMachineIndexRoute: typeof AuthenticatedServerMachineIndexRoute
+  AuthenticatedServerManageIndexRoute: typeof AuthenticatedServerManageIndexRoute
+  AuthenticatedServerRouteIndexRoute: typeof AuthenticatedServerRouteIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -649,9 +1065,29 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
+  AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
+  AuthenticatedCouponIndexRoute: AuthenticatedCouponIndexRoute,
+  AuthenticatedGiftCardIndexRoute: AuthenticatedGiftCardIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
+  AuthenticatedKnowledgeIndexRoute: AuthenticatedKnowledgeIndexRoute,
+  AuthenticatedMailTemplateIndexRoute: AuthenticatedMailTemplateIndexRoute,
+  AuthenticatedNoticeIndexRoute: AuthenticatedNoticeIndexRoute,
+  AuthenticatedOrderIndexRoute: AuthenticatedOrderIndexRoute,
+  AuthenticatedPaymentIndexRoute: AuthenticatedPaymentIndexRoute,
+  AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
+  AuthenticatedPluginIndexRoute: AuthenticatedPluginIndexRoute,
+  AuthenticatedSystemIndexRoute: AuthenticatedSystemIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+  AuthenticatedThemeIndexRoute: AuthenticatedThemeIndexRoute,
+  AuthenticatedTicketIndexRoute: AuthenticatedTicketIndexRoute,
+  AuthenticatedTrafficResetIndexRoute: AuthenticatedTrafficResetIndexRoute,
+  AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedServerDnsIndexRoute: AuthenticatedServerDnsIndexRoute,
+  AuthenticatedServerGroupIndexRoute: AuthenticatedServerGroupIndexRoute,
+  AuthenticatedServerMachineIndexRoute: AuthenticatedServerMachineIndexRoute,
+  AuthenticatedServerManageIndexRoute: AuthenticatedServerManageIndexRoute,
+  AuthenticatedServerRouteIndexRoute: AuthenticatedServerRouteIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

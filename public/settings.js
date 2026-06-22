@@ -3,6 +3,6 @@
 // forwards /api to the backend defined in vite.config.ts, so keep apiBase ''.
 window.XBOARD_CONFIG = {
   apiBase: '',
-  securePath: 'a4bd57db',
+  securePath: 'readmin0',
   title: 'Xboard',
 }

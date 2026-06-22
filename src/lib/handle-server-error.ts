@@ -19,9 +19,15 @@ export function handleServerError(error: unknown) {
   }
 
   if (error instanceof AxiosError) {
-    const title = error.response?.data?.title
-    if (typeof title === 'string' && title.length > 0) {
-      errMsg = title
+    // Xboard envelope uses `message`; fall back to `title`, then the axios
+    // error message (which our api-client interceptor sets to the backend
+    // message on failure responses).
+    const data = error.response?.data as
+      | { message?: string; title?: string }
+      | undefined
+    const candidate = data?.message || data?.title || error.message
+    if (typeof candidate === 'string' && candidate.length > 0) {
+      errMsg = candidate
     }
   }
 
