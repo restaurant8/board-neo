@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 本地构建并发布管理面板。
-# 关键:Xboard 的 public/assets/admin 是 git 子模块 → restaurant8/xboard-admin-dist。
+# 关键:Xboard 的 public/assets/admin 是 git 子模块 → restaurant8/board-neo-admin-dist。
 # 正确流程:产物写进子模块 → 提交并推送子模块 → 在父仓库 Xboard 更新子模块指针并推送。
 # 服务器:git pull && git submodule update --init --recursive && php artisan optimize:clear
 #
@@ -35,7 +35,7 @@ if [ "$1" != "--push" ]; then
   exit 0
 fi
 
-echo "[3/4] 提交并推送子模块 (xboard-admin-dist)..."
+echo "[3/4] 提交并推送子模块 (board-neo-admin-dist)..."
 ( cd "$SUB" && git add -A && \
   ( git diff --cached --quiet && echo "子模块无变更" || \
     { git commit -q -m "rebuild admin panel"; git push origin HEAD:main; } ) )

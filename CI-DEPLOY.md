@@ -8,10 +8,10 @@
 ## 一次性配置
 
 ### 1. 建一个有写权限的 Token（注意：admin 是子模块）
-`public/assets/admin` 是 git 子模块 → `restaurant8/xboard-admin-dist`。
+`public/assets/admin` 是 git 子模块 → `restaurant8/board-neo-admin-dist`。
 GitHub → Settings → Developer settings → **Personal access tokens → Fine-grained tokens** →
 Generate：
-- Repository access：选 **`restaurant8/xboard-admin-dist` 和 `restaurant8/Xboard`** 两个
+- Repository access：选 **`restaurant8/board-neo-admin-dist` 和 `restaurant8/Xboard`** 两个
 - Permissions：**Contents: Read and write**
 
 复制生成的 token。

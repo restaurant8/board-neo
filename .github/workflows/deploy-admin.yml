@@ -1,11 +1,11 @@
 name: Build & deploy admin
 
 # 改 board-neo 源码并推 main → 自动构建 → 把产物推到子模块仓库
-# restaurant8/xboard-admin-dist → 在 restaurant8/Xboard 更新子模块指针。
+# restaurant8/board-neo-admin-dist → 在 restaurant8/Xboard 更新子模块指针。
 # 服务器: git pull && git submodule update --init --recursive && php artisan optimize:clear
 #
 # 需在 board-neo 仓库 Secrets 配置 XBOARD_DEPLOY_TOKEN:
-#   Fine-grained PAT，对 restaurant8/xboard-admin-dist 与 restaurant8/Xboard
+#   Fine-grained PAT，对 restaurant8/board-neo-admin-dist 与 restaurant8/Xboard
 #   均授予 Contents: Read and write。
 
 on:
@@ -36,7 +36,7 @@ jobs:
       - name: Checkout dist submodule repo
         uses: actions/checkout@v4
         with:
-          repository: restaurant8/xboard-admin-dist
+          repository: restaurant8/board-neo-admin-dist
           token: ${{ secrets.XBOARD_DEPLOY_TOKEN }}
           path: admin-dist
           ref: main
