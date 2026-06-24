@@ -1,7 +1,12 @@
-name: Build & deploy admin to Xboard
+name: Build & deploy admin
 
-# 改 board-neo 源码并推到 main → 自动构建 → 把编译产物提交进 restaurant8/Xboard
-# 的 public/assets/admin/ → 服务器只需 git pull 即可更新管理面板。
+# 改 board-neo 源码并推 main → 自动构建 → 把产物推到子模块仓库
+# restaurant8/xboard-admin-dist → 在 restaurant8/Xboard 更新子模块指针。
+# 服务器: git pull && git submodule update --init --recursive && php artisan optimize:clear
+#
+# 需在 board-neo 仓库 Secrets 配置 XBOARD_DEPLOY_TOKEN:
+#   Fine-grained PAT，对 restaurant8/xboard-admin-dist 与 restaurant8/Xboard
+#   均授予 Contents: Read and write。
 
 on:
   push:
@@ -14,7 +19,7 @@ jobs:
     env:
       SSH_HOST: ${{ secrets.SSH_HOST }}
     steps:
-      - name: Checkout board-neo (admin 源码)
+      - name: Checkout board-neo
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -23,19 +28,46 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install & build
+      - name: Build
         run: |
           npm ci
           npm run build
 
-      - name: Stage assets/admin
-        run: |
-          mkdir -p out/assets/admin
-          cp -r dist/assets out/assets/admin/assets
-          if [ -d dist/images ]; then cp -r dist/images out/assets/admin/images; fi
-          cp dist/.vite/manifest.json out/assets/admin/manifest.json
+      - name: Checkout dist submodule repo
+        uses: actions/checkout@v4
+        with:
+          repository: restaurant8/xboard-admin-dist
+          token: ${{ secrets.XBOARD_DEPLOY_TOKEN }}
+          path: admin-dist
+          ref: main
 
-      - name: Checkout Xboard (后端仓库)
+      - name: Sync build into dist repo
+        run: |
+          D=admin-dist
+          rm -rf "$D/assets"
+          rm -f "$D/manifest.json" "$D/index.html" "$D/index.legacy.html" \
+                "$D/dns-auto-sync-ui.js" "$D/node-backend-manager.js" \
+                "$D/dns-sync-manager.js" "$D/user-usage-record.js"
+          cp -r dist/assets "$D/assets"
+          if [ -d dist/images ]; then rm -rf "$D/images"; cp -r dist/images "$D/images"; fi
+          cp dist/.vite/manifest.json "$D/manifest.json"
+
+      - name: Commit & push dist repo
+        id: dist
+        run: |
+          cd admin-dist
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "rebuild from board-neo@${GITHUB_SHA::7}"
+            git push
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Xboard
         uses: actions/checkout@v4
         with:
           repository: restaurant8/Xboard
@@ -43,38 +75,20 @@ jobs:
           path: xboard
           ref: main
 
-      - name: Sync 产物到 Xboard/public/assets/admin
-        run: |
-          DST=xboard/public/assets/admin
-          mkdir -p "$DST"
-          # 清旧编译产物 + 旧注入脚本（功能已原生写进面板）
-          rm -rf "$DST/assets"
-          rm -f "$DST/manifest.json" \
-                "$DST/dns-auto-sync-ui.js" \
-                "$DST/node-backend-manager.js" \
-                "$DST/dns-sync-manager.js" \
-                "$DST/user-usage-record.js" \
-                "$DST/index.html" \
-                "$DST/index.legacy.html"
-          cp -r out/assets/admin/assets "$DST/assets"
-          if [ -d out/assets/admin/images ]; then rm -rf "$DST/images"; cp -r out/assets/admin/images "$DST/images"; fi
-          cp out/assets/admin/manifest.json "$DST/manifest.json"
-
-      - name: Commit & push 到 Xboard
+      - name: Bump submodule pointer in Xboard
         run: |
           cd xboard
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/assets/admin
+          git update-index --cacheinfo 160000,${{ steps.dist.outputs.sha }},public/assets/admin
           if git diff --cached --quiet; then
-            echo "无变更，跳过提交"
+            echo "pointer unchanged"
           else
-            git commit -m "chore(admin): rebuild from board-neo@${GITHUB_SHA::7}"
+            git commit -m "chore(admin): bump admin submodule to ${GITHUB_SHA::7}"
             git push
           fi
 
-      # ── 可选：构建后自动 SSH 到服务器 git pull + 清缓存（真正全自动 CD）──
-      # 需在 board-neo 仓库 Secrets 配置 SSH_HOST / SSH_USER / SSH_KEY / SITE_PATH
+      # 可选：构建后自动 SSH 到服务器更新（配了 SSH_* secret 才执行）
       - name: (可选) SSH 部署到服务器
         if: ${{ env.SSH_HOST != '' }}
         uses: appleboy/ssh-action@v1
@@ -85,4 +99,5 @@ jobs:
           script: |
             cd ${{ secrets.SITE_PATH }}
             git pull --ff-only
+            git submodule update --init --recursive
             php artisan optimize:clear

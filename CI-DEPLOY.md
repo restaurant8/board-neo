@@ -7,10 +7,11 @@
 
 ## 一次性配置
 
-### 1. 建一个有 Xboard 写权限的 Token
+### 1. 建一个有写权限的 Token（注意：admin 是子模块）
+`public/assets/admin` 是 git 子模块 → `restaurant8/xboard-admin-dist`。
 GitHub → Settings → Developer settings → **Personal access tokens → Fine-grained tokens** →
 Generate：
-- Repository access：只选 `restaurant8/Xboard`
+- Repository access：选 **`restaurant8/xboard-admin-dist` 和 `restaurant8/Xboard`** 两个
 - Permissions：**Contents: Read and write**
 
 复制生成的 token。
@@ -46,7 +47,7 @@ php artisan optimize:clear
 2. 等 Action 跑完（board-neo 仓库 Actions 页可看进度）。
 3. 服务器：
    ```bash
-   cd /www/wwwroot/你的站点 && git pull && php artisan optimize:clear
+   cd /www/wwwroot/你的站点 && git pull && git submodule update --init --recursive && php artisan optimize:clear
    ```
    （若配了第 3 步的 SSH secrets，这步也自动完成，你无需操作。）
 4. 浏览器 Ctrl+F5 刷新后台。
