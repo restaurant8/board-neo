@@ -14,6 +14,7 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 // Generated Routes
+import { routeBasePath } from '@/lib/config'
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
@@ -75,6 +76,7 @@ const queryClient = new QueryClient({
 // Create a new router instance
 const router = createRouter({
   routeTree,
+  basepath: routeBasePath,
   context: { queryClient },
   defaultPreload: 'intent',
   defaultPreloadStaleTime: 0,

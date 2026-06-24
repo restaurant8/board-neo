@@ -60,6 +60,13 @@ export const config = {
   title: injected.title ?? blade.title ?? 'Xboard',
 }
 
+/**
+ * Router base path. In production the SPA is served at `/{secure_path}` by the
+ * backend Blade (which injects `window.settings.secure_path`), so the router
+ * must mount under that prefix. In dev it's served at `/`.
+ */
+export const routeBasePath = blade.secure_path ? `/${blade.secure_path}` : '/'
+
 /** Base URL for public (passport/guest) v2 endpoints. */
 export const apiV2Base = `${config.apiBase}/api/v2`
 
