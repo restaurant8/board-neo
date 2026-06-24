@@ -104,13 +104,18 @@ export function MailTemplateEditDialog({ open, onOpenChange, template }: Props) 
             </div>
             <div className='grid gap-2'>
               <Label>邮件标题</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <Input
+                placeholder='如 【{{name}}】您的验证码'
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
             </div>
             <div className='grid gap-2'>
               <Label>邮件内容（HTML）</Label>
               <Textarea
                 rows={16}
                 className='font-mono text-xs'
+                placeholder='如 <p>您的验证码为 {{code}}</p>'
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
@@ -119,7 +124,7 @@ export function MailTemplateEditDialog({ open, onOpenChange, template }: Props) 
               <Label>测试收件邮箱（留空发送至当前管理员）</Label>
               <div className='flex gap-2'>
                 <Input
-                  placeholder='test@example.com'
+                  placeholder='如 user@example.com'
                   value={testEmail}
                   onChange={(e) => setTestEmail(e.target.value)}
                 />

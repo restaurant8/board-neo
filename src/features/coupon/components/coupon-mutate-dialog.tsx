@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { MultiCheck } from '@/components/multi-check'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,11 +22,32 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  PLAN_PERIODS,
+  PLAN_PERIOD_NAMES,
+  type PlanPeriod,
+  fetchPlans,
+} from '@/features/plan/api'
+import {
   type Coupon,
   COUPON_TYPE_AMOUNT,
   COUPON_TYPE_PERCENT,
   generateCoupon,
 } from '../api'
+
+/** CouponResource 输出的旧周期键 → 新键（保存与下单比较用新键）。 */
+const LEGACY_TO_PERIOD: Record<string, PlanPeriod> = {
+  month_price: 'monthly',
+  quarter_price: 'quarterly',
+  half_year_price: 'half_yearly',
+  year_price: 'yearly',
+  two_year_price: 'two_yearly',
+  three_year_price: 'three_yearly',
+  onetime_price: 'onetime',
+  reset_price: 'reset_traffic',
+}
+function normalizePeriod(p: string): string {
+  return LEGACY_TO_PERIOD[p] ?? p
+}
 
 type Props = {
   open: boolean
@@ -59,6 +81,10 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
   const [limitUse, setLimitUse] = useState('')
   const [limitUseWithUser, setLimitUseWithUser] = useState('')
   const [generateCount, setGenerateCount] = useState('')
+  const [limitPlanIds, setLimitPlanIds] = useState<string[]>([])
+  const [limitPeriod, setLimitPeriod] = useState<string[]>([])
+
+  const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
 
   useEffect(() => {
     if (open) {
@@ -82,6 +108,8 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
           : ''
       )
       setGenerateCount('')
+      setLimitPlanIds((current?.limit_plan_ids ?? []).map((x) => String(x)))
+      setLimitPeriod((current?.limit_period ?? []).map(normalizePeriod))
     }
   }, [open, current])
 
@@ -102,6 +130,10 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
         limit_use_with_user: limitUseWithUser
           ? Number(limitUseWithUser)
           : null,
+        limit_plan_ids: limitPlanIds.length
+          ? limitPlanIds.map((x) => Number(x))
+          : null,
+        limit_period: limitPeriod.length ? limitPeriod : null,
         code: !isEdit && code ? code : undefined,
         generate_count:
           !isEdit && generateCount ? Number(generateCount) : undefined,
@@ -127,7 +159,11 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
         <div className='grid gap-4'>
           <div className='grid gap-2'>
             <Label>名称</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              placeholder='如 新春优惠券'
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div className='grid grid-cols-2 gap-4'>
             <div className='grid gap-2'>
@@ -156,6 +192,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               <Input
                 type='number'
                 step={type === COUPON_TYPE_AMOUNT ? '0.01' : '1'}
+                placeholder={type === COUPON_TYPE_AMOUNT ? '如 9.90' : '如 80'}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
               />
@@ -198,6 +235,35 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
                 onChange={(e) => setLimitUseWithUser(e.target.value)}
               />
             </div>
+          </div>
+          <div className='grid gap-2'>
+            <Label>指定订阅</Label>
+            <MultiCheck
+              options={(plans ?? []).map((p) => ({
+                value: String(p.id),
+                label: p.name,
+              }))}
+              selected={limitPlanIds}
+              onChange={setLimitPlanIds}
+              empty='暂无套餐'
+            />
+            <p className='text-muted-foreground text-xs'>
+              留空则不限制可用套餐。
+            </p>
+          </div>
+          <div className='grid gap-2'>
+            <Label>指定周期</Label>
+            <MultiCheck
+              options={PLAN_PERIODS.map((p) => ({
+                value: p,
+                label: PLAN_PERIOD_NAMES[p],
+              }))}
+              selected={limitPeriod}
+              onChange={setLimitPeriod}
+            />
+            <p className='text-muted-foreground text-xs'>
+              留空则不限制可用周期。
+            </p>
           </div>
           {!isEdit && (
             <div className='grid grid-cols-2 gap-4'>

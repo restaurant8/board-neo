@@ -7,7 +7,10 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { playwright } from '@vitest/browser-playwright'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Production build is served from the backend's `/assets/admin/` directory,
+  // so assets must resolve under that base. Dev server stays at root.
+  base: command === 'build' ? '/assets/admin/' : '/',
   plugins: [
     tanstackRouter({
       target: 'react',
@@ -16,6 +19,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    // Emit manifest.json so Xboard's admin.blade.php can discover the entry.
+    manifest: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -53,4 +60,4 @@ export default defineConfig({
       ],
     },
   },
-})
+}))

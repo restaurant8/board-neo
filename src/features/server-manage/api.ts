@@ -106,6 +106,10 @@ export type ServerSavePayload = {
   dns_auto_sync?: boolean
   dns_cloudflare_zone_id?: string | null
   transfer_enable?: number | null
+  code?: string | null
+  cert_config?: Record<string, unknown> | null
+  custom_outbounds?: unknown[] | null
+  custom_routes?: unknown[] | null
   protocol_settings?: Record<string, unknown>
   [key: string]: unknown
 }

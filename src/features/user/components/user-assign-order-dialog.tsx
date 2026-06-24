@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { get } from '@/lib/api-client'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Button } from '@/components/ui/button'
 import {
@@ -31,9 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PERIOD_MAP, assignOrder } from '../api'
-
-type PlanOption = { id: number; name: string }
+import { ASSIGN_PERIOD_MAP, assignOrder, fetchPlans } from '../api'
 
 const formSchema = z.object({
   email: z.string().min(1, '请输入用户邮箱').email('邮箱格式有误'),
@@ -47,21 +44,23 @@ type FormValues = z.infer<typeof formSchema>
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** 预填用户邮箱。 */
+  email?: string
 }
 
-export function OrderAssignDialog({ open, onOpenChange }: Props) {
+export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
   const queryClient = useQueryClient()
 
   const { data: plans } = useQuery({
-    queryKey: ['plans', 'brief'],
-    queryFn: () => get<PlanOption[]>('/plan/fetch'),
+    queryKey: ['plans-brief'],
+    queryFn: fetchPlans,
     enabled: open,
   })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
     defaultValues: {
-      email: '',
+      email: email ?? '',
       plan_id: '',
       period: 'month_price',
       total_amount: 0,
@@ -71,13 +70,13 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (open) {
       form.reset({
-        email: '',
+        email: email ?? '',
         plan_id: '',
         period: 'month_price',
         total_amount: 0,
       })
     }
-  }, [open, form])
+  }, [open, email, form])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -91,6 +90,7 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
     onSuccess: () => {
       toast.success('已分配订单')
       queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
       onOpenChange(false)
     },
     onError: handleServerError,
@@ -102,12 +102,12 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>分配订单</DialogTitle>
           <DialogDescription>
-            为指定用户创建一笔订单。金额单位为「元」。
+            为该用户创建一笔订单。金额单位为「元」。
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form
-            id='order-assign-form'
+            id='user-assign-order-form'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
             className='grid gap-4'
           >
@@ -130,10 +130,7 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>订阅套餐</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder='选择套餐' />
@@ -157,17 +154,14 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>订阅周期</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder='选择周期' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(PERIOD_MAP).map(([k, label]) => (
+                      {Object.entries(ASSIGN_PERIOD_MAP).map(([k, label]) => (
                         <SelectItem key={k} value={k}>
                           {label}
                         </SelectItem>
@@ -209,7 +203,7 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
           </Button>
           <Button
             type='submit'
-            form='order-assign-form'
+            form='user-assign-order-form'
             disabled={mutation.isPending}
           >
             分配

@@ -62,9 +62,13 @@ const formSchema = z.object({
   plan_id: z.string().optional(), // '' = 无套餐
   expired_at: z.string().optional(), // datetime-local，空 = 长期有效
   transfer_enable_gb: z.coerce.number().min(0, '流量不能为负'),
+  u_gb: z.coerce.number().min(0),
+  d_gb: z.coerce.number().min(0),
   balance: z.coerce.number(),
   commission_balance: z.coerce.number(),
+  commission_type: z.string(), // '0' | '1' | '2'
   commission_rate: z.string().optional(),
+  discount: z.string().optional(),
   speed_limit: z.string().optional(),
   device_limit: z.string().optional(),
   invite_user_email: z.string().optional(),
@@ -104,9 +108,13 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
       plan_id: '',
       expired_at: '',
       transfer_enable_gb: 0,
+      u_gb: 0,
+      d_gb: 0,
       balance: 0,
       commission_balance: 0,
+      commission_type: '0',
       commission_rate: '',
+      discount: '',
       speed_limit: '',
       device_limit: '',
       invite_user_email: '',
@@ -125,10 +133,14 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
         plan_id: current.plan_id ? String(current.plan_id) : '',
         expired_at: tsToInput(current.expired_at),
         transfer_enable_gb: bytesToGiB(current.transfer_enable),
+        u_gb: bytesToGiB(current.u),
+        d_gb: bytesToGiB(current.d),
         balance: current.balance,
         commission_balance: current.commission_balance,
+        commission_type: String(current.commission_type ?? 0),
         commission_rate:
           current.commission_rate != null ? String(current.commission_rate) : '',
+        discount: current.discount != null ? String(current.discount) : '',
         speed_limit: current.speed_limit != null ? String(current.speed_limit) : '',
         device_limit:
           current.device_limit != null ? String(current.device_limit) : '',
@@ -150,9 +162,13 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
         plan_id: values.plan_id ? Number(values.plan_id) : null,
         expired_at: inputToTs(values.expired_at ?? ''),
         transfer_enable: giBToBytes(values.transfer_enable_gb),
+        u: giBToBytes(values.u_gb),
+        d: giBToBytes(values.d_gb),
         balance: values.balance,
         commission_balance: values.commission_balance,
+        commission_type: Number(values.commission_type),
         commission_rate: numOrNull(values.commission_rate),
+        discount: numOrNull(values.discount),
         speed_limit: numOrNull(values.speed_limit),
         device_limit: numOrNull(values.device_limit),
         invite_user_email: values.invite_user_email?.trim() || '',
@@ -191,7 +207,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>邮箱</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input placeholder='如 user@example.com' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -257,9 +273,35 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
               name='transfer_enable_gb'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>总流量 (GB)</FormLabel>
+                  <FormLabel>流量 (GB)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' {...field} />
+                    <Input type='number' step='0.01' placeholder='请输入流量' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='u_gb'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>已用上行 (GB)</FormLabel>
+                  <FormControl>
+                    <Input type='number' step='0.01' placeholder='已用上行' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='d_gb'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>已用下行 (GB)</FormLabel>
+                  <FormControl>
+                    <Input type='number' step='0.01' placeholder='已用下行' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -272,7 +314,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>余额 (元)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' {...field} />
+                    <Input type='number' step='0.01' placeholder='如 9.90' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -285,8 +327,30 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>佣金余额 (元)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' {...field} />
+                    <Input type='number' step='0.01' placeholder='如 9.90' {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='commission_type'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>佣金类型</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='0'>跟随系统设置</SelectItem>
+                      <SelectItem value='1'>循环返利</SelectItem>
+                      <SelectItem value='2'>首次返利</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -296,9 +360,30 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
               name='commission_rate'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>专属佣金比例 (%)</FormLabel>
+                  <FormLabel>推荐返利比例 (%)</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='默认' {...field} />
+                    <Input
+                      type='number'
+                      placeholder='为空则跟随站点设置返利比例'
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='discount'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>专享折扣比例 (%)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      placeholder='为空则不享受专享折扣'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -311,7 +396,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>限速 (Mbps)</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='不限' {...field} />
+                    <Input type='number' placeholder='留空则不限速' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -322,9 +407,9 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
               name='device_limit'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>设备数限制</FormLabel>
+                  <FormLabel>设备限制</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='不限' {...field} />
+                    <Input type='number' placeholder='留空则不限制' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -337,7 +422,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>邀请人邮箱</FormLabel>
                   <FormControl>
-                    <Input placeholder='留空清除' {...field} />
+                    <Input placeholder='请输入邮箱，留空清除' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -350,7 +435,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem className='col-span-2'>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Textarea rows={2} {...field} />
+                    <Textarea rows={2} placeholder='仅管理员可见，如 VIP 客户' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -362,7 +447,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 name='banned'
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
-                    <FormLabel>封禁</FormLabel>
+                    <FormLabel>账户状态（封禁）</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -377,7 +462,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 name='is_admin'
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
-                    <FormLabel>管理员</FormLabel>
+                    <FormLabel>是否管理员</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -392,7 +477,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 name='is_staff'
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
-                    <FormLabel>员工</FormLabel>
+                    <FormLabel>是否员工</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}

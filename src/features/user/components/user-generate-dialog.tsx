@@ -31,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { adminApi } from '@/lib/api-client'
+import { Checkbox } from '@/components/ui/checkbox'
 import { fetchPlans, generateUsers } from '../api'
 
 const formSchema = z.object({
@@ -39,7 +41,8 @@ const formSchema = z.object({
   password: z.string().optional(),
   plan_id: z.string().optional(),
   expired_at: z.string().optional(),
-  generate_count: z.coerce.number().int().min(1).max(1000).optional(),
+  generate_count: z.coerce.number().int().min(1).max(500).optional(),
+  download_csv: z.boolean().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -71,6 +74,7 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
       plan_id: '',
       expired_at: '',
       generate_count: 1,
+      download_csv: false,
     },
   })
 
@@ -79,18 +83,35 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
   }, [open, form])
 
   const mutation = useMutation({
-    mutationFn: (values: FormValues) =>
-      generateUsers({
+    mutationFn: async (values: FormValues) => {
+      const payload = {
         email_prefix: values.email_prefix?.trim() || undefined,
         email_suffix: values.email_suffix.trim(),
         password: values.password?.trim() || undefined,
         plan_id: values.plan_id ? Number(values.plan_id) : null,
         expired_at: inputToTs(values.expired_at),
         generate_count: values.generate_count,
-      }),
+        download_csv: values.download_csv || undefined,
+      }
+      // 勾选导出 CSV：后端直接以文件流返回，需走 blob 下载。
+      if (values.download_csv) {
+        const res = await adminApi.post('/user/generate', payload, {
+          responseType: 'blob',
+        })
+        const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `users_${Date.now()}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+        return null
+      }
+      return generateUsers(payload)
+    },
     onSuccess: (list) => {
       const n = Array.isArray(list) ? list.length : 1
-      toast.success(`已生成 ${n} 个用户`)
+      toast.success(list ? `生成成功（${n} 个用户）` : '生成成功，已下载 CSV')
       queryClient.invalidateQueries({ queryKey: ['users'] })
       onOpenChange(false)
     },
@@ -101,9 +122,9 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>生成用户</DialogTitle>
+          <DialogTitle>创建用户</DialogTitle>
           <DialogDescription>
-            按数量批量生成。填写邮箱前缀则按「前缀_序号@后缀」生成，否则随机前缀。
+            填写帐号则单个创建（批量生成请留空帐号）。填写帐号并指定生成数量时按「帐号_序号@域」生成，否则随机前缀。
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -117,9 +138,9 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
               name='email_prefix'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>邮箱前缀</FormLabel>
+                  <FormLabel>帐号(批量生成请留空)</FormLabel>
                   <FormControl>
-                    <Input placeholder='可空（随机）' {...field} />
+                    <Input placeholder='留空随机，如 vip' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -130,9 +151,9 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
               name='email_suffix'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>邮箱后缀（域名）</FormLabel>
+                  <FormLabel>域</FormLabel>
                   <FormControl>
-                    <Input placeholder='example.com' {...field} />
+                    <Input placeholder='如 example.com' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -145,7 +166,13 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
                 <FormItem>
                   <FormLabel>生成数量</FormLabel>
                   <FormControl>
-                    <Input type='number' min={1} {...field} />
+                    <Input
+                      type='number'
+                      min={1}
+                      max={500}
+                      placeholder='如果为批量生产请输入生成数量'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -158,7 +185,7 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
                 <FormItem>
                   <FormLabel>密码</FormLabel>
                   <FormControl>
-                    <Input placeholder='留空=邮箱' {...field} />
+                    <Input placeholder='留空则密码与邮件相同' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -169,18 +196,18 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
               name='plan_id'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>套餐</FormLabel>
+                  <FormLabel>订阅计划</FormLabel>
                   <Select
                     value={field.value || 'none'}
                     onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder='无套餐' />
+                        <SelectValue placeholder='无' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value='none'>无套餐</SelectItem>
+                      <SelectItem value='none'>无</SelectItem>
                       {plans?.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
@@ -201,8 +228,25 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
                   <FormControl>
                     <Input type='datetime-local' {...field} />
                   </FormControl>
-                  <FormDescription>留空为长期有效</FormDescription>
+                  <FormDescription>
+                    请选择用户到期日期，留空为长期有效
+                  </FormDescription>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='download_csv'
+              render={({ field }) => (
+                <FormItem className='col-span-2 flex items-center gap-2'>
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormLabel className='!mt-0'>导出为 CSV 文件</FormLabel>
                 </FormItem>
               )}
             />

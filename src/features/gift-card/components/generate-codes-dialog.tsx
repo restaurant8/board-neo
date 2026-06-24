@@ -106,6 +106,7 @@ export function GenerateCodesDialog({
                 type='number'
                 min='1'
                 max='10000'
+                placeholder='如 100'
                 value={count}
                 onChange={(e) => setCount(e.target.value)}
               />
@@ -134,6 +135,7 @@ export function GenerateCodesDialog({
               <Input
                 type='number'
                 min='1'
+                placeholder='如 1'
                 value={maxUsage}
                 onChange={(e) => setMaxUsage(e.target.value)}
               />

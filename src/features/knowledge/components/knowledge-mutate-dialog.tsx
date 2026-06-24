@@ -147,7 +147,7 @@ export function KnowledgeMutateDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>标题</FormLabel>
                   <FormControl>
-                    <Input placeholder='文章标题' {...field} />
+                    <Input placeholder='如 如何导入订阅' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

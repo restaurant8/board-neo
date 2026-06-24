@@ -36,23 +36,37 @@ type Props = {
   onOpenChange: (open: boolean) => void
   /** 当前筛选条件；为空则发送全部。 */
   filter?: UserFilter[]
+  /** 当前多选的用户 id；非空时优先按选中发送。 */
+  selectedIds?: number[]
 }
 
-export function UserSendMailDialog({ open, onOpenChange, filter }: Props) {
+export function UserSendMailDialog({
+  open,
+  onOpenChange,
+  filter,
+  selectedIds,
+}: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { subject: '', content: '' },
   })
 
+  const hasSelection = !!selectedIds && selectedIds.length > 0
   const hasFilter = !!filter && filter.length > 0
+  const scope: 'selected' | 'filtered' | 'all' = hasSelection
+    ? 'selected'
+    : hasFilter
+      ? 'filtered'
+      : 'all'
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       sendMail({
         subject: values.subject,
         content: values.content,
-        scope: hasFilter ? 'filtered' : 'all',
-        filter: hasFilter ? filter : undefined,
+        scope,
+        user_ids: scope === 'selected' ? selectedIds : undefined,
+        filter: scope === 'filtered' ? filter : undefined,
       }),
     onSuccess: () => {
       toast.success('邮件任务已加入队列')
@@ -66,10 +80,15 @@ export function UserSendMailDialog({ open, onOpenChange, filter }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>群发邮件</DialogTitle>
+          <DialogTitle>发送邮件</DialogTitle>
           <DialogDescription>
-            发送对象：{hasFilter ? '当前筛选结果' : '全部用户'}。支持占位符如{' '}
-            {'{user.email}'}。
+            向所选或已筛选的用户发送邮件。发送对象：
+            {scope === 'selected'
+              ? `选中的 ${selectedIds!.length} 个用户`
+              : scope === 'filtered'
+                ? '当前筛选结果'
+                : '全部用户'}
+            。支持占位符如 {'{user.email}'}。
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -85,7 +104,7 @@ export function UserSendMailDialog({ open, onOpenChange, filter }: Props) {
                 <FormItem>
                   <FormLabel>主题</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input placeholder='如 套餐到期提醒' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -98,7 +117,11 @@ export function UserSendMailDialog({ open, onOpenChange, filter }: Props) {
                 <FormItem>
                   <FormLabel>内容</FormLabel>
                   <FormControl>
-                    <Textarea rows={8} {...field} />
+                    <Textarea
+                      rows={8}
+                      placeholder={'如 您好 {user.email}，您的套餐即将到期...'}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -1,0 +1,88 @@
+name: Build & deploy admin to Xboard
+
+# 改 board-neo 源码并推到 main → 自动构建 → 把编译产物提交进 restaurant8/Xboard
+# 的 public/assets/admin/ → 服务器只需 git pull 即可更新管理面板。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+    steps:
+      - name: Checkout board-neo (admin 源码)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Stage assets/admin
+        run: |
+          mkdir -p out/assets/admin
+          cp -r dist/assets out/assets/admin/assets
+          if [ -d dist/images ]; then cp -r dist/images out/assets/admin/images; fi
+          cp dist/.vite/manifest.json out/assets/admin/manifest.json
+
+      - name: Checkout Xboard (后端仓库)
+        uses: actions/checkout@v4
+        with:
+          repository: restaurant8/Xboard
+          token: ${{ secrets.XBOARD_DEPLOY_TOKEN }}
+          path: xboard
+          ref: main
+
+      - name: Sync 产物到 Xboard/public/assets/admin
+        run: |
+          DST=xboard/public/assets/admin
+          mkdir -p "$DST"
+          # 清旧编译产物 + 旧注入脚本（功能已原生写进面板）
+          rm -rf "$DST/assets"
+          rm -f "$DST/manifest.json" \
+                "$DST/dns-auto-sync-ui.js" \
+                "$DST/node-backend-manager.js" \
+                "$DST/dns-sync-manager.js" \
+                "$DST/user-usage-record.js" \
+                "$DST/index.html" \
+                "$DST/index.legacy.html"
+          cp -r out/assets/admin/assets "$DST/assets"
+          if [ -d out/assets/admin/images ]; then rm -rf "$DST/images"; cp -r out/assets/admin/images "$DST/images"; fi
+          cp out/assets/admin/manifest.json "$DST/manifest.json"
+
+      - name: Commit & push 到 Xboard
+        run: |
+          cd xboard
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/assets/admin
+          if git diff --cached --quiet; then
+            echo "无变更，跳过提交"
+          else
+            git commit -m "chore(admin): rebuild from board-neo@${GITHUB_SHA::7}"
+            git push
+          fi
+
+      # ── 可选：构建后自动 SSH 到服务器 git pull + 清缓存（真正全自动 CD）──
+      # 需在 board-neo 仓库 Secrets 配置 SSH_HOST / SSH_USER / SSH_KEY / SITE_PATH
+      - name: (可选) SSH 部署到服务器
+        if: ${{ env.SSH_HOST != '' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ${{ secrets.SITE_PATH }}
+            git pull --ff-only
+            php artisan optimize:clear

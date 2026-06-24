@@ -201,7 +201,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>套餐名称</FormLabel>
                     <FormControl>
-                      <Input placeholder='套餐名称' {...field} />
+                      <Input placeholder='如 高级套餐' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -245,7 +245,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>流量配额 (GB)</FormLabel>
                     <FormControl>
-                      <Input type='number' min={1} {...field} />
+                      <Input type='number' min={1} placeholder='如 100' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -258,7 +258,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>速度限制 (Mbps，留空不限)</FormLabel>
                     <FormControl>
-                      <Input type='number' min={0} {...field} />
+                      <Input type='number' min={0} placeholder='如 100' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -271,7 +271,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>设备数限制 (留空不限)</FormLabel>
                     <FormControl>
-                      <Input type='number' min={0} {...field} />
+                      <Input type='number' min={0} placeholder='如 3' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -284,7 +284,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>可购买人数 (留空不限)</FormLabel>
                     <FormControl>
-                      <Input type='number' min={0} {...field} />
+                      <Input type='number' min={0} placeholder='如 500' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

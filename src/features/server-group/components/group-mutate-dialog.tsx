@@ -82,7 +82,7 @@ export function GroupMutateDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>名称</FormLabel>
                   <FormControl>
-                    <Input placeholder='权限组名称' {...field} />
+                    <Input placeholder='如 VIP会员 或 普通用户' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

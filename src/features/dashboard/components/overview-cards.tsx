@@ -1,12 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  Activity,
   ArrowDownRight,
   ArrowUpRight,
   DollarSign,
   LifeBuoy,
-  Server,
-  Smartphone,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -122,25 +119,28 @@ export function OverviewCards() {
         sub={`活跃 ${data.activeUsers}`}
       />
       <StatCard
-        title='在线用户 / 设备'
-        value={`${data.onlineUsers} / ${data.onlineDevices}`}
-        icon={<Smartphone className='size-4' />}
-      />
-      <StatCard
-        title='在线节点'
-        value={data.onlineNodes}
-        icon={<Server className='size-4' />}
-      />
-      <StatCard
-        title='待处理工单 / 佣金'
-        value={`${data.ticketPendingTotal} / ${data.commissionPendingTotal}`}
+        title='待处理工单'
+        value={data.ticketPendingTotal}
         icon={<LifeBuoy className='size-4' />}
+        sub='有工单需要处理'
       />
       <StatCard
-        title='今日流量'
-        value={formatBytes(data.todayTraffic.total)}
-        icon={<Activity className='size-4' />}
-        sub={`本月 ${formatBytes(data.monthTraffic.total)}`}
+        title='待处理佣金'
+        value={data.commissionPendingTotal}
+        icon={<DollarSign className='size-4' />}
+        sub='有佣金需要确认'
+      />
+      <StatCard
+        title='月上传'
+        value={formatBytes(data.monthTraffic.upload)}
+        icon={<ArrowUpRight className='size-4' />}
+        sub={`今日：${formatBytes(data.todayTraffic.upload)}`}
+      />
+      <StatCard
+        title='月下载'
+        value={formatBytes(data.monthTraffic.download)}
+        icon={<ArrowDownRight className='size-4' />}
+        sub={`今日：${formatBytes(data.todayTraffic.download)}`}
       />
     </div>
   )

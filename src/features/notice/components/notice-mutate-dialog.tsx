@@ -116,8 +116,11 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>标题</FormLabel>
                   <FormControl>
-                    <Input placeholder='公告标题' {...field} />
+                    <Input placeholder='请输入公告标题' {...field} />
                   </FormControl>
+                  <p className='text-muted-foreground text-xs'>
+                    公告标题，显示在公告列表与弹窗顶部。
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -127,10 +130,13 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
               name='content'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>内容</FormLabel>
+                  <FormLabel>公告内容</FormLabel>
                   <FormControl>
-                    <Textarea rows={6} placeholder='支持 HTML/Markdown' {...field} />
+                    <Textarea rows={6} placeholder='请输入公告内容，支持 HTML / Markdown' {...field} />
                   </FormControl>
+                  <p className='text-muted-foreground text-xs'>
+                    公告正文，支持 HTML / Markdown 富文本。
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -140,10 +146,13 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
               name='img_url'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>图片地址</FormLabel>
+                  <FormLabel>公告背景</FormLabel>
                   <FormControl>
-                    <Input placeholder='https://...' {...field} />
+                    <Input placeholder='请输入公告背景图片URL' {...field} />
                   </FormControl>
+                  <p className='text-muted-foreground text-xs'>
+                    公告背景图片地址（可选），留空则不显示背景图。
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -157,6 +166,9 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormControl>
                     <Input placeholder='活动,公告' {...field} />
                   </FormControl>
+                  <p className='text-muted-foreground text-xs'>
+                    公告标签，多个标签用英文逗号分隔。
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -167,7 +179,7 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
                 name='show'
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
-                    <FormLabel>显示</FormLabel>
+                    <FormLabel title='开启后该公告将在用户端展示。'>显示</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -182,7 +194,7 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
                 name='popup'
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
-                    <FormLabel>弹窗</FormLabel>
+                    <FormLabel title='开启后用户进入站点时将以弹窗形式提示该公告。'>弹窗</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}

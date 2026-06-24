@@ -119,7 +119,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                     <Input
                       type='password'
                       autoComplete='off'
-                      placeholder='Cloudflare API Token'
+                      placeholder='粘贴 Cloudflare API Token'
                       {...field}
                     />
                   </FormControl>
@@ -156,7 +156,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input placeholder='备注' {...field} />
+                          <Input placeholder='如 主域名 example.com' {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -167,7 +167,10 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input placeholder='Cloudflare Zone ID' {...field} />
+                          <Input
+                            placeholder='Cloudflare Zone ID，如 023e105f4ec...'
+                            {...field}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -211,6 +214,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                         type='number'
                         min={1}
                         className='w-32'
+                        placeholder='如 1（自动）或 300'
                         {...field}
                       />
                     </FormControl>

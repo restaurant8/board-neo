@@ -48,8 +48,14 @@ export type User = {
   token: string
   uuid: string
   subscribe_url?: string
+  /** 在线设备数（v2_user.online_count）。 */
   online_count?: number
+  /** 最后在线时间戳（秒），0 = 从未在线（v2_user.t）。 */
   t?: number
+  /** 最后登录时间戳（秒）。 */
+  last_login_at?: number | null
+  /** 最后登录 IP（整数形式存储）。 */
+  last_login_ip?: number | null
   created_at: number
   updated_at: number
   plan?: PlanBrief | null
@@ -146,6 +152,8 @@ export type GeneratePayload = {
   plan_id?: number | null
   expired_at?: number | null
   generate_count?: number
+  /** 为真时后端直接以 CSV 流下载（不返回 JSON 列表）。 */
+  download_csv?: boolean
 }
 
 export type GeneratedUser = {
@@ -242,6 +250,132 @@ export function clearUsageRecords(params: ClearUsageParams) {
     if (v !== undefined && v !== '' && v !== null) clean[k] = v
   })
   return post<{ deleted: number }>('/user/clearUsageRecords', clean)
+}
+
+// ----- 分配订单（OrderController::assign，复用 order 模块语义）-----
+
+/**
+ * 订阅周期键（旧版 *_price），assign 接口入参用这些键。
+ * 与 order 模块 PERIOD_MAP 保持一致。
+ */
+export const ASSIGN_PERIOD_MAP: Record<string, string> = {
+  month_price: '月付',
+  quarter_price: '季付',
+  half_year_price: '半年付',
+  year_price: '年付',
+  two_year_price: '两年付',
+  three_year_price: '三年付',
+  onetime_price: '一次性',
+  reset_price: '流量重置包',
+}
+
+export type AssignOrderPayload = {
+  email: string
+  plan_id: number
+  /** 周期键，如 month_price。 */
+  period: string
+  /** 单位：分。 */
+  total_amount: number
+}
+
+/** POST /order/assign — 为指定用户分配订单（返回 trade_no）。 */
+export function assignOrder(payload: AssignOrderPayload) {
+  return post<string>('/order/assign', payload)
+}
+
+// ----- TA的订单（OrderController::fetch 按 user_id 过滤）-----
+
+export const ORDER_STATUS_MAP: Record<number, string> = {
+  0: '待支付',
+  1: '开通中',
+  2: '已取消',
+  3: '已完成',
+  4: '已折抵',
+}
+
+export type UserOrder = {
+  id: number
+  trade_no: string
+  plan_id: number
+  /** 旧版周期键。 */
+  period: string | null
+  /** 分。 */
+  total_amount: number
+  type: number
+  status: number
+  created_at: number
+  plan?: PlanBrief | null
+}
+
+/** GET /order/fetch — 按 user_id 过滤该用户订单。 */
+export function fetchUserOrders(userId: number, current = 1, pageSize = 20) {
+  return getPaginated<UserOrder>('/order/fetch', {
+    current,
+    pageSize,
+    filter: [{ id: 'user_id', value: `eq:${userId}` }],
+  })
+}
+
+// ----- TA的邀请（UserController::fetch 按 invite_user_id 过滤）-----
+
+export type InvitedUser = {
+  id: number
+  email: string
+  created_at: number
+  expired_at: number | null
+  banned: number
+  plan?: PlanBrief | null
+}
+
+/** GET /user/fetch — 按 invite_user_id 过滤该用户邀请的下级。 */
+export function fetchInvitedUsers(userId: number, current = 1, pageSize = 20) {
+  return getPaginated<InvitedUser>('/user/fetch', {
+    current,
+    pageSize,
+    filter: [{ id: 'invite_user_id', value: `eq:${userId}` }],
+  })
+}
+
+// ----- TA的流量记录（StatController::getStatUser）-----
+
+/** v2_stat_user 行（每日流量聚合）。 */
+export type StatUserRecord = {
+  id: number
+  user_id: number
+  /** 上行（字节）。 */
+  u: number
+  /** 下行（字节）。 */
+  d: number
+  /** 记录时间（秒级时间戳）。 */
+  record_at: number
+}
+
+/** getStatUser 返回结构（非标准信封：{ data, total }）。 */
+export type StatUserResult = {
+  data: StatUserRecord[]
+  total: number
+}
+
+/**
+ * GET /stat/getStatUser — 按 user_id 的每日流量记录。
+ * 返回非标准信封 { data, total }，api-client 不会拆包，原样返回。
+ */
+export function fetchUserTraffic(userId: number, page = 1, pageSize = 20) {
+  return get<StatUserResult>('/stat/getStatUser', {
+    user_id: userId,
+    page,
+    pageSize,
+  })
+}
+
+// ----- 重置流量（TrafficResetController::resetUser）-----
+
+/** POST /traffic-reset/reset-user — 手动重置用户流量。 */
+export function resetUserTraffic(userId: number, reason?: string) {
+  return post<{ user_id: number; email: string }>(
+    '/traffic-reset/reset-user',
+    { user_id: userId, reason: reason || undefined }
+  )
 }
 
 // ----- 套餐下拉（来自 PlanController::fetch）-----

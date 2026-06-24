@@ -261,14 +261,29 @@ export function BackendManager() {
                 </TableCell>
               </TableRow>
             ) : isError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className='h-24 text-center text-destructive'
-                >
-                  加载失败：{(error as Error)?.message}
-                </TableCell>
-              </TableRow>
+              (() => {
+                const status = (
+                  error as { response?: { status?: number } } | null
+                )?.response?.status
+                const unavailable = status === 404 || status === 403
+                return (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className={
+                        'h-24 text-center ' +
+                        (unavailable
+                          ? 'text-muted-foreground'
+                          : 'text-destructive')
+                      }
+                    >
+                      {unavailable
+                        ? '当前后端未启用「后端管理」功能（该接口不存在，需使用支持节点远程管理的 Xboard 版本）。'
+                        : `加载失败：${(error as Error)?.message}`}
+                    </TableCell>
+                  </TableRow>
+                )
+              })()
             ) : backends.length > 0 ? (
               backends.map((b) => {
                 const key = backendKey(b)

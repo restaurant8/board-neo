@@ -125,7 +125,7 @@ export function RouteMutateDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Input placeholder='规则备注' {...field} />
+                    <Input placeholder='如 屏蔽广告 或 国内直连' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -180,7 +180,7 @@ export function RouteMutateDialog({ open, onOpenChange, current }: Props) {
                   <FormItem>
                     <FormLabel>动作值</FormLabel>
                     <FormControl>
-                      <Input placeholder='例如：1.1.1.1' {...field} />
+                      <Input placeholder='如 1.1.1.1' {...field} />
                     </FormControl>
                     <FormDescription>动作为 DNS 时指定目标 DNS。</FormDescription>
                     <FormMessage />

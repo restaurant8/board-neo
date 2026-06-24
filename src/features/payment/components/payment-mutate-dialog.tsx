@@ -133,7 +133,11 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
           <div className='grid gap-4'>
             <div className='grid gap-2'>
               <Label>显示名称</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                placeholder='如 支付宝'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className='grid gap-2'>
               <Label>图标</Label>
@@ -215,6 +219,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
                 <Input
                   type='number'
                   step='0.01'
+                  placeholder='如 0.50'
                   value={feeFixed}
                   onChange={(e) => setFeeFixed(e.target.value)}
                 />
@@ -224,6 +229,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
                 <Input
                   type='number'
                   step='0.01'
+                  placeholder='如 2.5'
                   value={feePercent}
                   onChange={(e) => setFeePercent(e.target.value)}
                 />

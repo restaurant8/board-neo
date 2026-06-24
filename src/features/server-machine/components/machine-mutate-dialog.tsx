@@ -111,7 +111,7 @@ export function MachineMutateDialog({
                 <FormItem>
                   <FormLabel>名称</FormLabel>
                   <FormControl>
-                    <Input placeholder='机器名称' {...field} />
+                    <Input placeholder='如 香港-阿里云-01' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -124,7 +124,11 @@ export function MachineMutateDialog({
                 <FormItem>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} placeholder='可选备注' {...field} />
+                    <Textarea
+                      rows={3}
+                      placeholder='如 2核4G，到期时间 2026-12'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

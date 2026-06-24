@@ -27,6 +27,7 @@ import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
+import { Route as AuthenticatedTrafficStatIndexRouteImport } from './routes/_authenticated/traffic-stat/index'
 import { Route as AuthenticatedTrafficResetIndexRouteImport } from './routes/_authenticated/traffic-reset/index'
 import { Route as AuthenticatedTicketIndexRouteImport } from './routes/_authenticated/ticket/index'
 import { Route as AuthenticatedThemeIndexRouteImport } from './routes/_authenticated/theme/index'
@@ -59,6 +60,7 @@ import { Route as AuthenticatedServerManageIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedServerMachineIndexRouteImport } from './routes/_authenticated/server/machine/index'
 import { Route as AuthenticatedServerGroupIndexRouteImport } from './routes/_authenticated/server/group/index'
 import { Route as AuthenticatedServerDnsIndexRouteImport } from './routes/_authenticated/server/dns/index'
+import { Route as AuthenticatedServerBackendIndexRouteImport } from './routes/_authenticated/server/backend/index'
 
 const ClerkRouteRoute = ClerkRouteRouteImport.update({
   id: '/clerk',
@@ -148,6 +150,12 @@ const AuthenticatedUserIndexRoute = AuthenticatedUserIndexRouteImport.update({
   path: '/user/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTrafficStatIndexRoute =
+  AuthenticatedTrafficStatIndexRouteImport.update({
+    id: '/traffic-stat/',
+    path: '/traffic-stat/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTrafficResetIndexRoute =
   AuthenticatedTrafficResetIndexRouteImport.update({
     id: '/traffic-reset/',
@@ -332,6 +340,12 @@ const AuthenticatedServerDnsIndexRoute =
     path: '/server/dns/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedServerBackendIndexRoute =
+  AuthenticatedServerBackendIndexRouteImport.update({
+    id: '/server/backend/',
+    path: '/server/backend/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -374,8 +388,10 @@ export interface FileRoutesByFullPath {
   '/theme/': typeof AuthenticatedThemeIndexRoute
   '/ticket/': typeof AuthenticatedTicketIndexRoute
   '/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
+  '/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns/': typeof AuthenticatedServerDnsIndexRoute
   '/server/group/': typeof AuthenticatedServerGroupIndexRoute
   '/server/machine/': typeof AuthenticatedServerMachineIndexRoute
@@ -422,8 +438,10 @@ export interface FileRoutesByTo {
   '/theme': typeof AuthenticatedThemeIndexRoute
   '/ticket': typeof AuthenticatedTicketIndexRoute
   '/traffic-reset': typeof AuthenticatedTrafficResetIndexRoute
+  '/traffic-stat': typeof AuthenticatedTrafficStatIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/server/backend': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns': typeof AuthenticatedServerDnsIndexRoute
   '/server/group': typeof AuthenticatedServerGroupIndexRoute
   '/server/machine': typeof AuthenticatedServerMachineIndexRoute
@@ -475,8 +493,10 @@ export interface FileRoutesById {
   '/_authenticated/theme/': typeof AuthenticatedThemeIndexRoute
   '/_authenticated/ticket/': typeof AuthenticatedTicketIndexRoute
   '/_authenticated/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
+  '/_authenticated/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/_authenticated/server/dns/': typeof AuthenticatedServerDnsIndexRoute
   '/_authenticated/server/group/': typeof AuthenticatedServerGroupIndexRoute
   '/_authenticated/server/machine/': typeof AuthenticatedServerMachineIndexRoute
@@ -526,8 +546,10 @@ export interface FileRouteTypes {
     | '/theme/'
     | '/ticket/'
     | '/traffic-reset/'
+    | '/traffic-stat/'
     | '/user/'
     | '/users/'
+    | '/server/backend/'
     | '/server/dns/'
     | '/server/group/'
     | '/server/machine/'
@@ -574,8 +596,10 @@ export interface FileRouteTypes {
     | '/theme'
     | '/ticket'
     | '/traffic-reset'
+    | '/traffic-stat'
     | '/user'
     | '/users'
+    | '/server/backend'
     | '/server/dns'
     | '/server/group'
     | '/server/machine'
@@ -626,8 +650,10 @@ export interface FileRouteTypes {
     | '/_authenticated/theme/'
     | '/_authenticated/ticket/'
     | '/_authenticated/traffic-reset/'
+    | '/_authenticated/traffic-stat/'
     | '/_authenticated/user/'
     | '/_authenticated/users/'
+    | '/_authenticated/server/backend/'
     | '/_authenticated/server/dns/'
     | '/_authenticated/server/group/'
     | '/_authenticated/server/machine/'
@@ -776,6 +802,13 @@ declare module '@tanstack/react-router' {
       path: '/user'
       fullPath: '/user/'
       preLoaderRoute: typeof AuthenticatedUserIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/traffic-stat/': {
+      id: '/_authenticated/traffic-stat/'
+      path: '/traffic-stat'
+      fullPath: '/traffic-stat/'
+      preLoaderRoute: typeof AuthenticatedTrafficStatIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/traffic-reset/': {
@@ -1002,6 +1035,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServerDnsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server/backend/': {
+      id: '/_authenticated/server/backend/'
+      path: '/server/backend'
+      fullPath: '/server/backend/'
+      preLoaderRoute: typeof AuthenticatedServerBackendIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -1050,8 +1090,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedThemeIndexRoute: typeof AuthenticatedThemeIndexRoute
   AuthenticatedTicketIndexRoute: typeof AuthenticatedTicketIndexRoute
   AuthenticatedTrafficResetIndexRoute: typeof AuthenticatedTrafficResetIndexRoute
+  AuthenticatedTrafficStatIndexRoute: typeof AuthenticatedTrafficStatIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedServerBackendIndexRoute: typeof AuthenticatedServerBackendIndexRoute
   AuthenticatedServerDnsIndexRoute: typeof AuthenticatedServerDnsIndexRoute
   AuthenticatedServerGroupIndexRoute: typeof AuthenticatedServerGroupIndexRoute
   AuthenticatedServerMachineIndexRoute: typeof AuthenticatedServerMachineIndexRoute
@@ -1081,8 +1123,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedThemeIndexRoute: AuthenticatedThemeIndexRoute,
   AuthenticatedTicketIndexRoute: AuthenticatedTicketIndexRoute,
   AuthenticatedTrafficResetIndexRoute: AuthenticatedTrafficResetIndexRoute,
+  AuthenticatedTrafficStatIndexRoute: AuthenticatedTrafficStatIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedServerBackendIndexRoute: AuthenticatedServerBackendIndexRoute,
   AuthenticatedServerDnsIndexRoute: AuthenticatedServerDnsIndexRoute,
   AuthenticatedServerGroupIndexRoute: AuthenticatedServerGroupIndexRoute,
   AuthenticatedServerMachineIndexRoute: AuthenticatedServerMachineIndexRoute,
