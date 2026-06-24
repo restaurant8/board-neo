@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Settings, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { saveConfig } from '@/features/config/api'
+import { FileDropzone } from '@/components/file-dropzone'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
@@ -25,7 +26,6 @@ import { ThemeConfigDialog } from './components/theme-config-dialog'
 
 export function ThemePage() {
   const queryClient = useQueryClient()
-  const fileRef = useRef<HTMLInputElement>(null)
   const [configTheme, setConfigTheme] = useState<ThemeItem | null>(null)
   const [deleting, setDeleting] = useState<ThemeItem | null>(null)
 
@@ -79,29 +79,17 @@ export function ThemePage() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-4'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>主题管理</h2>
-            <p className='text-muted-foreground'>上传、配置、切换前端主题。</p>
-          </div>
-          <Button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploadMutation.isPending}
-          >
-            <Upload className='size-4' /> 上传主题
-          </Button>
-          <input
-            ref={fileRef}
-            type='file'
-            accept='.zip'
-            className='hidden'
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) uploadMutation.mutate(f)
-              e.target.value = ''
-            }}
-          />
+        <div>
+          <h2 className='text-2xl font-bold tracking-tight'>主题管理</h2>
+          <p className='text-muted-foreground'>上传、配置、切换前端主题。</p>
         </div>
+        <FileDropzone
+          onFile={(f) => uploadMutation.mutate(f)}
+          loading={uploadMutation.isPending}
+          accept='.zip'
+          title='拖拽 .zip 主题包到此处，或点击选择'
+          hint='仅支持 .zip 格式的主题包'
+        />
 
         {isLoading ? (
           <div className='text-muted-foreground py-12 text-center'>加载中...</div>

@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpCircle, Settings, Trash2, Upload } from 'lucide-react'
+import { ArrowUpCircle, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { FileDropzone } from '@/components/file-dropzone'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
@@ -35,7 +36,6 @@ import { PluginConfigDialog } from './components/plugin-config-dialog'
 
 export function PluginPage() {
   const queryClient = useQueryClient()
-  const fileRef = useRef<HTMLInputElement>(null)
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null)
   const [deleting, setDeleting] = useState<Plugin | null>(null)
 
@@ -91,29 +91,17 @@ export function PluginPage() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-4'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>插件管理</h2>
-            <p className='text-muted-foreground'>安装、启用、配置与升级插件。</p>
-          </div>
-          <Button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploadMutation.isPending}
-          >
-            <Upload className='size-4' /> 上传插件
-          </Button>
-          <input
-            ref={fileRef}
-            type='file'
-            accept='.zip'
-            className='hidden'
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) uploadMutation.mutate(f)
-              e.target.value = ''
-            }}
-          />
+        <div>
+          <h2 className='text-2xl font-bold tracking-tight'>插件管理</h2>
+          <p className='text-muted-foreground'>安装、启用、配置与升级插件。</p>
         </div>
+        <FileDropzone
+          onFile={(f) => uploadMutation.mutate(f)}
+          loading={uploadMutation.isPending}
+          accept='.zip'
+          title='拖拽 .zip 插件包到此处，或点击选择'
+          hint='仅支持 .zip 格式的插件包'
+        />
 
         {isLoading ? (
           <div className='text-muted-foreground py-12 text-center'>加载中...</div>
