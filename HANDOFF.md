@@ -20,11 +20,11 @@ npm run build    # 产物在 dist/
 ## 配置（部署时改，无需重新构建）
 `public/settings.js` 注入 `window.XBOARD_CONFIG`：
 ```js
-window.XBOARD_CONFIG = { apiBase: '', securePath: 'a4bd57db', title: 'Xboard' }
+window.XBOARD_CONFIG = { apiBase: '', securePath: '<secure_path>', title: 'Xboard' }
 ```
 - `apiBase`：后端源。`''` = 同源（生产由 Laravel public 提供；dev 由 Vite 代理）。
 - `securePath`：后台动态前缀 `admin_setting('secure_path')`。
-- dev 代理：`vite.config.ts` 把 `/api` 转发到 `VITE_PROXY_TARGET`（默认 `http://16.162.24.250`）。
+- dev 代理：`vite.config.ts` 把 `/api` 转发到 `VITE_PROXY_TARGET`（默认 `https://<你的站点>`）。
 
 ## 架构
 - `src/lib/config.ts`：运行时配置。

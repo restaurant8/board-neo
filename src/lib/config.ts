@@ -50,7 +50,7 @@ export const config = {
     normalizeBase(blade.base_url) ??
     import.meta.env.VITE_API_BASE ??
     '',
-  /** Dynamic admin path prefix, e.g. "readmin0". */
+  /** Dynamic admin path prefix, e.g. "admin". */
   securePath:
     injected.securePath ??
     blade.secure_path ??

@@ -33,8 +33,10 @@ export default defineConfig(({ command }) => ({
       // Dev proxy to the Xboard backend to avoid CORS. Point this at any
       // running Xboard instance; keep settings.js apiBase '' so the SPA calls
       // same-origin /api/* which Vite forwards here.
+      // 开发联调目标后端。请在本地 `.env.local`(已被 .gitignore 忽略)里设
+      // VITE_PROXY_TARGET=https://你的站点 ；默认仅指向本机,避免泄露真实地址。
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://16.162.24.250',
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1',
         changeOrigin: true,
         secure: false,
       },
