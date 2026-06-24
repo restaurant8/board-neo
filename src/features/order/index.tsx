@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getRouteApi } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Eye, Check, X, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -49,8 +50,11 @@ function statusVariant(status: number) {
   return 'secondary' as const
 }
 
+const route = getRouteApi('/_authenticated/order/')
+
 export function OrderPage() {
   const queryClient = useQueryClient()
+  const navigate = route.useNavigate()
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
   const [search, setSearch] = useState('')
@@ -60,14 +64,16 @@ export function OrderPage() {
   const [paying, setPaying] = useState<Order | null>(null)
   const [cancelling, setCancelling] = useState<Order | null>(null)
 
+  const { is_commission } = route.useSearch()
+
   const filter = keyword
     ? [{ id: 'trade_no', value: keyword }]
     : undefined
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', page, pageSize, keyword],
+    queryKey: ['orders', page, pageSize, keyword, is_commission],
     queryFn: () =>
-      fetchOrders({ current: page, pageSize, filter }),
+      fetchOrders({ current: page, pageSize, filter, is_commission }),
   })
 
   const paidMutation = useMutation({
@@ -115,6 +121,22 @@ export function OrderPage() {
             <Plus className='size-4' /> 分配订单
           </Button>
         </div>
+
+        {is_commission && (
+          <div className='bg-muted/50 flex items-center gap-2 rounded-md border px-3 py-2 text-sm'>
+            <span>仅显示待处理佣金的订单</span>
+            <button
+              type='button'
+              className='text-primary ms-auto underline'
+              onClick={() => {
+                setPage(1)
+                navigate({ search: {} })
+              }}
+            >
+              清除筛选
+            </button>
+          </div>
+        )}
 
         <form
           className='flex gap-2'

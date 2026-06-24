@@ -1,12 +1,17 @@
-name: Build & deploy admin
+name: Build admin (no server deploy)
 
 # 改 board-neo 源码并推 main → 自动构建 → 把产物推到子模块仓库
-# restaurant8/board-neo-admin-dist → 在 restaurant8/Xboard 更新子模块指针。
-# 服务器: git pull && git submodule update --init --recursive && php artisan optimize:clear
+# restaurant8/board-neo-admin-dist。
+#
+# 注意：本工作流【不会】改动 restaurant8/Xboard 仓库，也【不会】SSH 到服务器，
+# 因此推送 board-neo 不会影响线上后台——服务器保持当前（原版）admin 不变。
+#
+# 将来若要把线上切到本项目：手动在 Xboard 仓库把 .gitmodules 的
+# public/assets/admin 改指向 board-neo-admin-dist，并 bump 子模块指针，再在
+# 服务器执行 git pull && git submodule update --init --recursive && php artisan optimize:clear。
 #
 # 需在 board-neo 仓库 Secrets 配置 XBOARD_DEPLOY_TOKEN:
-#   Fine-grained PAT，对 restaurant8/board-neo-admin-dist 与 restaurant8/Xboard
-#   均授予 Contents: Read and write。
+#   Fine-grained PAT，对 restaurant8/board-neo-admin-dist 授予 Contents: Read and write。
 
 on:
   push:
@@ -16,8 +21,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
     steps:
       - name: Checkout board-neo
         uses: actions/checkout@v4
@@ -67,37 +70,6 @@ jobs:
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout Xboard
-        uses: actions/checkout@v4
-        with:
-          repository: restaurant8/Xboard
-          token: ${{ secrets.XBOARD_DEPLOY_TOKEN }}
-          path: xboard
-          ref: main
-
-      - name: Bump submodule pointer in Xboard
-        run: |
-          cd xboard
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git update-index --cacheinfo 160000,${{ steps.dist.outputs.sha }},public/assets/admin
-          if git diff --cached --quiet; then
-            echo "pointer unchanged"
-          else
-            git commit -m "chore(admin): bump admin submodule to ${GITHUB_SHA::7}"
-            git push
-          fi
-
-      # 可选：构建后自动 SSH 到服务器更新（配了 SSH_* secret 才执行）
-      - name: (可选) SSH 部署到服务器
-        if: ${{ env.SSH_HOST != '' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd ${{ secrets.SITE_PATH }}
-            git pull --ff-only
-            git submodule update --init --recursive
-            php artisan optimize:clear
+      # 到此为止：仅构建并把产物推到 board-neo-admin-dist。
+      # 【已移除】改写 Xboard 子模块指针 与 SSH 部署两步，
+      # 确保推送 board-neo 不会影响线上后台（服务器保持原版 admin）。

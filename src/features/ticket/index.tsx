@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getRouteApi } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, Search } from 'lucide-react'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -38,10 +39,13 @@ function time(ts?: number | null) {
   return new Date(ts * 1000).toLocaleString('zh-CN')
 }
 
+const route = getRouteApi('/_authenticated/ticket/')
+
 export function TicketPage() {
+  const { status: initStatus } = route.useSearch()
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>(initStatus ?? 'all')
   const [search, setSearch] = useState('')
   const [email, setEmail] = useState('')
   const [detailId, setDetailId] = useState<number | null>(null)

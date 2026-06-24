@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowDownRight,
@@ -40,14 +41,22 @@ function StatCard({
   value,
   icon,
   sub,
+  onClick,
 }: {
   title: string
   value: React.ReactNode
   icon: React.ReactNode
   sub?: React.ReactNode
+  onClick?: () => void
 }) {
   return (
-    <Card>
+    <Card
+      onClick={onClick}
+      className={cn(
+        onClick &&
+          'hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors'
+      )}
+    >
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
         <CardTitle className='text-sm font-medium text-muted-foreground'>
           {title}
@@ -63,6 +72,7 @@ function StatCard({
 }
 
 export function OverviewCards() {
+  const navigate = useNavigate()
   const { data, isLoading } = useQuery({
     queryKey: ['stat-stats'],
     queryFn: fetchStats,
@@ -123,12 +133,16 @@ export function OverviewCards() {
         value={data.ticketPendingTotal}
         icon={<LifeBuoy className='size-4' />}
         sub='有工单需要处理'
+        onClick={() => navigate({ to: '/ticket', search: { status: '0' } })}
       />
       <StatCard
         title='待处理佣金'
         value={data.commissionPendingTotal}
         icon={<DollarSign className='size-4' />}
         sub='有佣金需要确认'
+        onClick={() =>
+          navigate({ to: '/order', search: { is_commission: true } })
+        }
       />
       <StatCard
         title='月上传'

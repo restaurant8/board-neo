@@ -133,9 +133,10 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
       content: current?.content ?? '',
       tags: (current?.tags ?? []).join(','),
       prices,
-      show: current ? current.show : true,
-      renew: current ? current.renew : true,
-      sell: current ? current.sell : true,
+      // 后端以 MySQL tinyint(0/1) 返回这三个开关，需转成布尔，否则 z.boolean() 校验失败。
+      show: current ? Boolean(current.show) : true,
+      renew: current ? Boolean(current.renew) : true,
+      sell: current ? Boolean(current.sell) : true,
       force_update: false,
     })
   }, [open, current, form])
@@ -190,7 +191,16 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
         <Form {...form}>
           <form
             id='plan-form'
-            onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+            onSubmit={form.handleSubmit(
+              (v) => mutation.mutate(v),
+              // 避免校验失败时静默无反应：把第一条错误提示给用户。
+              (errs) => {
+                const first = Object.values(errs)[0] as
+                  | { message?: string }
+                  | undefined
+                toast.error(first?.message || '请检查表单填写是否完整')
+              }
+            )}
             className='grid gap-4'
           >
             <div className='grid grid-cols-2 gap-4'>

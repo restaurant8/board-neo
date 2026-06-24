@@ -5,6 +5,6 @@
 // 本地联调如需指定真实后台路径,改本地副本即可,不要把真实 secure_path 提交到公开仓库。
 window.XBOARD_CONFIG = {
   apiBase: '',
-  securePath: 'admin',
+  // securePath 不在此硬编码:生产由后端 admin.blade.php 注入;开发用 .env.local 的 VITE_SECURE_PATH。
   title: 'Xboard',
 }

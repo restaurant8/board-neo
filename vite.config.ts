@@ -1,13 +1,15 @@
 /// <reference types="vitest/config" />
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { playwright } from '@vitest/browser-playwright'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, __dirname, '')
+  return {
   // Production build is served from the backend's `/assets/admin/` directory,
   // so assets must resolve under that base. Dev server stays at root.
   base: command === 'build' ? '/assets/admin/' : '/',
@@ -36,7 +38,7 @@ export default defineConfig(({ command }) => ({
       // 开发联调目标后端。请在本地 `.env.local`(已被 .gitignore 忽略)里设
       // VITE_PROXY_TARGET=https://你的站点 ；默认仅指向本机,避免泄露真实地址。
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1',
+        target: env.VITE_PROXY_TARGET || 'http://127.0.0.1',
         changeOrigin: true,
         secure: false,
       },
@@ -62,4 +64,5 @@ export default defineConfig(({ command }) => ({
       ],
     },
   },
-}))
+  }
+})
