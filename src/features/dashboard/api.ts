@@ -82,8 +82,15 @@ export type StatRecord = {
 
 export type StatRecordType = 'paid_total' | 'commission_total' | 'register_count'
 
-export async function fetchStatRecord(type: StatRecordType) {
-  const res = await get<{ data: StatRecord[] }>('/stat/getStatRecord', { type })
+export async function fetchStatRecord(
+  type: StatRecordType,
+  range?: { start_date?: number; end_date?: number }
+) {
+  const res = await get<{ data: StatRecord[] }>('/stat/getStatRecord', {
+    type,
+    ...(range?.start_date ? { start_date: range.start_date } : {}),
+    ...(range?.end_date ? { end_date: range.end_date } : {}),
+  })
   return res.data ?? []
 }
 
