@@ -27,6 +27,7 @@ import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
+import { Route as AuthenticatedUpdateIndexRouteImport } from './routes/_authenticated/update/index'
 import { Route as AuthenticatedTrafficStatIndexRouteImport } from './routes/_authenticated/traffic-stat/index'
 import { Route as AuthenticatedTrafficResetIndexRouteImport } from './routes/_authenticated/traffic-reset/index'
 import { Route as AuthenticatedTicketIndexRouteImport } from './routes/_authenticated/ticket/index'
@@ -150,6 +151,12 @@ const AuthenticatedUserIndexRoute = AuthenticatedUserIndexRouteImport.update({
   path: '/user/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUpdateIndexRoute =
+  AuthenticatedUpdateIndexRouteImport.update({
+    id: '/update/',
+    path: '/update/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTrafficStatIndexRoute =
   AuthenticatedTrafficStatIndexRouteImport.update({
     id: '/traffic-stat/',
@@ -389,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/ticket/': typeof AuthenticatedTicketIndexRoute
   '/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
   '/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
+  '/update/': typeof AuthenticatedUpdateIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/server/backend/': typeof AuthenticatedServerBackendIndexRoute
@@ -439,6 +447,7 @@ export interface FileRoutesByTo {
   '/ticket': typeof AuthenticatedTicketIndexRoute
   '/traffic-reset': typeof AuthenticatedTrafficResetIndexRoute
   '/traffic-stat': typeof AuthenticatedTrafficStatIndexRoute
+  '/update': typeof AuthenticatedUpdateIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/server/backend': typeof AuthenticatedServerBackendIndexRoute
@@ -494,6 +503,7 @@ export interface FileRoutesById {
   '/_authenticated/ticket/': typeof AuthenticatedTicketIndexRoute
   '/_authenticated/traffic-reset/': typeof AuthenticatedTrafficResetIndexRoute
   '/_authenticated/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
+  '/_authenticated/update/': typeof AuthenticatedUpdateIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/server/backend/': typeof AuthenticatedServerBackendIndexRoute
@@ -547,6 +557,7 @@ export interface FileRouteTypes {
     | '/ticket/'
     | '/traffic-reset/'
     | '/traffic-stat/'
+    | '/update/'
     | '/user/'
     | '/users/'
     | '/server/backend/'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/ticket'
     | '/traffic-reset'
     | '/traffic-stat'
+    | '/update'
     | '/user'
     | '/users'
     | '/server/backend'
@@ -651,6 +663,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ticket/'
     | '/_authenticated/traffic-reset/'
     | '/_authenticated/traffic-stat/'
+    | '/_authenticated/update/'
     | '/_authenticated/user/'
     | '/_authenticated/users/'
     | '/_authenticated/server/backend/'
@@ -802,6 +815,13 @@ declare module '@tanstack/react-router' {
       path: '/user'
       fullPath: '/user/'
       preLoaderRoute: typeof AuthenticatedUserIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/update/': {
+      id: '/_authenticated/update/'
+      path: '/update'
+      fullPath: '/update/'
+      preLoaderRoute: typeof AuthenticatedUpdateIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/traffic-stat/': {
@@ -1091,6 +1111,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTicketIndexRoute: typeof AuthenticatedTicketIndexRoute
   AuthenticatedTrafficResetIndexRoute: typeof AuthenticatedTrafficResetIndexRoute
   AuthenticatedTrafficStatIndexRoute: typeof AuthenticatedTrafficStatIndexRoute
+  AuthenticatedUpdateIndexRoute: typeof AuthenticatedUpdateIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedServerBackendIndexRoute: typeof AuthenticatedServerBackendIndexRoute
@@ -1124,6 +1145,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTicketIndexRoute: AuthenticatedTicketIndexRoute,
   AuthenticatedTrafficResetIndexRoute: AuthenticatedTrafficResetIndexRoute,
   AuthenticatedTrafficStatIndexRoute: AuthenticatedTrafficStatIndexRoute,
+  AuthenticatedUpdateIndexRoute: AuthenticatedUpdateIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedServerBackendIndexRoute: AuthenticatedServerBackendIndexRoute,

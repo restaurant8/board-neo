@@ -1,4 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  type ColumnDef,
+  type PaginationState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
@@ -15,6 +24,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -25,6 +35,15 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { DataTablePagination } from '@/components/data-table'
 import {
   type Machine,
   type MachineCreateResult,
@@ -139,6 +158,151 @@ export function ServerMachinePage() {
     )
   }, [data, keyword])
 
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+
+  // 搜索变化回到第一页
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }))
+  }, [keyword])
+
+  const columns = useMemo<ColumnDef<Machine>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: () => <div>服务器名称</div>,
+        cell: ({ row }) => {
+          const m = row.original
+          return (
+            <div>
+              <div className='flex items-center gap-2'>
+                <span className='font-medium'>{m.name}</span>
+                <Badge variant='secondary' className='text-[10px]'>
+                  SID:{m.id}
+                </Badge>
+              </div>
+              {m.notes && (
+                <div className='text-muted-foreground text-xs'>{m.notes}</div>
+              )}
+            </div>
+          )
+        },
+      },
+      {
+        id: 'status',
+        header: () => <div>状态</div>,
+        cell: ({ row }) =>
+          isOnline(row.original.last_seen_at) ? (
+            <Badge>在线</Badge>
+          ) : (
+            <Badge variant='outline'>离线</Badge>
+          ),
+      },
+      {
+        id: 'load',
+        header: () => <div>负载</div>,
+        cell: ({ row }) => {
+          const load = readLoad(row.original.load_status)
+          return (
+            <div className='grid gap-1'>
+              <LoadBar
+                icon={<Cpu className='size-3' />}
+                label='CPU'
+                value={`${(load.cpu ?? 0).toFixed(0)}%`}
+                percent={load.cpu ?? 0}
+              />
+              <LoadBar
+                icon={<MemoryStick className='size-3' />}
+                label='MEM'
+                value={`${pct(load.mem?.used, load.mem?.total)}%`}
+                percent={pct(load.mem?.used, load.mem?.total)}
+              />
+              <LoadBar
+                icon={<HardDrive className='size-3' />}
+                label='DISK'
+                value={`${fmtBytes(load.disk?.used)} / ${fmtBytes(load.disk?.total)}`}
+                percent={pct(load.disk?.used, load.disk?.total)}
+              />
+            </div>
+          )
+        },
+      },
+      {
+        id: 'nodes',
+        header: () => <div>节点数</div>,
+        cell: ({ row }) => {
+          const m = row.original
+          return (
+            <div>
+              <div>{m.servers_count} 已承载节点</div>
+              <Button
+                variant='link'
+                className='h-auto p-0 text-xs'
+                onClick={() => openDetail(m)}
+              >
+                <Eye className='size-3' /> 服务器详情
+              </Button>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'last_seen',
+        header: () => <div>最后心跳</div>,
+        cell: ({ row }) => (
+          <div className='text-muted-foreground text-xs'>
+            {fmtAgo(row.original.last_seen_at)}
+          </div>
+        ),
+      },
+      {
+        id: 'actions',
+        header: () => <div className='text-end'>操作</div>,
+        cell: ({ row }) => {
+          const m = row.original
+          return (
+            <div className='text-end whitespace-nowrap'>
+              <Button
+                variant='ghost'
+                size='icon'
+                title='编辑'
+                onClick={() => {
+                  setCurrent(m)
+                  setMutateOpen(true)
+                }}
+              >
+                <Pencil className='size-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon'
+                title='删除'
+                onClick={() => setDeleting(m)}
+              >
+                <Trash2 className='text-destructive size-4' />
+              </Button>
+            </div>
+          )
+        },
+        meta: { className: 'text-end' },
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
+
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
+
   const dropMutation = useMutation({
     mutationFn: (id: number) => dropMachine(id),
     onSuccess: () => {
@@ -235,122 +399,68 @@ export function ServerMachinePage() {
 
         {/* 列表 */}
         <div className='overflow-hidden rounded-md border'>
-          <table className='w-full text-sm'>
-            <thead className='bg-muted/50 text-muted-foreground'>
-              <tr>
-                <th className='p-3 text-start font-normal'>服务器名称</th>
-                <th className='p-3 text-start font-normal'>状态</th>
-                <th className='p-3 text-start font-normal'>负载</th>
-                <th className='p-3 text-start font-normal'>节点数</th>
-                <th className='p-3 text-start font-normal'>最后心跳</th>
-                <th className='p-3 text-end font-normal'>操作</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className='group/row'>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      className={cn(header.column.columnDef.meta?.className)}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className='h-24 text-center'>
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className='h-24 text-center'
+                  >
                     加载中...
-                  </td>
-                </tr>
-              ) : filtered.length > 0 ? (
-                filtered.map((m) => {
-                  const load = readLoad(m.load_status)
-                  const online = isOnline(m.last_seen_at)
-                  return (
-                    <tr key={m.id} className='hover:bg-muted/30 border-t'>
-                      <td className='p-3'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-medium'>{m.name}</span>
-                          <Badge variant='secondary' className='text-[10px]'>
-                            SID:{m.id}
-                          </Badge>
-                        </div>
-                        {m.notes && (
-                          <div className='text-muted-foreground text-xs'>
-                            {m.notes}
-                          </div>
+                  </TableCell>
+                </TableRow>
+              ) : table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} className='group/row'>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(cell.column.columnDef.meta?.className)}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
                         )}
-                      </td>
-                      <td className='p-3'>
-                        {online ? (
-                          <Badge>在线</Badge>
-                        ) : (
-                          <Badge variant='outline'>离线</Badge>
-                        )}
-                      </td>
-                      <td className='p-3'>
-                        <div className='grid gap-1'>
-                          <LoadBar
-                            icon={<Cpu className='size-3' />}
-                            label='CPU'
-                            value={`${(load.cpu ?? 0).toFixed(0)}%`}
-                            percent={load.cpu ?? 0}
-                          />
-                          <LoadBar
-                            icon={<MemoryStick className='size-3' />}
-                            label='MEM'
-                            value={`${pct(load.mem?.used, load.mem?.total)}%`}
-                            percent={pct(load.mem?.used, load.mem?.total)}
-                          />
-                          <LoadBar
-                            icon={<HardDrive className='size-3' />}
-                            label='DISK'
-                            value={`${fmtBytes(load.disk?.used)} / ${fmtBytes(load.disk?.total)}`}
-                            percent={pct(load.disk?.used, load.disk?.total)}
-                          />
-                        </div>
-                      </td>
-                      <td className='p-3'>
-                        <div>{m.servers_count} 已承载节点</div>
-                        <Button
-                          variant='link'
-                          className='h-auto p-0 text-xs'
-                          onClick={() => openDetail(m)}
-                        >
-                          <Eye className='size-3' /> 服务器详情
-                        </Button>
-                      </td>
-                      <td className='text-muted-foreground p-3 text-xs'>
-                        {fmtAgo(m.last_seen_at)}
-                      </td>
-                      <td className='p-3 text-end whitespace-nowrap'>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          title='编辑'
-                          onClick={() => {
-                            setCurrent(m)
-                            setMutateOpen(true)
-                          }}
-                        >
-                          <Pencil className='size-4' />
-                        </Button>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          title='删除'
-                          onClick={() => setDeleting(m)}
-                        >
-                          <Trash2 className='text-destructive size-4' />
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
               ) : (
-                <tr>
-                  <td
-                    colSpan={6}
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
                     className='text-muted-foreground h-24 text-center'
                   >
                     暂无服务器
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
+
+        <DataTablePagination table={table} className='mt-auto' />
       </Main>
 
       <MachineMutateDialog

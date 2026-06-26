@@ -14,7 +14,7 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 // Generated Routes
-import { routeBasePath } from '@/lib/config'
+import { config, routeBasePath } from '@/lib/config'
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
@@ -80,6 +80,10 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
 }
+
+// 自动使用后端注入的站点名称作为网页标题（embedded 由 admin.blade 注入 app_name，
+// standalone 由 settings.js 的 XBOARD_CONFIG.title 提供；缺省回退 'Xboard'）。
+if (config.title) document.title = config.title
 
 // Render the app
 const rootElement = document.getElementById('root')!

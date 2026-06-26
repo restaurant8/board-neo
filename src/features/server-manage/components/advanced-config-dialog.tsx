@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
+import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -37,13 +37,19 @@ type Props = {
   onSave: (value: AdvancedConfigValue) => void
 }
 
-/** 证书模式（对应 ServerService 读取的 cert_config.cert_mode）。 */
+/**
+ * 证书模式（对应 cert_config.cert_mode）。
+ * 取值沿用项目既有约定（http / dns / self / reality / none）：
+ * 后端 ServerService 仅判断 `cert_mode !== 'none'` 后将整个 cert_config 透传给节点，
+ * 值的语义由节点后端解释，故此处保持与已部署/已存数据一致。
+ * content（Cert Push）对应取值为 'reality'（仅标签显示为 content）。
+ */
 const CERT_MODES = [
   { value: 'none', label: '不使用 (none)' },
-  { value: 'http', label: 'HTTP-01 (ACME)' },
-  { value: 'dns', label: 'DNS-01 (ACME)' },
-  { value: 'self', label: '自签名 (self-signed)' },
-  { value: 'reality', label: '证书推送 (content / Cert Push)' },
+  { value: 'http', label: 'http-01 (ACME)' },
+  { value: 'dns', label: 'dns-01 (ACME)' },
+  { value: 'self', label: 'self-signed' },
+  { value: 'reality', label: 'content (Cert Push)' },
 ]
 
 function str(obj: Record<string, unknown>, key: string): string {
@@ -79,8 +85,6 @@ export function AdvancedConfigDialog({
     setCert((prev) => ({ ...prev, [key]: v }))
 
   const certMode = str(cert, 'cert_mode') || 'none'
-  const showContent = certMode === 'reality' || certMode === 'self'
-  const showAcme = certMode === 'http' || certMode === 'dns'
 
   const handleSave = () => {
     let parsedOutbounds: unknown[] = []
@@ -114,9 +118,6 @@ export function AdvancedConfigDialog({
       <DialogContent className='sm:max-w-2xl'>
         <DialogHeader>
           <DialogTitle>高级协议配置</DialogTitle>
-          <DialogDescription>
-            证书模式、自定义 Outbounds / Routes；保存后合并进节点提交对象。
-          </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue='tls' className='w-full'>
@@ -128,7 +129,7 @@ export function AdvancedConfigDialog({
 
           <TabsContent value='tls' className='grid gap-4 pt-2'>
             <div className='grid gap-2'>
-              <Label>证书模式 (cert_mode)</Label>
+              <Label>证书模式</Label>
               <Select
                 value={certMode}
                 onValueChange={(v) => setCertField('cert_mode', v)}
@@ -144,36 +145,136 @@ export function AdvancedConfigDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className='text-muted-foreground text-xs'>
-                选择「不使用」时不会向节点下发证书配置。
-              </p>
             </div>
 
-            {showAcme && (
-              <div className='grid grid-cols-2 gap-4'>
+            {certMode === 'http' && (
+              <>
+                <p className='text-muted-foreground text-xs'>
+                  HTTP-01 模式：需要 80 端口可正常访问以完成认证
+                </p>
                 <div className='grid gap-2'>
-                  <Label>域名 (domain)</Label>
+                  <Label>证书域名</Label>
                   <Input
                     value={str(cert, 'domain')}
                     onChange={(e) => setCertField('domain', e.target.value)}
-                    placeholder='如 node.example.com'
+                    placeholder='example.com'
                   />
                 </div>
                 <div className='grid gap-2'>
-                  <Label>邮箱 (email)</Label>
+                  <Label>通知邮箱</Label>
                   <Input
                     value={str(cert, 'email')}
                     onChange={(e) => setCertField('email', e.target.value)}
-                    placeholder='如 admin@example.com'
+                    placeholder='admin@example.com'
                   />
                 </div>
-              </div>
+                <div className='grid gap-2'>
+                  <Label>认证端口</Label>
+                  <Input
+                    type='number'
+                    value={str(cert, 'port')}
+                    onChange={(e) =>
+                      setCertField(
+                        'port',
+                        e.target.value === '' ? '' : Number(e.target.value)
+                      )
+                    }
+                    placeholder='80'
+                  />
+                  <p className='text-muted-foreground text-xs'>
+                    ACME 认证端口（默认 80）
+                  </p>
+                </div>
+              </>
             )}
 
-            {showContent && (
+            {certMode === 'dns' && (
               <>
+                <p className='text-muted-foreground text-xs'>
+                  DNS-01 模式：通过 DNS 解析记录认证，支持申请泛域名证书
+                </p>
                 <div className='grid gap-2'>
-                  <Label>证书 (cert)</Label>
+                  <Label>证书域名</Label>
+                  <Input
+                    value={str(cert, 'domain')}
+                    onChange={(e) => setCertField('domain', e.target.value)}
+                    placeholder='example.com'
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <Label>通知邮箱</Label>
+                  <Input
+                    value={str(cert, 'email')}
+                    onChange={(e) => setCertField('email', e.target.value)}
+                    placeholder='admin@example.com'
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <Label>DNS 提供商</Label>
+                  <Input
+                    value={str(cert, 'dns_provider')}
+                    onChange={(e) =>
+                      setCertField('dns_provider', e.target.value)
+                    }
+                    placeholder='cloudflare / alidns / dnspod'
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <Label>环境变量 (API 密钥)</Label>
+                  <Textarea
+                    rows={4}
+                    className='font-mono text-xs'
+                    value={str(cert, 'dns_env')}
+                    onChange={(e) => setCertField('dns_env', e.target.value)}
+                    placeholder={
+                      'CF_API_TOKEN=xxxxxx\nALIDNS_ACCESS_KEY_ID=xxxx'
+                    }
+                  />
+                  <p className='text-muted-foreground text-xs'>
+                    每行一个 KEY=VALUE 配置
+                  </p>
+                </div>
+                <a
+                  href='#'
+                  className='text-primary inline-flex items-center gap-1 text-xs hover:underline'
+                >
+                  查看 DNS 提供商配置指南
+                  <ExternalLink className='size-3' />
+                </a>
+              </>
+            )}
+
+            {certMode === 'self' && (
+              <>
+                <p className='text-muted-foreground text-xs'>
+                  自签名模式：仅需填写域名，证书由节点后端自动生成（10年有效期）
+                </p>
+                <div className='grid gap-2'>
+                  <Label>证书域名</Label>
+                  <Input
+                    value={str(cert, 'domain')}
+                    onChange={(e) => setCertField('domain', e.target.value)}
+                    placeholder='example.com'
+                  />
+                </div>
+              </>
+            )}
+
+            {certMode === 'reality' && (
+              <>
+                <p className='text-muted-foreground text-xs'>
+                  内容推送模式：直接将证书内容下发至节点
+                </p>
+                <div className='grid gap-2'>
+                  <Label>证书域名</Label>
+                  <Input
+                    value={str(cert, 'domain')}
+                    onChange={(e) => setCertField('domain', e.target.value)}
+                    placeholder='example.com'
+                  />
+                </div>
+                <div className='grid gap-2'>
+                  <Label>证书内容 (Public Key)</Label>
                   <Textarea
                     rows={6}
                     className='font-mono text-xs'
@@ -183,13 +284,13 @@ export function AdvancedConfigDialog({
                   />
                 </div>
                 <div className='grid gap-2'>
-                  <Label>私钥 (key)</Label>
+                  <Label>密钥内容 (Private Key)</Label>
                   <Textarea
                     rows={6}
                     className='font-mono text-xs'
                     value={str(cert, 'key')}
                     onChange={(e) => setCertField('key', e.target.value)}
-                    placeholder='-----BEGIN PRIVATE KEY-----'
+                    placeholder='-----BEGIN RSA PRIVATE KEY-----'
                   />
                 </div>
               </>
@@ -223,7 +324,7 @@ export function AdvancedConfigDialog({
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button onClick={handleSave}>确定</Button>
+          <Button onClick={handleSave}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

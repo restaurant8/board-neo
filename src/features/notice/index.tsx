@@ -41,8 +41,10 @@ export function NoticePage() {
 
   const toggleMutation = useMutation({
     mutationFn: (id: number) => toggleNoticeShow(id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['notices'] }),
+    onSuccess: () => {
+      toast.success('已更新显示状态')
+      queryClient.invalidateQueries({ queryKey: ['notices'] })
+    },
     onError: handleServerError,
   })
 

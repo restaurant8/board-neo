@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { ArrowDownToLine, ArrowUpFromLine, Sigma } from 'lucide-react'
+import { formatBytes } from '@/features/dashboard/format'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,19 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { fetchTrafficDiagnostics } from './api'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AuditTable } from './components/audit-table'
+import { DiagnosticsTable } from './components/diagnostics-table'
 
-function fmtBytes(bytes?: number): string {
-  if (!bytes || bytes <= 0) return '0 B'
-  const u = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-  let v = bytes
-  let i = 0
-  while (v >= 1024 && i < u.length - 1) {
-    v /= 1024
-    i++
-  }
-  return `${v.toFixed(i === 0 ? 0 : 2)} ${u[i]}`
-}
+type Summary = { u: number; d: number; total: number }
 
 const RANGES = [
   { label: '今日', days: 0 },
@@ -36,11 +27,18 @@ const RANGES = [
   { label: '近 30 天', days: 30 },
 ]
 
+const EMPTY_SUMMARY: Summary = { u: 0, d: 0, total: 0 }
+
 export function TrafficStatPage() {
   const [days, setDays] = useState(7)
   const [mode, setMode] = useState<'all' | 'privacy' | 'diagnostic'>('all')
   const [keyword, setKeyword] = useState('')
-  const [page, setPage] = useState(1)
+  const [userKeyword, setUserKeyword] = useState('')
+  const [tab, setTab] = useState<'diagnostics' | 'audit'>('diagnostics')
+
+  // 各 tab 的汇总分开存，避免切换时串数据
+  const [diagSummary, setDiagSummary] = useState<Summary>(EMPTY_SUMMARY)
+  const [auditSummary, setAuditSummary] = useState<Summary>(EMPTY_SUMMARY)
 
   const range = useMemo(() => {
     const end = Math.floor(Date.now() / 1000)
@@ -51,23 +49,10 @@ export function TrafficStatPage() {
     return { start, end }
   }, [days])
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['traffic-diag', range.start, range.end, mode, keyword, page],
-    queryFn: () =>
-      fetchTrafficDiagnostics({
-        start_time: range.start,
-        end_time: range.end,
-        mode,
-        server_keyword: keyword || undefined,
-        order_by: 'total',
-        order_dir: 'desc',
-        page,
-        page_size: 20,
-      }),
-  })
+  // 审计接口默认 diagnostic；当总模式为 all 时审计用 diagnostic 以拿到目的地维度
+  const auditMode = mode === 'all' ? 'diagnostic' : mode
 
-  const summary = data?.summary ?? { u: 0, d: 0, total: 0 }
-  const lastPage = Math.max(1, Math.ceil((data?.total ?? 0) / 20))
+  const summary = tab === 'diagnostics' ? diagSummary : auditSummary
 
   return (
     <>
@@ -82,8 +67,9 @@ export function TrafficStatPage() {
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>流量统计</h2>
           <p className='text-muted-foreground'>
-            节点、类别、域名维度的流量明细。数据由「系统配置 → 服务器 →
-            流量统计模式」开启后采集；隐私模式不含主域名，授权诊断模式含主域名。
+            节点、类别、域名维度的流量明细，以及用户维度的流量审计。数据由「系统配置
+            → 服务器 →
+            流量统计模式」开启后采集；隐私模式不含主域名，授权诊断模式含主域名与目的地。
           </p>
         </div>
 
@@ -92,21 +78,23 @@ export function TrafficStatPage() {
           <Card className='flex-row items-center justify-between p-4'>
             <div>
               <div className='text-muted-foreground text-sm'>上行</div>
-              <div className='text-xl font-bold'>{fmtBytes(summary.u)}</div>
+              <div className='text-xl font-bold'>{formatBytes(summary.u)}</div>
             </div>
             <ArrowUpFromLine className='size-5 text-sky-500' />
           </Card>
           <Card className='flex-row items-center justify-between p-4'>
             <div>
               <div className='text-muted-foreground text-sm'>下行</div>
-              <div className='text-xl font-bold'>{fmtBytes(summary.d)}</div>
+              <div className='text-xl font-bold'>{formatBytes(summary.d)}</div>
             </div>
             <ArrowDownToLine className='size-5 text-emerald-500' />
           </Card>
           <Card className='flex-row items-center justify-between p-4'>
             <div>
               <div className='text-muted-foreground text-sm'>总计</div>
-              <div className='text-xl font-bold'>{fmtBytes(summary.total)}</div>
+              <div className='text-xl font-bold'>
+                {formatBytes(summary.total)}
+              </div>
             </div>
             <Sigma className='size-5 text-amber-500' />
           </Card>
@@ -120,10 +108,7 @@ export function TrafficStatPage() {
                 key={r.days}
                 size='sm'
                 variant={days === r.days ? 'default' : 'outline'}
-                onClick={() => {
-                  setDays(r.days)
-                  setPage(1)
-                }}
+                onClick={() => setDays(r.days)}
               >
                 {r.label}
               </Button>
@@ -131,12 +116,9 @@ export function TrafficStatPage() {
           </div>
           <Select
             value={mode}
-            onValueChange={(v) => {
-              setMode(v as typeof mode)
-              setPage(1)
-            }}
+            onValueChange={(v) => setMode(v as typeof mode)}
           >
-            <SelectTrigger className='w-36'>
+            <SelectTrigger className='h-8 w-36'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -148,101 +130,49 @@ export function TrafficStatPage() {
           <Input
             placeholder='搜索节点名称/ID...'
             value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value)
-              setPage(1)
-            }}
-            className='max-w-xs'
+            onChange={(e) => setKeyword(e.target.value)}
+            className='h-8 w-48'
           />
+          {tab === 'audit' && (
+            <Input
+              placeholder='搜索用户邮箱/UID...'
+              value={userKeyword}
+              onChange={(e) => setUserKeyword(e.target.value)}
+              className='h-8 w-48'
+            />
+          )}
         </div>
 
         {/* 明细表 */}
-        <div className='overflow-hidden rounded-md border'>
-          <table className='w-full text-sm'>
-            <thead className='bg-muted/50 text-muted-foreground'>
-              <tr>
-                <th className='p-3 text-start font-normal'>节点</th>
-                <th className='p-3 text-start font-normal'>类别</th>
-                {mode === 'diagnostic' && (
-                  <th className='p-3 text-start font-normal'>主域名</th>
-                )}
-                <th className='p-3 text-end font-normal'>上行</th>
-                <th className='p-3 text-end font-normal'>下行</th>
-                <th className='p-3 text-end font-normal'>合计</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className='h-24 text-center'>
-                    加载中...
-                  </td>
-                </tr>
-              ) : isError ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className='text-muted-foreground h-24 text-center'
-                  >
-                    暂无数据（需在「系统配置 → 服务器」开启流量统计模式，或该后端未启用此功能）。
-                  </td>
-                </tr>
-              ) : data && data.list.length > 0 ? (
-                data.list.map((row, i) => (
-                  <tr key={`${row.server_id}-${row.category}-${i}`} className='border-t'>
-                    <td className='p-3'>{row.server_name || `#${row.server_id}`}</td>
-                    <td className='p-3'>
-                      <Badge variant='outline'>{row.category || '其它'}</Badge>
-                    </td>
-                    {mode === 'diagnostic' && (
-                      <td className='text-muted-foreground p-3'>
-                        {row.main_domain || '—'}
-                      </td>
-                    )}
-                    <td className='p-3 text-end'>{fmtBytes(row.u)}</td>
-                    <td className='p-3 text-end'>{fmtBytes(row.d)}</td>
-                    <td className='p-3 text-end font-medium'>
-                      {fmtBytes(row.total)}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className='text-muted-foreground h-24 text-center'
-                  >
-                    暂无数据
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as typeof tab)}
+          className='flex flex-1 flex-col gap-4'
+        >
+          <TabsList className='w-fit'>
+            <TabsTrigger value='diagnostics'>节点统计</TabsTrigger>
+            <TabsTrigger value='audit'>用户审计</TabsTrigger>
+          </TabsList>
 
-        {lastPage > 1 && (
-          <div className='flex items-center justify-end gap-2'>
-            <Button
-              size='sm'
-              variant='outline'
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              上一页
-            </Button>
-            <span className='text-muted-foreground text-sm'>
-              {page} / {lastPage}
-            </span>
-            <Button
-              size='sm'
-              variant='outline'
-              disabled={page >= lastPage}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              下一页
-            </Button>
-          </div>
-        )}
+          <TabsContent value='diagnostics' className='flex flex-1 flex-col'>
+            <DiagnosticsTable
+              range={range}
+              mode={mode}
+              keyword={keyword}
+              onSummary={setDiagSummary}
+            />
+          </TabsContent>
+
+          <TabsContent value='audit' className='flex flex-1 flex-col'>
+            <AuditTable
+              range={range}
+              mode={auditMode}
+              userKeyword={userKeyword}
+              serverKeyword={keyword}
+              onSummary={setAuditSummary}
+            />
+          </TabsContent>
+        </Tabs>
       </Main>
     </>
   )

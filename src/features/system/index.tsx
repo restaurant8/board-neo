@@ -6,7 +6,6 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -22,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   getAuditLog,
   getHorizonFailedJobs,
@@ -61,7 +61,7 @@ function StatCard({ title, value }: { title: string; value: React.ReactNode }) {
 
 export function SystemPage() {
   const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState(10)
 
   const { data: status } = useQuery({
     queryKey: ['system-status'],
@@ -88,7 +88,7 @@ export function SystemPage() {
     queryFn: () => getHorizonFailedJobs(1, 20),
   })
   const { data: audit, isLoading: auditLoading } = useQuery({
-    queryKey: ['audit-log', page],
+    queryKey: ['audit-log', page, pageSize],
     queryFn: () => getAuditLog({ current: page, page_size: pageSize }),
   })
 
@@ -260,28 +260,18 @@ export function SystemPage() {
                 </TableBody>
               </Table>
             </div>
-            <div className='flex items-center justify-between pt-3'>
-              <span className='text-muted-foreground text-sm'>
-                共 {audit?.total ?? 0} 条，第 {page}/{auditLastPage} 页
-              </span>
-              <div className='flex gap-2'>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  上一页
-                </Button>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  disabled={page >= auditLastPage}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  下一页
-                </Button>
-              </div>
+            <div className='pt-3'>
+              <SimplePagination
+                page={page}
+                totalPages={auditLastPage}
+                total={audit?.total ?? 0}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(s) => {
+                  setPageSize(s)
+                  setPage(1)
+                }}
+              />
             </div>
           </TabsContent>
         </Tabs>

@@ -1,17 +1,20 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
   Activity,
   ArrowRight,
   Copy,
   Cpu,
+  ExternalLink,
   Eye,
   HardDrive,
   KeyRound,
+  Link2,
   MemoryStick,
   Network,
   RotateCw,
+  Unlink,
 } from 'lucide-react'
 import {
   CartesianGrid,
@@ -24,14 +27,23 @@ import {
 } from 'recharts'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { getNodes, updateNode } from '@/features/server-manage/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
 import {
   type Machine,
   fetchMachineHistory,
@@ -93,9 +105,11 @@ export function MachineDetailDrawer({
   onAddNode,
 }: Props) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [hours, setHours] = useState(6)
   const [token, setToken] = useState<string | null>(null)
   const [command, setCommand] = useState<string | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
 
   const id = machine?.id ?? 0
   const load = readLoad(machine?.load_status ?? null)
@@ -131,6 +145,47 @@ export function MachineDetailDrawer({
     mutationFn: () => getInstallCommand(id),
     onSuccess: (r) => setCommand(r.command),
     onError: handleServerError,
+  })
+
+  const refreshNodes = () => {
+    queryClient.invalidateQueries({ queryKey: ['machine-nodes', id] })
+    queryClient.invalidateQueries({ queryKey: ['machines'] })
+  }
+
+  // 切换节点激活（enabled）
+  const toggleMutation = useMutation({
+    mutationFn: (n: { id: number; enabled: boolean }) =>
+      updateNode({ id: n.id, enabled: n.enabled }),
+    onSuccess: refreshNodes,
+    onError: handleServerError,
+  })
+
+  // 取消关联（machine_id 置空）
+  const unlinkMutation = useMutation({
+    mutationFn: (nodeId: number) => updateNode({ id: nodeId, machine_id: null }),
+    onSuccess: () => {
+      toast.success('已取消关联')
+      refreshNodes()
+    },
+    onError: handleServerError,
+  })
+
+  // 关联已有节点（machine_id 指向当前机器）
+  const linkMutation = useMutation({
+    mutationFn: (nodeId: number) => updateNode({ id: nodeId, machine_id: id }),
+    onSuccess: () => {
+      toast.success('已关联节点')
+      refreshNodes()
+    },
+    onError: handleServerError,
+  })
+
+  // 可关联的节点：尚未绑定任何机器（machine_id 为空）
+  const { data: linkableNodes } = useQuery({
+    queryKey: ['linkable-nodes'],
+    queryFn: getNodes,
+    enabled: linkOpen,
+    select: (list) => list.filter((s) => s.machine_id == null),
   })
 
   const chartData = (history ?? []).map((h) => ({
@@ -343,9 +398,33 @@ export function MachineDetailDrawer({
 
           {/* 关联节点 */}
           <div className='grid gap-2 rounded-lg border p-4'>
-            <div className='flex items-center justify-between'>
+            <div className='flex flex-wrap items-center gap-2'>
               <div className='text-sm font-medium'>关联节点</div>
               <Badge variant='secondary'>{nodes?.length ?? 0} 个节点</Badge>
+              <Badge variant='outline'>
+                {(nodes ?? []).filter((n) => n.enabled).length} 个已激活
+              </Badge>
+              <div className='ms-auto flex items-center gap-1'>
+                <Button
+                  size='sm'
+                  variant='ghost'
+                  className='h-7 px-2 text-xs'
+                  onClick={() => setLinkOpen(true)}
+                >
+                  <Link2 className='size-4' /> 关联已有节点
+                </Button>
+                <Button
+                  size='sm'
+                  variant='ghost'
+                  className='h-7 px-2 text-xs'
+                  onClick={() => {
+                    onOpenChange(false)
+                    navigate({ to: '/server/manage' })
+                  }}
+                >
+                  前往节点管理 <ArrowRight className='size-4' />
+                </Button>
+              </div>
             </div>
             <div className='overflow-hidden rounded border'>
               <table className='w-full text-sm'>
@@ -355,13 +434,27 @@ export function MachineDetailDrawer({
                     <th className='p-2 text-start font-normal'>类型</th>
                     <th className='p-2 text-start font-normal'>地址</th>
                     <th className='p-2 text-start font-normal'>已激活</th>
+                    <th className='p-2 text-end font-normal'></th>
                   </tr>
                 </thead>
                 <tbody>
                   {nodes && nodes.length > 0 ? (
                     nodes.map((n) => (
                       <tr key={n.id} className='border-t'>
-                        <td className='p-2'>{n.name}</td>
+                        <td className='p-2'>
+                          <button
+                            type='button'
+                            className='hover:text-primary inline-flex items-center gap-1 text-start'
+                            title='前往节点管理'
+                            onClick={() => {
+                              onOpenChange(false)
+                              navigate({ to: '/server/manage' })
+                            }}
+                          >
+                            {n.name}
+                            <ExternalLink className='size-3 opacity-60' />
+                          </button>
+                        </td>
                         <td className='p-2'>
                           <Badge variant='outline'>{n.type}</Badge>
                         </td>
@@ -370,18 +463,35 @@ export function MachineDetailDrawer({
                           {n.port ? `:${n.port}` : ''}
                         </td>
                         <td className='p-2'>
-                          {n.enabled ? (
-                            <Badge>是</Badge>
-                          ) : (
-                            <Badge variant='outline'>否</Badge>
-                          )}
+                          <Switch
+                            checked={Boolean(n.enabled)}
+                            disabled={toggleMutation.isPending}
+                            onCheckedChange={(checked) =>
+                              toggleMutation.mutate({
+                                id: n.id,
+                                enabled: checked,
+                              })
+                            }
+                          />
+                        </td>
+                        <td className='p-2 text-end'>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            className='size-7'
+                            title='取消关联'
+                            disabled={unlinkMutation.isPending}
+                            onClick={() => unlinkMutation.mutate(n.id)}
+                          >
+                            <Unlink className='size-4' />
+                          </Button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className='text-muted-foreground p-4 text-center'
                       >
                         暂无关联节点
@@ -394,6 +504,52 @@ export function MachineDetailDrawer({
           </div>
         </div>
       </SheetContent>
+
+      {/* 关联已有节点 */}
+      <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>关联已有节点</DialogTitle>
+          </DialogHeader>
+          <div className='max-h-80 overflow-y-auto'>
+            {linkableNodes && linkableNodes.length > 0 ? (
+              <div className='grid gap-1'>
+                {linkableNodes.map((s) => (
+                  <div
+                    key={s.id}
+                    className='hover:bg-muted/50 flex items-center gap-2 rounded px-2 py-1.5 text-sm'
+                  >
+                    <Badge variant='outline'>{s.type}</Badge>
+                    <span className='truncate'>{s.name}</span>
+                    <span className='text-muted-foreground ms-auto flex items-center gap-2 text-xs'>
+                      {s.host}
+                      {s.port ? `:${s.port}` : ''}
+                    </span>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      className='h-7 px-2 text-xs'
+                      disabled={linkMutation.isPending}
+                      onClick={() => linkMutation.mutate(s.id)}
+                    >
+                      <Link2 className='size-4' /> 关联
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className='text-muted-foreground py-6 text-center text-sm'>
+                没有可关联的空闲节点（未绑定机器的节点）。
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setLinkOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   )
 }

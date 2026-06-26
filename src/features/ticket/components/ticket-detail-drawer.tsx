@@ -19,8 +19,10 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   TICKET_STATUS_CLOSED,
   TICKET_STATUS_MAP,
+  type TicketDetail,
   closeTicket,
   fetchTicketDetail,
+  fetchTicketShow,
   replyTicket,
 } from '../api'
 
@@ -41,7 +43,15 @@ export function TicketDetailDrawer({ open, onOpenChange, ticketId }: Props) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['ticket', ticketId],
-    queryFn: () => fetchTicketDetail(ticketId as number),
+    // 优先用 show 拉完整会话（含每条消息的 user）；该后端未注册 show 路由时
+    // 回退到 fetch?id（同样返回完整 messages，仅缺每条消息的 user）。
+    queryFn: async (): Promise<TicketDetail> => {
+      try {
+        return await fetchTicketShow(ticketId as number)
+      } catch {
+        return await fetchTicketDetail(ticketId as number)
+      }
+    },
     enabled: open && ticketId != null,
   })
 
@@ -111,7 +121,8 @@ export function TicketDetailDrawer({ open, onOpenChange, ticketId }: Props) {
                   )}
                 >
                   <div className='mb-1 text-xs opacity-70'>
-                    {m.is_from_admin ? '管理员' : '用户'}　{time(m.created_at)}
+                    {m.is_from_admin ? '管理员' : m.user?.email ?? '用户'}
+                    　{time(m.created_at)}
                   </div>
                   <div className='whitespace-pre-wrap break-words'>
                     {m.message}

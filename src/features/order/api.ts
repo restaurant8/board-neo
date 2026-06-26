@@ -1,4 +1,5 @@
-import { post, getPaginated } from '@/lib/api-client'
+import { post } from '@/lib/api-client'
+import { type Paginated } from '@/lib/api-types'
 
 /** 订单状态，对应后端 Order::$statusMap。 */
 export const ORDER_STATUS_MAP: Record<number, string> = {
@@ -38,6 +39,21 @@ export const PERIOD_MAP: Record<string, string> = {
   three_year_price: '三年付',
   onetime_price: '一次性',
   reset_price: '流量重置包',
+}
+
+/**
+ * 旧版周期键 → 数据库内部 period 值（whereIn 过滤时需用内部值）。
+ * 对应后端 Plan::LEGACY_PERIOD_MAPPING。
+ */
+export const PERIOD_LEGACY_TO_INTERNAL: Record<string, string> = {
+  month_price: 'monthly',
+  quarter_price: 'quarterly',
+  half_year_price: 'half_yearly',
+  year_price: 'yearly',
+  two_year_price: 'two_yearly',
+  three_year_price: 'three_yearly',
+  onetime_price: 'onetime',
+  reset_price: 'reset_traffic',
 }
 
 export type PlanBrief = {
@@ -106,9 +122,12 @@ export type OrderAssignPayload = {
   period: string
 }
 
-/** POST /order/fetch — 分页列表（路由为 any，可 POST）。 */
+/**
+ * POST /order/fetch — 分页列表（路由为 any，可 POST）。
+ * 用 POST 以可靠地传递嵌套的 filter / sort 数组（GET query 序列化不稳定）。
+ */
 export function fetchOrders(params: OrderFetchParams) {
-  return getPaginated<Order>('/order/fetch', params as Record<string, unknown>)
+  return post<Paginated<Order>>('/order/fetch', params)
 }
 
 /** POST /order/detail — 订单详情。 */

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -10,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { fetchUsages } from '../api'
+import { SimplePagination } from './simple-pagination'
 
 function time(ts?: number | null) {
   if (!ts) return '-'
@@ -27,10 +27,11 @@ function brief(obj: Record<string, unknown> | null) {
 
 export function UsagesTab() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['gift-usages', page],
-    queryFn: () => fetchUsages({ page, per_page: 15 }),
+    queryKey: ['gift-usages', page, pageSize],
+    queryFn: () => fetchUsages({ page, per_page: pageSize }),
   })
 
   const rows = data?.data ?? []
@@ -83,29 +84,17 @@ export function UsagesTab() {
         </Table>
       </div>
 
-      <div className='flex items-center justify-between'>
-        <span className='text-muted-foreground text-sm'>
-          共 {data?.total ?? 0} 条，第 {page} / {lastPage} 页
-        </span>
-        <div className='flex gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            上一页
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page >= lastPage}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
+      <SimplePagination
+        page={page}
+        totalPages={lastPage}
+        total={data?.total ?? 0}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s)
+          setPage(1)
+        }}
+      />
     </div>
   )
 }

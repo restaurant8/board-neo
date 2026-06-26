@@ -165,9 +165,36 @@ export function ConfigPage() {
               <SwitchField label='向节点展示协议' description='开启后订阅线路会附带协议名称（例如: [Hy2]香港）' value={v('show_protocol_to_server_enable') as boolean} onChange={(b) => set('show_protocol_to_server_enable', b)} />
               <SwitchField label='默认到期提醒' description='开启后默认向用户发送订阅到期提醒。' value={v('default_remind_expire') as boolean} onChange={(b) => set('default_remind_expire', b)} />
               <SwitchField label='默认流量提醒' description='开启后默认向用户发送订阅流量不足提醒。' value={v('default_remind_traffic') as boolean} onChange={(b) => set('default_remind_traffic', b)} />
-              <TextField label='新购事件 ID' description='新购订阅完成时将触发该任务。0=不执行任何动作，1=重置用户流量。' type='number' value={v('new_order_event_id') as number} onChange={(x) => set('new_order_event_id', Number(x) || 0)} />
-              <TextField label='续费事件 ID' description='续费订阅完成时将触发该任务。0=不执行任何动作，1=重置用户流量。' type='number' value={v('renew_order_event_id') as number} onChange={(x) => set('renew_order_event_id', Number(x) || 0)} />
-              <TextField label='变更事件 ID' description='变更订阅完成时将触发该任务。0=不执行任何动作，1=重置用户流量。' type='number' value={v('change_order_event_id') as number} onChange={(x) => set('change_order_event_id', Number(x) || 0)} />
+              <SelectField
+                label='当订阅新购时触发事件'
+                description='新购订阅完成时将触发该任务。'
+                value={num('new_order_event_id')}
+                onChange={(x) => set('new_order_event_id', Number(x))}
+                options={[
+                  { value: '0', label: '不执行任何动作' },
+                  { value: '1', label: '重置用户流量' },
+                ]}
+              />
+              <SelectField
+                label='当订阅续费时触发事件'
+                description='续费订阅完成时将触发该任务。'
+                value={num('renew_order_event_id')}
+                onChange={(x) => set('renew_order_event_id', Number(x))}
+                options={[
+                  { value: '0', label: '不执行任何动作' },
+                  { value: '1', label: '重置用户流量' },
+                ]}
+              />
+              <SelectField
+                label='当订阅变更时触发事件'
+                description='变更订阅完成时将触发该任务。'
+                value={num('change_order_event_id')}
+                onChange={(x) => set('change_order_event_id', Number(x))}
+                options={[
+                  { value: '0', label: '不执行任何动作' },
+                  { value: '1', label: '重置用户流量' },
+                ]}
+              />
             </TabsContent>
 
             {/* 订阅模板 */}
@@ -291,6 +318,30 @@ export function ConfigPage() {
               <SwitchField label='开启邮箱验证' description='开启后将会强制要求用户进行邮箱验证。' value={v('email_verify') as boolean} onChange={(b) => set('email_verify', b)} />
               <SwitchField label='安全模式' description='开启后除了站点URL以外的绑定本站点的域名访问都将会被403。' value={v('safe_mode_enable') as boolean} onChange={(b) => set('safe_mode_enable', b)} />
               <SwitchField label='邮箱后缀白名单' description='开启后在名单中的邮箱后缀才允许进行注册。' value={v('email_whitelist_enable') as boolean} onChange={(b) => set('email_whitelist_enable', b)} />
+              {(v('email_whitelist_enable') as boolean) && (
+                <TextareaField
+                  label='邮箱后缀白名单管理'
+                  description='每行一个允许注册的邮箱后缀，例如 gmail.com。仅这些后缀的邮箱可注册。'
+                  placeholder={'gmail.com\noutlook.com\nqq.com'}
+                  value={(() => {
+                    const s = v('email_whitelist_suffix') as
+                      | string[]
+                      | string
+                      | null
+                      | undefined
+                    return Array.isArray(s) ? s.join('\n') : (s ?? '')
+                  })()}
+                  onChange={(x) =>
+                    set(
+                      'email_whitelist_suffix',
+                      x
+                        .split(/[\n,]/)
+                        .map((t) => t.trim())
+                        .filter(Boolean)
+                    )
+                  }
+                />
+              )}
               <SwitchField label='限制 Gmail 多别名' description='开启后Gmail多别名将无法注册。' value={v('email_gmail_limit_enable') as boolean} onChange={(b) => set('email_gmail_limit_enable', b)} />
               <SwitchField label='启用人机验证' description='开启后用户注册时需要通过验证码验证。' value={v('captcha_enable') as boolean} onChange={(b) => set('captcha_enable', b)} />
               <SelectField

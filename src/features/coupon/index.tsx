@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
@@ -43,7 +44,7 @@ function couponValue(c: Coupon) {
 export function CouponPage() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<Coupon | null>(null)
   const [deleting, setDeleting] = useState<Coupon | null>(null)
@@ -168,29 +169,17 @@ export function CouponPage() {
           </Table>
         </div>
 
-        <div className='flex items-center justify-between'>
-          <span className='text-muted-foreground text-sm'>
-            共 {data?.total ?? 0} 条，第 {page} / {lastPage} 页
-          </span>
-          <div className='flex gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              上一页
-            </Button>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={page >= lastPage}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              下一页
-            </Button>
-          </div>
-        </div>
+        <SimplePagination
+          page={page}
+          totalPages={lastPage}
+          total={data?.total ?? 0}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(s) => {
+            setPageSize(s)
+            setPage(1)
+          }}
+        />
       </Main>
 
       <CouponMutateDialog

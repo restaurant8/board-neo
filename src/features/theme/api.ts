@@ -43,6 +43,14 @@ export function deleteTheme(name: string) {
   return post<boolean>('/theme/delete', { name })
 }
 
+/**
+ * POST /theme/switchTheme — set the given theme as the active frontend theme.
+ * Controller validates `name` and calls ThemeService::switch().
+ */
+export function switchTheme(name: string) {
+  return post<boolean>('/theme/switchTheme', { name })
+}
+
 /** POST /theme/getThemeConfig — current saved values for a theme. */
 export function getThemeConfig(name: string) {
   return post<Record<string, unknown>>('/theme/getThemeConfig', { name })

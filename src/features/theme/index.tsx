@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { saveConfig } from '@/features/config/api'
 import { FileDropzone } from '@/components/file-dropzone'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -21,7 +20,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { type ThemeItem, deleteTheme, getThemes, uploadTheme } from './api'
+import {
+  type ThemeItem,
+  deleteTheme,
+  getThemes,
+  switchTheme,
+  uploadTheme,
+} from './api'
 import { ThemeConfigDialog } from './components/theme-config-dialog'
 
 export function ThemePage() {
@@ -55,9 +60,9 @@ export function ThemePage() {
     onError: handleServerError,
   })
 
-  // 切换主题：通过 config/save 的 frontend_theme（后端 save 会触发主题 switch）
+  // 切换主题：调用专用 switchTheme 接口（后端 ThemeService::switch）
   const activateMutation = useMutation({
-    mutationFn: (name: string) => saveConfig({ frontend_theme: name }),
+    mutationFn: (name: string) => switchTheme(name),
     onSuccess: () => {
       toast.success('已切换主题')
       refresh()

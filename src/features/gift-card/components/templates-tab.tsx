@@ -21,11 +21,13 @@ import {
   fetchTemplates,
 } from '../api'
 import { GenerateCodesDialog } from './generate-codes-dialog'
+import { SimplePagination } from './simple-pagination'
 import { TemplateMutateDialog } from './template-mutate-dialog'
 
 export function TemplatesTab() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<GiftCardTemplate | null>(null)
   const [deleting, setDeleting] = useState<GiftCardTemplate | null>(null)
@@ -33,8 +35,8 @@ export function TemplatesTab() {
   const [genOpen, setGenOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['gift-templates', page],
-    queryFn: () => fetchTemplates({ page, per_page: 15 }),
+    queryKey: ['gift-templates', page, pageSize],
+    queryFn: () => fetchTemplates({ page, per_page: pageSize }),
   })
 
   const dropMutation = useMutation({
@@ -156,29 +158,17 @@ export function TemplatesTab() {
         </Table>
       </div>
 
-      <div className='flex items-center justify-between'>
-        <span className='text-muted-foreground text-sm'>
-          共 {data?.total ?? 0} 条，第 {page} / {lastPage} 页
-        </span>
-        <div className='flex gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            上一页
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page >= lastPage}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
+      <SimplePagination
+        page={page}
+        totalPages={lastPage}
+        total={data?.total ?? 0}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s)
+          setPage(1)
+        }}
+      />
 
       <TemplateMutateDialog
         open={mutateOpen}

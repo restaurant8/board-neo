@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { VariantProps, cva } from 'class-variance-authority'
-import { PanelLeftIcon } from 'lucide-react'
+import { ChevronLeftIcon, PanelLeftIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
@@ -288,21 +288,20 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
       onClick={toggleSidebar}
       title='Toggle Sidebar'
       className={cn(
-        'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-inset-e-4 group-data-[side=right]:inset-s-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-0.5 hover:after:bg-sidebar-border sm:flex',
-        'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
-        '[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize',
-        'group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:start-full hover:group-data-[collapsible=offcanvas]:bg-sidebar',
-        '[[data-side=left][data-collapsible=offcanvas]_&]:-inset-e-2',
-        '[[data-side=right][data-collapsible=offcanvas]_&]:-inset-s-2',
-
-        // RTL support
-        'rtl:translate-x-1/2',
-        'rtl:in-data-[side=left]:cursor-e-resize rtl:in-data-[side=right]:cursor-w-resize',
-        'rtl:[[data-side=left][data-state=collapsed]_&]:cursor-w-resize rtl:[[data-side=right][data-state=collapsed]_&]:cursor-e-resize',
+        // Floating circular toggle, vertically centered on the sidebar's edge
+        // (matches the original panel). Straddles the end border.
+        'absolute top-1/2 end-0 z-20 hidden size-6 -translate-y-1/2 translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-sidebar-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground sm:flex',
+        // Nothing to anchor to when the sidebar is fully off-canvas.
+        'group-data-[collapsible=offcanvas]:hidden',
+        // RTL: edge flips automatically (end-*), only the straddle offset mirrors.
+        'rtl:-translate-x-1/2',
         className
       )}
       {...props}
-    />
+    >
+      <ChevronLeftIcon className='size-4 transition-transform group-data-[state=collapsed]:rotate-180 rtl:rotate-180 rtl:group-data-[state=collapsed]:rotate-0' />
+      <span className='sr-only'>Toggle Sidebar</span>
+    </button>
   )
 }
 

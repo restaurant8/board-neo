@@ -36,9 +36,10 @@ import {
   clearUsageRecords,
   fetchUsageRecords,
 } from '../api'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { formatTimestamp } from '../format'
 
-const PAGE_SIZE = 50
+const DEFAULT_PAGE_SIZE = 50
 
 type Props = {
   open: boolean
@@ -67,6 +68,7 @@ export function UsageRecordsDialog({
   }>({ keyword: '', ip: '', type: '' })
 
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [orderBy, setOrderBy] = useState<UsageOrderBy>('record_at')
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
   const [confirmClear, setConfirmClear] = useState(false)
@@ -80,6 +82,7 @@ export function UsageRecordsDialog({
       setTypeInput('')
       setApplied({ keyword: kw, ip: '', type: '' })
       setPage(1)
+      setPageSize(DEFAULT_PAGE_SIZE)
       setOrderBy('record_at')
       setOrderDir('desc')
     }
@@ -92,7 +95,7 @@ export function UsageRecordsDialog({
     order_by: orderBy,
     order_dir: orderDir,
     page,
-    page_size: PAGE_SIZE,
+    page_size: pageSize,
   }
 
   const { data, isFetching, refetch } = useQuery({
@@ -104,7 +107,7 @@ export function UsageRecordsDialog({
   const hasFilter = !!(applied.keyword || applied.ip || applied.type)
   const total = data?.total ?? 0
   const rows = data?.data ?? []
-  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const maxPage = Math.max(1, Math.ceil(total / pageSize))
 
   const applyFilters = () => {
     setApplied({ keyword: keywordInput.trim(), ip: ipInput.trim(), type: typeInput })
@@ -324,30 +327,17 @@ export function UsageRecordsDialog({
           </div>
 
           {/* 分页页脚 */}
-          <div className='flex items-center gap-3 text-sm'>
-            <span className='text-muted-foreground'>共 {total} 条</span>
-            <div className='ms-auto flex items-center gap-2'>
-              <Button
-                variant='outline'
-                size='sm'
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                上一页
-              </Button>
-              <span>
-                {page} / {maxPage}
-              </span>
-              <Button
-                variant='outline'
-                size='sm'
-                disabled={page >= maxPage}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                下一页
-              </Button>
-            </div>
-          </div>
+          <SimplePagination
+            page={page}
+            totalPages={maxPage}
+            total={total}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => {
+              setPageSize(s)
+              setPage(1)
+            }}
+          />
         </DialogContent>
       </Dialog>
 

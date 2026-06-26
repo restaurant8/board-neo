@@ -30,6 +30,7 @@ import {
   fetchCodes,
   toggleCode,
 } from '../api'
+import { SimplePagination } from './simple-pagination'
 
 function time(ts?: number | null) {
   if (!ts) return '-'
@@ -45,15 +46,16 @@ function statusVariant(status: number) {
 export function CodesTab() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [deleting, setDeleting] = useState<GiftCardCode | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['gift-codes', page, statusFilter],
+    queryKey: ['gift-codes', page, pageSize, statusFilter],
     queryFn: () =>
       fetchCodes({
         page,
-        per_page: 15,
+        per_page: pageSize,
         status: statusFilter === 'all' ? undefined : Number(statusFilter),
       }),
   })
@@ -193,29 +195,17 @@ export function CodesTab() {
         </Table>
       </div>
 
-      <div className='flex items-center justify-between'>
-        <span className='text-muted-foreground text-sm'>
-          共 {data?.total ?? 0} 条，第 {page} / {lastPage} 页
-        </span>
-        <div className='flex gap-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            上一页
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            disabled={page >= lastPage}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            下一页
-          </Button>
-        </div>
-      </div>
+      <SimplePagination
+        page={page}
+        totalPages={lastPage}
+        total={data?.total ?? 0}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => {
+          setPageSize(s)
+          setPage(1)
+        }}
+      />
 
       <ConfirmDialog
         open={!!deleting}

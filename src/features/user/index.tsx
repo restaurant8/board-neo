@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner'
 import { adminApi } from '@/lib/api-client'
 import { handleServerError } from '@/lib/handle-server-error'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -78,8 +79,6 @@ import {
   formatOnlineStatus,
 } from './format'
 
-const PAGE_SIZE = 20
-
 export function UserPage() {
   const queryClient = useQueryClient()
 
@@ -91,6 +90,7 @@ export function UserPage() {
   const [bannedFilter, setBannedFilter] = useState<string>('all') // 'all' | '1' | '0'
   const [adminFilter, setAdminFilter] = useState<string>('all') // 'all' | '1' | '0'
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
 
   // 已应用筛选
   const [applied, setApplied] = useState({
@@ -146,7 +146,7 @@ export function UserPage() {
 
   const params = {
     current: page,
-    pageSize: PAGE_SIZE,
+    pageSize,
     filter: hasFilter ? filter : undefined,
   }
 
@@ -157,7 +157,7 @@ export function UserPage() {
 
   const total = data?.total ?? 0
   const rows = data?.data ?? []
-  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const maxPage = Math.max(1, Math.ceil(total / pageSize))
 
   const allOnPageSelected =
     rows.length > 0 && rows.every((u) => selected.includes(u.id))
@@ -629,30 +629,22 @@ export function UserPage() {
         </div>
 
         {/* 分页 */}
-        <div className='flex items-center gap-3 text-sm'>
-          <span className='text-muted-foreground'>共 {total} 个用户</span>
-          <div className='ms-auto flex items-center gap-2'>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              上一页
-            </Button>
-            <span>
-              {page} / {maxPage}
-            </span>
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={page >= maxPage}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              下一页
-            </Button>
-          </div>
-        </div>
+        <SimplePagination
+          page={page}
+          totalPages={maxPage}
+          total={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(s) => {
+            setPageSize(s)
+            setPage(1)
+          }}
+          left={
+            <>
+              已选择 {selected.length} 项，共 {total} 个用户
+            </>
+          }
+        />
       </Main>
 
       <UserEditDialog open={editOpen} onOpenChange={setEditOpen} current={editing} />

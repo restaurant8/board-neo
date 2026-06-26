@@ -94,6 +94,50 @@ export async function fetchStatRecord(
   return res.data ?? []
 }
 
+/**
+ * GET /stat/getOrder — 订单统计（按天聚合，来源 v2_stat record_type=d）。
+ * 金额字段（paid_total/commission_total 等）单位：分。
+ * 控制器返回 { code, message, data }（非 status 信封），api-client 不解包，
+ * 故需手动取内层 data。可选 start_date/end_date（Y-m-d）、type 过滤。
+ */
+export type OrderStatDaily = {
+  date: string
+  paid_total: number
+  paid_count: number
+  commission_total: number
+  commission_count: number
+  avg_order_amount: number
+  avg_commission_amount: number
+}
+
+export type OrderStatSummary = {
+  paid_total: number
+  paid_count: number
+  commission_total: number
+  commission_count: number
+  start_date: string
+  end_date: string
+  avg_paid_amount: number
+  avg_commission_amount: number
+  commission_rate: number
+}
+
+export type OrderStat = {
+  list: OrderStatDaily[]
+  summary: OrderStatSummary
+}
+
+export async function fetchOrderStat(range?: {
+  start_date?: string
+  end_date?: string
+}) {
+  const res = await get<{ data: OrderStat }>('/stat/getOrder', {
+    ...(range?.start_date ? { start_date: range.start_date } : {}),
+    ...(range?.end_date ? { end_date: range.end_date } : {}),
+  })
+  return res.data
+}
+
 /** GET /stat/getServerLastRank — 当日节点实时流量排行（StatisticalService::getServerRank）。 */
 export type ServerRankItem = {
   server_name: string

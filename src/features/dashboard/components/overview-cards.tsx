@@ -141,7 +141,7 @@ export function OverviewCards() {
         icon={<DollarSign className='size-4' />}
         sub='有佣金需要确认'
         onClick={() =>
-          navigate({ to: '/order', search: { is_commission: true } })
+          navigate({ to: '/order', search: { commission_status: ['0'] } })
         }
       />
       <StatCard

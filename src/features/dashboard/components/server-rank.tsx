@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Card,
@@ -6,7 +5,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -15,30 +13,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { fetchServerLastRank, fetchServerYesterdayRank } from '../api'
+import { fetchTrafficRank } from '../api'
 import { formatBytes } from '../format'
+import { TimeRangeSelect, useTimeRange } from './time-range'
 
 export function ServerRank() {
-  const [period, setPeriod] = useState<'today' | 'yesterday'>('today')
+  const timeRange = useTimeRange('today')
+  const { start_date, end_date } = timeRange.range
 
   const { data, isLoading } = useQuery({
-    queryKey: ['server-rank', period],
+    queryKey: ['traffic-rank', 'node', start_date, end_date],
+    // 后端 getTrafficRank 入参为 start_time/end_time（unix 秒，整数）；
+    // useTimeRange 产出的 start_date/end_date 即秒级，直接映射。
     queryFn: () =>
-      period === 'today' ? fetchServerLastRank() : fetchServerYesterdayRank(),
+      fetchTrafficRank({
+        type: 'node',
+        start_time: start_date,
+        end_time: end_date,
+      }),
   })
 
-  const rows = (data ?? []).slice(0, 10)
+  // 接口已限制为前 10，这里再兜底切一次。
+  const rows = (data?.data ?? []).slice(0, 10)
 
   return (
     <Card>
-      <CardHeader className='flex flex-row items-center justify-between'>
+      <CardHeader className='flex flex-row items-center justify-between gap-2'>
         <CardTitle>节点流量排行</CardTitle>
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-          <TabsList>
-            <TabsTrigger value='today'>今日</TabsTrigger>
-            <TabsTrigger value='yesterday'>昨日</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <TimeRangeSelect {...timeRange} />
       </CardHeader>
       <CardContent>
         <Table>
@@ -58,10 +60,10 @@ export function ServerRank() {
               </TableRow>
             ) : rows.length > 0 ? (
               rows.map((s, i) => (
-                <TableRow key={`${s.server_id}-${s.server_type}`}>
+                <TableRow key={s.id}>
                   <TableCell className='text-muted-foreground'>{i + 1}</TableCell>
-                  <TableCell className='font-medium'>{s.server_name}</TableCell>
-                  <TableCell className='text-end'>{formatBytes(s.total)}</TableCell>
+                  <TableCell className='font-medium'>{s.name}</TableCell>
+                  <TableCell className='text-end'>{formatBytes(s.value)}</TableCell>
                 </TableRow>
               ))
             ) : (

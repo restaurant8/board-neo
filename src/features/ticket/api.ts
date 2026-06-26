@@ -80,6 +80,17 @@ export function fetchTicketDetail(id: number) {
   return get<TicketDetail>('/ticket/fetch', { id })
 }
 
+/**
+ * GET /ticket/show/{id} — 完整会话。TicketController::show 以路由参数 id 入参，
+ * 返回 Ticket::with('user', 'messages.user')，比 fetch?id 多 eager-load 每条
+ * 消息的 user（含 email），可在气泡里显示具体发件人。
+ * 注意：AdminRoute 当前未注册 show 路由（仅 fetch/reply/close），该 demo 后端
+ * 可能 404；按源码契约书写，联调以 fetchTicketDetail 兜底。
+ */
+export function fetchTicketShow(id: number) {
+  return get<TicketDetail>(`/ticket/show/${id}`)
+}
+
 /** POST /ticket/reply — 管理员回复工单。 */
 export function replyTicket(id: number, message: string) {
   return post<boolean>('/ticket/reply', { id, message })

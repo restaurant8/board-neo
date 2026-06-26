@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Server as ServerIcon,
   Terminal,
   Trash2,
   X,
@@ -23,6 +24,7 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { formatBytes } from '@/features/dashboard/format'
 import { fetchServerGroups } from '@/features/server-group/api'
 import { fetchMachines } from '@/features/server-machine/api'
+import { isOnline } from '@/features/server-machine/format'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
@@ -247,6 +249,18 @@ export function ServerManagePage() {
     ;(machines ?? []).forEach((x) => m.set(x.id, x.name))
     return m
   }, [machines])
+
+  const machineById = useMemo(() => {
+    const m = new Map<number, NonNullable<typeof machines>[number]>()
+    ;(machines ?? []).forEach((x) => m.set(x.id, x))
+    return m
+  }, [machines])
+
+  // 作为其它节点 parent 的节点 id 集合（用于子父关系着色）
+  const parentIds = useMemo(
+    () => new Set(nodes.map((n) => n.parent_id).filter((x): x is number => !!x)),
+    [nodes]
+  )
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['nodes'] })
@@ -510,23 +524,30 @@ export function ServerManagePage() {
                 selected={groupFilter}
                 onChange={setGroupFilter}
               />
-              {selected.length > 0 && (
-                <DropdownMenu>
+              <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant='outline'
                       size='sm'
                       className='h-8 border-dashed'
+                      disabled={selected.length === 0}
                     >
                       <PlusCircledIcon className='size-4' />
                       操作
-                      <Separator orientation='vertical' className='mx-2 h-4' />
-                      <Badge
-                        variant='secondary'
-                        className='rounded-sm px-1 font-normal'
-                      >
-                        {selected.length}
-                      </Badge>
+                      {selected.length > 0 && (
+                        <>
+                          <Separator
+                            orientation='vertical'
+                            className='mx-2 h-4'
+                          />
+                          <Badge
+                            variant='secondary'
+                            className='rounded-sm px-1 font-normal'
+                          >
+                            {selected.length}
+                          </Badge>
+                        </>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align='start'>
@@ -586,7 +607,6 @@ export function ServerManagePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
               {hasFilter && (
                 <Button variant='ghost' size='sm' onClick={resetFilters}>
                   重置 <X className='size-4' />
@@ -730,8 +750,31 @@ export function ServerManagePage() {
                           />
                         </TableCell>
                       )}
-                      <TableCell className='text-muted-foreground font-mono text-sm'>
-                        {n.id}
+                      <TableCell>
+                        {(() => {
+                          const isChild = n.parent_id != null
+                          const related = isChild || parentIds.has(n.id)
+                          return (
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-xs',
+                                related
+                                  ? 'border-violet-400 text-violet-600 dark:border-violet-500 dark:text-violet-400'
+                                  : 'text-muted-foreground'
+                              )}
+                              title={
+                                isChild
+                                  ? `子节点（父节点 #${n.parent_id}）`
+                                  : parentIds.has(n.id)
+                                    ? '父节点'
+                                    : undefined
+                              }
+                            >
+                              <ServerIcon className='size-3.5' />
+                              {isChild ? `${n.id} → ${n.parent_id}` : n.id}
+                            </span>
+                          )
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Switch
@@ -745,6 +788,23 @@ export function ServerManagePage() {
                       </TableCell>
                       <TableCell className='font-medium'>
                         <div className='flex flex-wrap items-center gap-1.5'>
+                          <span
+                            className={cn(
+                              'inline-block size-2 shrink-0 rounded-full',
+                              n.available_status === 2
+                                ? 'bg-emerald-500'
+                                : n.available_status === 1
+                                  ? 'bg-amber-500'
+                                  : 'bg-red-500'
+                            )}
+                            title={
+                              n.available_status === 2
+                                ? '在线'
+                                : n.available_status === 1
+                                  ? '在线（无推送）'
+                                  : '离线'
+                            }
+                          />
                           <span>{n.name}</span>
                           <Badge variant='secondary'>
                             {SERVER_TYPE_LABEL[n.type] ?? n.type}
@@ -755,15 +815,40 @@ export function ServerManagePage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {machineName ? (
-                          <Badge variant='outline'>机器部署 · {machineName}</Badge>
-                        ) : n.machine_id != null ? (
-                          <Badge variant='outline'>
-                            机器部署 · #{n.machine_id}
-                          </Badge>
+                        {n.machine_id != null ? (
+                          (() => {
+                            const mc = machineById.get(n.machine_id)
+                            const mOnline = mc
+                              ? isOnline(mc.last_seen_at)
+                              : false
+                            return (
+                              <div className='flex items-center gap-1.5'>
+                                <span
+                                  className={cn(
+                                    'inline-block size-2 shrink-0 rounded-full',
+                                    mOnline ? 'bg-emerald-500' : 'bg-red-500'
+                                  )}
+                                />
+                                <span className='truncate text-sm'>
+                                  {machineName ?? `#${n.machine_id}`}
+                                </span>
+                                <Badge
+                                  variant='secondary'
+                                  className={cn(
+                                    'shrink-0',
+                                    mOnline
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : 'text-red-600 dark:text-red-400'
+                                  )}
+                                >
+                                  {mOnline ? '服务器在线' : '服务器离线'}
+                                </Badge>
+                              </div>
+                            )
+                          })()
                         ) : (
-                          <span className='text-muted-foreground text-sm'>
-                            独立部署
+                          <span className='text-muted-foreground flex items-center gap-1.5 text-sm'>
+                            <ServerIcon className='size-4' /> 独立部署
                           </span>
                         )}
                       </TableCell>
