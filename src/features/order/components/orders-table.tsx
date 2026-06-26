@@ -184,6 +184,8 @@ export type OrderSearch = {
   period?: string[]
   status?: string[]
   commission_status?: string[]
+  /** 仅看待处理佣金（后端 is_commission：有邀请人、状态非取消/待支付、佣金>0）。 */
+  is_commission?: boolean
   /** "字段.desc" / "字段.asc"，如 "status.desc"。 */
   sort?: string
 }
@@ -209,6 +211,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
   const periodSel = search.period ?? []
   const statusSel = search.status ?? []
   const commissionSel = search.commission_status ?? []
+  const isCommission = search.is_commission ?? false
 
   // 受控搜索框（输入态），回车 / 提交后才写入 URL 触发请求
   const [searchInput, setSearchInput] = useState(tradeNo)
@@ -260,7 +263,8 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
     typeSel.length > 0 ||
     periodSel.length > 0 ||
     statusSel.length > 0 ||
-    commissionSel.length > 0
+    commissionSel.length > 0 ||
+    isCommission
 
   const resetFilters = () => {
     setSearchInput('')
@@ -272,6 +276,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
         delete next.period
         delete next.status
         delete next.commission_status
+        delete next.is_commission
         delete next.page
         return next
       },
@@ -310,10 +315,17 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
       periodSel,
       statusSel,
       commissionSel,
+      isCommission,
       search.sort,
     ],
     queryFn: () =>
-      fetchOrders({ current: page, pageSize, filter, sort }),
+      fetchOrders({
+        current: page,
+        pageSize,
+        filter,
+        sort,
+        is_commission: isCommission || undefined,
+      }),
   })
 
   const rows = data?.data ?? []

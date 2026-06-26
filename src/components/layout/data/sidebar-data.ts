@@ -97,18 +97,7 @@ export const sidebarData: SidebarData = {
           items: [
             { title: '用户管理', url: '/user', icon: Users },
             { title: '工单管理', url: '/ticket', icon: LifeBuoy },
-            {
-              title: '流量统计',
-              url: '/traffic-stat',
-              icon: BarChart3,
-              search: { tab: 'diagnostics' },
-            },
-            {
-              title: '流量审计',
-              url: '/traffic-stat',
-              icon: Activity,
-              search: { tab: 'audit' },
-            },
+            { title: '流量统计', url: '/traffic-stat', icon: BarChart3 },
           ],
         },
       ],

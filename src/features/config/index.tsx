@@ -10,6 +10,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { fetchPlans } from '@/features/plan/api'
 import {
   type ConfigData,
   fetchConfig,
@@ -39,6 +40,8 @@ export function ConfigPage() {
     queryKey: ['config'],
     queryFn: fetchConfig,
   })
+  // 注册试用：可选套餐列表（对齐原版下拉）
+  const { data: plans } = useQuery({ queryKey: ['plans-brief'], queryFn: fetchPlans })
 
   const [form, setForm] = useState<Record<string, unknown>>({})
   const [dirty, setDirty] = useState<Set<string>>(new Set())
@@ -136,7 +139,19 @@ export function ConfigPage() {
               <TextField label='服务条款 URL' placeholder='请输入用户条款URL，末尾不要/' description='用于跳转到用户条款(TOS)' value={v('tos_url') as string} onChange={(x) => set('tos_url', x)} />
               <TextField label='货币代码' placeholder='CNY' description='仅用于展示使用，更改后系统中所有的货币单位都将发生变更。' value={v('currency') as string} onChange={(x) => set('currency', x)} />
               <TextField label='货币符号' placeholder='¥' description='仅用于展示使用，更改后系统中所有的货币单位都将发生变更。' value={v('currency_symbol') as string} onChange={(x) => set('currency_symbol', x)} />
-              <TextField label='试用套餐 ID' placeholder='关闭' description='选择需要试用的订阅，如果没有选项请先前往订阅管理添加。' type='number' value={v('try_out_plan_id') as number} onChange={(x) => set('try_out_plan_id', Number(x) || 0)} />
+              <SelectField
+                label='注册试用'
+                description='选择需要试用的订阅，如果没有选项请先前往订阅管理添加。'
+                value={num('try_out_plan_id')}
+                onChange={(x) => set('try_out_plan_id', Number(x) || 0)}
+                options={[
+                  { value: '0', label: '关闭' },
+                  ...(plans ?? []).map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                  })),
+                ]}
+              />
               <TextField label='试用时长（小时）' placeholder='0' description='注册试用时长，单位为小时。' type='number' value={v('try_out_hour') as number} onChange={(x) => set('try_out_hour', Number(x) || 0)} />
               <SwitchField label='强制 HTTPS' description='当站点没有使用HTTPS，CDN或反代开启强制HTTPS时需要开启。' value={!!num('force_https')} onChange={(b) => set('force_https', b ? 1 : 0)} />
               <SwitchField label='停止注册' description='开启后任何人都将无法进行注册。' value={!!num('stop_register')} onChange={(b) => set('stop_register', b ? 1 : 0)} />

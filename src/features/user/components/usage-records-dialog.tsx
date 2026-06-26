@@ -224,7 +224,7 @@ export function UsageRecordsDialog({
 
           {/* 表格 */}
           <div className='flex-1 overflow-y-auto overflow-x-auto rounded-md border'>
-            <Table className='min-w-[960px] table-fixed'>
+            <Table className='w-max min-w-full'>
               <TableHeader className='sticky top-0 z-10 bg-background'>
                 <TableRow>
                   <TableHead className='w-[180px]'>用户</TableHead>
@@ -234,11 +234,11 @@ export function UsageRecordsDialog({
                   >
                     在线IP{sortIcon('online')}
                   </TableHead>
-                  <TableHead className='w-[72px]'>类型</TableHead>
-                  <TableHead className='w-[130px]'>IP</TableHead>
-                  <TableHead className='w-[120px]'>归属地</TableHead>
-                  <TableHead className='w-[110px]'>节点</TableHead>
-                  <TableHead>User-Agent</TableHead>
+                  <TableHead className='whitespace-nowrap'>类型</TableHead>
+                  <TableHead className='whitespace-nowrap'>IP</TableHead>
+                  <TableHead className='whitespace-nowrap'>归属地</TableHead>
+                  <TableHead className='whitespace-nowrap'>节点</TableHead>
+                  <TableHead className='max-w-[280px]'>User-Agent</TableHead>
                   <TableHead
                     className='w-[64px] cursor-pointer select-none whitespace-nowrap'
                     onClick={() => toggleSort('count')}
@@ -297,24 +297,27 @@ export function UsageRecordsDialog({
                         )}
                       </TableCell>
                       <TableCell
-                        className='truncate font-mono text-xs'
+                        className='font-mono text-xs whitespace-nowrap'
                         title={r.ip}
                       >
                         {r.ip}
                       </TableCell>
-                      <TableCell className='truncate' title={r.location || ''}>
+                      <TableCell
+                        className='whitespace-nowrap'
+                        title={r.location || ''}
+                      >
                         {r.location || (
                           <span className='text-muted-foreground'>—</span>
                         )}
                       </TableCell>
                       <TableCell
-                        className='truncate text-sm text-muted-foreground'
+                        className='text-sm whitespace-nowrap text-muted-foreground'
                         title={r.server_name || ''}
                       >
                         {r.server_name || '—'}
                       </TableCell>
                       <TableCell
-                        className='truncate text-xs text-muted-foreground'
+                        className='max-w-[280px] truncate text-xs text-muted-foreground'
                         title={r.ua ?? ''}
                       >
                         {r.ua || '—'}

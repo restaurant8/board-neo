@@ -9,7 +9,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { type Order, cancelOrder, markOrderPaid } from './api'
+import { type Order, cancelOrder, markOrderPaid, updateOrder } from './api'
 import { OrderAssignDialog } from './components/order-assign-dialog'
 import { OrderDetailDialog } from './components/order-detail-dialog'
 import { type OrderColumnHandlers } from './components/orders-columns'
@@ -47,10 +47,28 @@ export function OrderPage() {
     onError: handleServerError,
   })
 
+  const commissionMutation = useMutation({
+    mutationFn: (v: { trade_no: string; commission_status: number }) =>
+      updateOrder(v),
+    onSuccess: () => {
+      toast.success('佣金状态已更新')
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    },
+    onError: handleServerError,
+  })
+
   const handlers: OrderColumnHandlers = {
     onView: useCallback((order: Order) => setDetailId(order.id), []),
     onMarkPaid: useCallback((order: Order) => setPaying(order), []),
     onCancel: useCallback((order: Order) => setCancelling(order), []),
+    onSetCommission: useCallback(
+      (order: Order, commission_status: number) =>
+        commissionMutation.mutate({
+          trade_no: order.trade_no,
+          commission_status,
+        }),
+      [commissionMutation]
+    ),
   }
 
   return (

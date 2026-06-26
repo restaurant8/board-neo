@@ -1,49 +1,59 @@
-import { get, post } from '@/lib/api-client'
-
-/** A single commit entry in the update log (from checkForUpdates). */
-export type UpdateLog = {
-  version: string
-  message: string
-  author: string
-  date: string
-  is_local?: boolean
-}
-
 /**
- * GET /update/check — result of UpdateService::checkForUpdates().
- * Compares the local git HEAD against the upstream repo commits.
+ * 前端自更新：调用站点根目录的 `update.php`（与本前端同源，需服务器支持 PHP）。
+ * - check：比对当前已部署版本与 board-neo dist-standalone 分支最新 commit。
+ * - apply：让 update.php 下载最新 dist 并覆盖当前站点目录。
+ * 鉴权用密钥（与 update.php 里的 UPDATE_TOKEN 一致），存在浏览器本地。
  */
-export type CheckUpdateResult = {
-  has_update: boolean
-  is_local_newer?: boolean
-  latest_version: string
-  current_version: string
-  update_logs: UpdateLog[]
-  download_url?: string
-  published_at?: string
-  author?: string
+
+const ENDPOINT = '/update.php'
+const TOKEN_KEY = 'bn_update_token'
+
+export function getUpdateToken(): string {
+  if (typeof localStorage === 'undefined') return ''
+  return localStorage.getItem(TOKEN_KEY) ?? ''
+}
+export function setUpdateToken(token: string): void {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(TOKEN_KEY, token)
 }
 
-/** Successful payload of UpdateService::executeUpdate(). */
+export type CheckUpdateResult = {
+  current_version: string
+  latest_version: string
+  has_update: boolean
+  published_at?: string
+  message?: string
+}
+
 export type ExecuteUpdateResult = {
   success: boolean
-  message: string
   version?: string
-  update_info?: {
-    from_version: string
-    to_version: string
-    update_logs: string[]
-    author: string
-    published_at: string
+}
+
+async function call<T>(action: 'check' | 'apply', method: 'GET' | 'POST'): Promise<T> {
+  const token = getUpdateToken()
+  const res = await fetch(
+    `${ENDPOINT}?action=${action}&token=${encodeURIComponent(token)}`,
+    { method }
+  )
+  let json: Record<string, unknown> = {}
+  try {
+    json = await res.json()
+  } catch {
+    throw new Error(`更新接口返回异常（HTTP ${res.status}）；请确认 update.php 已部署在站点根目录。`)
   }
+  if (!res.ok || json.error) {
+    throw new Error(String(json.error ?? `请求失败（HTTP ${res.status}）`))
+  }
+  return json as T
 }
 
-/** GET /update/check — check upstream for a newer version. */
+/** GET /update.php?action=check — 检查 board-neo 前端是否有新版本。 */
 export function checkUpdate() {
-  return get<CheckUpdateResult>('/update/check')
+  return call<CheckUpdateResult>('check', 'GET')
 }
 
-/** POST /update/execute — pull latest code, migrate, clear cache, restart. */
+/** POST /update.php?action=apply — 下载最新 dist 覆盖当前站点。 */
 export function executeUpdate() {
-  return post<ExecuteUpdateResult>('/update/execute')
+  return call<ExecuteUpdateResult>('apply', 'POST')
 }

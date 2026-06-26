@@ -49,6 +49,8 @@ export type OrderColumnHandlers = {
   onView: (order: Order) => void
   onMarkPaid: (order: Order) => void
   onCancel: (order: Order) => void
+  /** 更新佣金状态（1=发放中 / 3=无效），仅对有佣金的订单可用。 */
+  onSetCommission: (order: Order, commission_status: number) => void
 }
 
 export function getOrdersColumns(
@@ -234,6 +236,26 @@ export function getOrdersColumns(
                 <DropdownMenuItem onClick={() => handlers.onView(order)}>
                   查看详情
                 </DropdownMenuItem>
+                {(order.commission_balance ?? 0) > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {order.commission_status !== 1 && (
+                      <DropdownMenuItem
+                        onClick={() => handlers.onSetCommission(order, 1)}
+                      >
+                        佣金发放中
+                      </DropdownMenuItem>
+                    )}
+                    {order.commission_status !== 3 && (
+                      <DropdownMenuItem
+                        className='text-destructive'
+                        onClick={() => handlers.onSetCommission(order, 3)}
+                      >
+                        佣金无效
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
                 {order.status === 0 && (
                   <>
                     <DropdownMenuSeparator />

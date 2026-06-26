@@ -16,4 +16,5 @@
  *      --font-roboto: 'Roboto', var(--font-sans);
  *   }
  */
-export const fonts = ['inter', 'manrope', 'system'] as const
+// 默认（数组首项）使用 system：中文友好的系统字体栈，对齐原版观感
+export const fonts = ['system', 'inter', 'manrope'] as const
