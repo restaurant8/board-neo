@@ -42,7 +42,12 @@ export type DiagParams = {
  * 数据由「流量统计模式」开启后采集；privacy 不含主域名，diagnostic 含主域名。
  */
 export async function fetchTrafficDiagnostics(params: DiagParams) {
-  const r = await get<{ data: DiagResult }>('/stat/getTrafficDiagnostics', params)
+  // 大表聚合可能较慢，单独放宽超时，避免默认 30s 提前中断导致空白
+  const r = await get<{ data: DiagResult }>(
+    '/stat/getTrafficDiagnostics',
+    params,
+    { timeout: 120000 }
+  )
   return r.data
 }
 
@@ -126,9 +131,11 @@ export type UserAuditParams = {
  * 同样返回 `{ data: {...} }` 非标准信封，手动取内层 data。
  */
 export async function fetchUserTrafficAudit(params: UserAuditParams) {
+  // 大表聚合可能较慢，单独放宽超时，避免默认 30s 提前中断导致空白
   const r = await get<{ data: UserAuditResult }>(
     '/stat/getUserTrafficAudit',
-    params
+    params,
+    { timeout: 120000 }
   )
   return r.data
 }

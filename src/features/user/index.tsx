@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowDown,
+  ArrowUp,
   Ban,
+  ChevronsUpDown,
   Download,
   FileText,
   Filter,
@@ -51,6 +54,7 @@ import {
 import {
   type User,
   type UserFilter,
+  type UserSort,
   banUsers,
   destroyUser,
   fetchPlans,
@@ -93,6 +97,40 @@ export function UserPage() {
   const [conditions, setConditions] = useState<FilterCondition[]>([])
   // 由高级筛选条件生成的后端 filter 项
   const [advancedFilter, setAdvancedFilter] = useState<UserFilter[]>([])
+  // 列排序：单列三态 none → asc → desc → none，驱动后端 sort 参数
+  const [sort, setSort] = useState<UserSort[]>([])
+  const toggleSort = (field: string) => {
+    setPage(1)
+    setSort((prev) => {
+      const cur = prev[0]
+      if (!cur || cur.id !== field) return [{ id: field, desc: false }]
+      if (!cur.desc) return [{ id: field, desc: true }]
+      return []
+    })
+  }
+  const sortHead = (field: string, label: string, className?: string) => {
+    const cur = sort[0]
+    const icon =
+      !cur || cur.id !== field ? (
+        <ChevronsUpDown className='size-3.5 opacity-50' />
+      ) : cur.desc ? (
+        <ArrowDown className='size-3.5' />
+      ) : (
+        <ArrowUp className='size-3.5' />
+      )
+    return (
+      <TableHead className={className}>
+        <button
+          type='button'
+          onClick={() => toggleSort(field)}
+          className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
+        >
+          {label}
+          {icon}
+        </button>
+      </TableHead>
+    )
+  }
 
   // 多选（当前页选中的用户 id）
   const [selected, setSelected] = useState<number[]>([])
@@ -132,6 +170,7 @@ export function UserPage() {
     current: page,
     pageSize,
     filter: hasFilter ? filter : undefined,
+    sort: sort.length ? sort : undefined,
   }
 
   const { data, isLoading } = useQuery({
@@ -406,17 +445,17 @@ export function UserPage() {
                     aria-label='全选本页'
                   />
                 </TableHead>
-                <TableHead className='w-16'>ID</TableHead>
+                {sortHead('id', 'ID', 'w-16')}
                 <TableHead>用户 / 邮箱</TableHead>
                 <TableHead>订阅</TableHead>
                 <TableHead>权限组</TableHead>
-                <TableHead>到期时间</TableHead>
-                <TableHead>已用 / 总流量</TableHead>
-                <TableHead>余额</TableHead>
-                <TableHead>佣金</TableHead>
-                <TableHead>在线设备</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>注册时间</TableHead>
+                {sortHead('expired_at', '到期时间')}
+                {sortHead('total_used', '已用 / 总流量')}
+                {sortHead('balance', '余额')}
+                {sortHead('commission_balance', '佣金')}
+                {sortHead('online_count', '在线设备')}
+                {sortHead('banned', '状态')}
+                {sortHead('created_at', '注册时间')}
                 <TableHead className='w-12 text-end'>操作</TableHead>
               </TableRow>
             </TableHeader>

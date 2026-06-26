@@ -33,7 +33,8 @@ const RANGES = [
 const EMPTY_SUMMARY: Summary = { u: 0, d: 0, total: 0 }
 
 export function TrafficStatPage() {
-  const [days, setDays] = useState(7)
+  // 默认「今日」以减小大表聚合的首屏扫描量；需要更长区间可手动切换
+  const [days, setDays] = useState(0)
   const [mode, setMode] = useState<'all' | 'privacy' | 'diagnostic'>('all')
   const [keyword, setKeyword] = useState('')
   const [userKeyword, setUserKeyword] = useState('')

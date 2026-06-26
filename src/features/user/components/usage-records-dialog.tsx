@@ -160,7 +160,7 @@ export function UsageRecordsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className='flex h-[85vh] max-h-[85vh] w-[95vw] max-w-6xl flex-col gap-3'>
+        <DialogContent className='flex h-[85vh] max-h-[85vh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
           <DialogHeader>
             <DialogTitle>使用记录</DialogTitle>
             <DialogDescription>

@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -18,20 +17,29 @@ import {
 } from '@/components/ui/table'
 import { fetchTrafficRank } from '../api'
 import { formatBytes, formatPercent } from '../format'
+import { TimeRangeSelect, useTimeRange } from './time-range'
 
 export function UserRank() {
+  const timeRange = useTimeRange('today')
+  const { start_date, end_date } = timeRange.range
+
   const { data, isLoading } = useQuery({
-    queryKey: ['traffic-rank', 'user'],
-    queryFn: () => fetchTrafficRank({ type: 'user' }),
+    queryKey: ['traffic-rank', 'user', start_date, end_date],
+    queryFn: () =>
+      fetchTrafficRank({
+        type: 'user',
+        start_time: start_date,
+        end_time: end_date,
+      }),
   })
 
-  const rows = data?.data ?? []
+  const rows = (data?.data ?? []).slice(0, 10)
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className='flex flex-row items-center justify-between gap-2'>
         <CardTitle>用户流量排行</CardTitle>
-        <CardDescription>近 7 天消耗 Top 10（含环比）</CardDescription>
+        <TimeRangeSelect {...timeRange} />
       </CardHeader>
       <CardContent>
         <Table>
