@@ -17,9 +17,28 @@ header('Content-Type: application/json; charset=utf-8');
 const ZIP_URL = 'https://github.com/restaurant8/board-neo/archive/refs/heads/dist-standalone.zip';
 const COMMITS_API = 'https://api.github.com/repos/restaurant8/board-neo/commits/dist-standalone';
 
-/* ⬇⬇⬇ 部署后改成你自己的随机密钥（与系统更新页填的一致）⬇⬇⬇ */
-const UPDATE_TOKEN = '';
-/* ⬆⬆⬆ 为空将拒绝任何操作 ⬆⬆⬆ */
+/*
+ * 鉴权密钥来源（优先级从高到低）：
+ *   1) 环境变量 BN_UPDATE_TOKEN —— 最安全，密钥完全不进 web 目录文件（推荐，宝塔可在站点 PHP 配置里设）。
+ *   2) 下面的 UPDATE_TOKEN_SHA256 —— 只放「密钥的 sha256 哈希」，即使本文件被读到也无法反推出明文。
+ * 两者都没设置时一律拒绝。系统更新页里填的是「明文密钥」。
+ *
+ * 生成哈希：php -r "echo hash('sha256','你的随机密钥');"
+ */
+const UPDATE_TOKEN_SHA256 = '';
+
+function valid_token($t)
+{
+    $t = (string) $t;
+    $env = getenv('BN_UPDATE_TOKEN');
+    if ($env !== false && $env !== '') {
+        return hash_equals($env, $t);
+    }
+    if (UPDATE_TOKEN_SHA256 !== '') {
+        return hash_equals(UPDATE_TOKEN_SHA256, hash('sha256', $t));
+    }
+    return false;
+}
 
 const PRESERVE = ['settings.js', 'update.php', '.bn-version'];
 
@@ -93,9 +112,8 @@ function copy_dir($src, $dst)
 }
 
 /* ------------------------------- 鉴权 ------------------------------- */
-$token = $_REQUEST['token'] ?? '';
-if (UPDATE_TOKEN === '' || !hash_equals(UPDATE_TOKEN, (string) $token)) {
-    out(['error' => '未授权：请在 update.php 设置 UPDATE_TOKEN，并在系统更新页填入相同密钥。'], 403);
+if (!valid_token($_REQUEST['token'] ?? '')) {
+    out(['error' => '未授权：请配置 BN_UPDATE_TOKEN 环境变量或 UPDATE_TOKEN_SHA256，并在系统更新页填入相同密钥。'], 403);
 }
 
 $action = $_GET['action'] ?? 'check';
