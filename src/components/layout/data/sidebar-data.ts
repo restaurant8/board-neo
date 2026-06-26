@@ -74,7 +74,6 @@ export const sidebarData: SidebarData = {
             { title: '权限组管理', url: '/server/group', icon: Network },
             { title: '路由管理', url: '/server/route', icon: RouteIcon },
             { title: '后端管理', url: '/server/backend', icon: Terminal },
-            { title: '流量统计', url: '/traffic-stat', icon: BarChart3 },
             { title: '流量重置', url: '/traffic-reset', icon: RefreshCw },
           ],
         },
@@ -98,6 +97,18 @@ export const sidebarData: SidebarData = {
           items: [
             { title: '用户管理', url: '/user', icon: Users },
             { title: '工单管理', url: '/ticket', icon: LifeBuoy },
+            {
+              title: '流量统计',
+              url: '/traffic-stat',
+              icon: BarChart3,
+              search: { tab: 'diagnostics' },
+            },
+            {
+              title: '流量审计',
+              url: '/traffic-stat',
+              icon: Activity,
+              search: { tab: 'audit' },
+            },
           ],
         },
       ],

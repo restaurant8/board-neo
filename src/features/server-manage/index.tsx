@@ -16,6 +16,7 @@ import {
   Server as ServerIcon,
   Terminal,
   Trash2,
+  User,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -73,6 +74,7 @@ import {
 } from '@/components/ui/tooltip'
 import {
   SERVER_TYPES,
+  SERVER_TYPE_COLOR,
   SERVER_TYPE_LABEL,
   type Server,
   batchDeleteNodes,
@@ -752,7 +754,7 @@ export function ServerManagePage() {
                       )}
                       <TableCell>
                         {(() => {
-                          const isChild = n.parent_id != null
+                          const isChild = !!n.parent_id // parent_id 为 0/null 均表示无父节点
                           const related = isChild || parentIds.has(n.id)
                           return (
                             <span
@@ -784,6 +786,11 @@ export function ServerManagePage() {
                             toggleMutation.mutate({ id: n.id, show: c ? 1 : 0 })
                           }
                           aria-label='显隐'
+                          style={
+                            n.show
+                              ? { backgroundColor: SERVER_TYPE_COLOR[n.type] }
+                              : undefined
+                          }
                         />
                       </TableCell>
                       <TableCell className='font-medium'>
@@ -852,10 +859,20 @@ export function ServerManagePage() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className='max-w-[200px] truncate'>
+                      <TableCell className='max-w-[220px] truncate'>
                         {n.host}:{n.port}
+                        {n.server_port != null && (
+                          <span className='text-muted-foreground ms-1 text-xs'>
+                            (内部端口) {n.server_port}
+                          </span>
+                        )}
                       </TableCell>
-                      <TableCell>{n.online ?? 0}</TableCell>
+                      <TableCell>
+                        <span className='flex items-center gap-1'>
+                          <User className='text-muted-foreground size-3.5' />
+                          {n.online ?? 0}
+                        </span>
+                      </TableCell>
                       <TableCell>{n.rate}</TableCell>
                       <TableCell>
                         <div className='flex flex-wrap gap-1'>
@@ -872,10 +889,12 @@ export function ServerManagePage() {
                       </TableCell>
                       <TableCell>
                         <span className='text-sm'>{formatBytes(used)}</span>
-                        <span className='text-muted-foreground text-xs'>
-                          {' / '}
-                          {limit > 0 ? formatBytes(limit) : '不限'}
-                        </span>
+                        {limit > 0 && (
+                          <span className='text-muted-foreground text-xs'>
+                            {' / '}
+                            {formatBytes(limit)}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className='text-end'>
                         <DropdownMenu>

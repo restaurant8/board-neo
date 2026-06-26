@@ -4,6 +4,7 @@ import {
   Ban,
   Download,
   FileText,
+  Filter,
   KeyRound,
   Mail,
   MoreHorizontal,
@@ -15,6 +16,7 @@ import {
   Share2,
   ShoppingCart,
   Trash2,
+  X,
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -38,13 +40,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -73,6 +68,10 @@ import { UserOrdersSheet } from './components/user-orders-sheet'
 import { UserInvitesSheet } from './components/user-invites-sheet'
 import { UserTrafficSheet } from './components/user-traffic-sheet'
 import {
+  UserAdvancedFilter,
+  type FilterCondition,
+} from './components/user-advanced-filter'
+import {
   formatBytes,
   formatExpireStatus,
   formatMoney,
@@ -82,25 +81,18 @@ import {
 export function UserPage() {
   const queryClient = useQueryClient()
 
-  // 筛选输入
+  // 快速搜索（邮箱）
   const [emailInput, setEmailInput] = useState('')
-  const [idInput, setIdInput] = useState('')
-  const [inviterInput, setInviterInput] = useState('')
-  const [planFilter, setPlanFilter] = useState<string>('all') // plan_id 或 'all'
-  const [bannedFilter, setBannedFilter] = useState<string>('all') // 'all' | '1' | '0'
-  const [adminFilter, setAdminFilter] = useState<string>('all') // 'all' | '1' | '0'
+  const [appliedEmail, setAppliedEmail] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  // 已应用筛选
-  const [applied, setApplied] = useState({
-    email: '',
-    id: '',
-    inviter: '',
-    plan: 'all',
-    banned: 'all',
-    admin: 'all',
-  })
+  // 高级筛选
+  const [filterOpen, setFilterOpen] = useState(false)
+  // 已应用的高级筛选条件（用于回显 + 生成 filter）
+  const [conditions, setConditions] = useState<FilterCondition[]>([])
+  // 由高级筛选条件生成的后端 filter 项
+  const [advancedFilter, setAdvancedFilter] = useState<UserFilter[]>([])
 
   // 多选（当前页选中的用户 id）
   const [selected, setSelected] = useState<number[]>([])
@@ -129,18 +121,10 @@ export function UserPage() {
 
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
-    if (applied.email) f.push({ id: 'email', value: applied.email })
-    if (applied.id) f.push({ id: 'id', value: `eq:${applied.id}` })
-    if (applied.inviter)
-      f.push({ id: 'invite_user.email', value: applied.inviter })
-    if (applied.plan !== 'all')
-      f.push({ id: 'plan_id', value: `eq:${applied.plan}` })
-    if (applied.banned !== 'all')
-      f.push({ id: 'banned', value: `eq:${applied.banned}` })
-    if (applied.admin !== 'all')
-      f.push({ id: 'is_admin', value: `eq:${applied.admin}` })
+    if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
+    f.push(...advancedFilter)
     return f
-  }, [applied])
+  }, [appliedEmail, advancedFilter])
 
   const hasFilter = filter.length > 0
 
@@ -171,15 +155,27 @@ export function UserPage() {
   const toggleOne = (id: number) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
-  const applyFilters = () => {
-    setApplied({
-      email: emailInput.trim(),
-      id: idInput.trim(),
-      inviter: inviterInput.trim(),
-      plan: planFilter,
-      banned: bannedFilter,
-      admin: adminFilter,
-    })
+  const applyQuickSearch = () => {
+    setAppliedEmail(emailInput.trim())
+    setSelected([])
+    setPage(1)
+  }
+
+  // 应用高级筛选：保存条件与生成的 filter 项
+  const applyAdvancedFilter = (
+    f: UserFilter[],
+    conds: FilterCondition[]
+  ) => {
+    setAdvancedFilter(f)
+    setConditions(conds)
+    setSelected([])
+    setPage(1)
+  }
+
+  // 重置高级筛选
+  const resetAdvancedFilter = () => {
+    setAdvancedFilter([])
+    setConditions([])
     setSelected([])
     setPage(1)
   }
@@ -329,65 +325,35 @@ export function UserPage() {
           </div>
         </div>
 
-        {/* 筛选条 */}
+        {/* 搜索 + 高级筛选 */}
         <div className='flex flex-wrap items-center gap-2'>
           <Input
             className='h-9 w-56'
             placeholder='搜索用户邮箱...'
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+            onKeyDown={(e) => e.key === 'Enter' && applyQuickSearch()}
           />
-          <Input
-            className='h-9 w-28'
-            placeholder='用户ID'
-            value={idInput}
-            onChange={(e) => setIdInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-          />
-          <Input
-            className='h-9 w-48'
-            placeholder='邀请人邮箱'
-            value={inviterInput}
-            onChange={(e) => setInviterInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-          />
-          <Select value={planFilter} onValueChange={setPlanFilter}>
-            <SelectTrigger className='h-9 w-40'>
-              <SelectValue placeholder='订阅' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>全部订阅</SelectItem>
-              {plans?.map((p) => (
-                <SelectItem key={p.id} value={String(p.id)}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={bannedFilter} onValueChange={setBannedFilter}>
-            <SelectTrigger className='h-9 w-32'>
-              <SelectValue placeholder='账号状态' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>全部状态</SelectItem>
-              <SelectItem value='0'>正常</SelectItem>
-              <SelectItem value='1'>禁用</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={adminFilter} onValueChange={setAdminFilter}>
-            <SelectTrigger className='h-9 w-32'>
-              <SelectValue placeholder='管理员' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>全部</SelectItem>
-              <SelectItem value='1'>管理员</SelectItem>
-              <SelectItem value='0'>非管理员</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={applyFilters}>
+          <Button onClick={applyQuickSearch}>
             <Search className='size-4' /> 查询
           </Button>
+          <Button variant='outline' onClick={() => setFilterOpen(true)}>
+            <Filter className='size-4' /> 高级筛选
+            {conditions.length > 0 && (
+              <Badge variant='secondary' className='ms-1'>
+                {conditions.length}
+              </Badge>
+            )}
+          </Button>
+          {conditions.length > 0 && (
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={resetAdvancedFilter}
+            >
+              <X className='size-4' /> 清除筛选
+            </Button>
+          )}
         </div>
 
         {/* 批量操作栏 */}
@@ -441,7 +407,7 @@ export function UserPage() {
                   />
                 </TableHead>
                 <TableHead className='w-16'>ID</TableHead>
-                <TableHead>邮箱</TableHead>
+                <TableHead>用户 / 邮箱</TableHead>
                 <TableHead>订阅</TableHead>
                 <TableHead>权限组</TableHead>
                 <TableHead>到期时间</TableHead>
@@ -646,6 +612,15 @@ export function UserPage() {
           }
         />
       </Main>
+
+      <UserAdvancedFilter
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        plans={plans}
+        initial={conditions}
+        onApply={applyAdvancedFilter}
+        onReset={resetAdvancedFilter}
+      />
 
       <UserEditDialog open={editOpen} onOpenChange={setEditOpen} current={editing} />
       <UserGenerateDialog open={generateOpen} onOpenChange={setGenerateOpen} />

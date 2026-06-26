@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getRouteApi } from '@tanstack/react-router'
 import { ArrowDownToLine, ArrowUpFromLine, Sigma } from 'lucide-react'
 import { formatBytes } from '@/features/dashboard/format'
 import { Header } from '@/components/layout/header'
@@ -21,6 +22,8 @@ import { DiagnosticsTable } from './components/diagnostics-table'
 
 type Summary = { u: number; d: number; total: number }
 
+const route = getRouteApi('/_authenticated/traffic-stat/')
+
 const RANGES = [
   { label: '今日', days: 0 },
   { label: '近 7 天', days: 7 },
@@ -34,7 +37,12 @@ export function TrafficStatPage() {
   const [mode, setMode] = useState<'all' | 'privacy' | 'diagnostic'>('all')
   const [keyword, setKeyword] = useState('')
   const [userKeyword, setUserKeyword] = useState('')
-  const [tab, setTab] = useState<'diagnostics' | 'audit'>('diagnostics')
+  // tab 由 URL 驱动，便于侧栏「流量统计 / 流量审计」两个菜单直达对应页签
+  const { tab: tabParam } = route.useSearch()
+  const navigate = route.useNavigate()
+  const tab: 'diagnostics' | 'audit' = tabParam ?? 'diagnostics'
+  const setTab = (v: 'diagnostics' | 'audit') =>
+    navigate({ search: (prev) => ({ ...prev, tab: v }) })
 
   // 各 tab 的汇总分开存，避免切换时串数据
   const [diagSummary, setDiagSummary] = useState<Summary>(EMPTY_SUMMARY)

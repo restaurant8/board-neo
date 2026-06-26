@@ -39,6 +39,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   SERVER_TYPES,
+  SERVER_TYPE_COLOR,
   SERVER_TYPE_LABEL,
   type Server,
   type ServerType,
@@ -527,7 +528,13 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
               <SelectContent>
                 {SERVER_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {SERVER_TYPE_LABEL[t]}
+                    <span className='flex items-center gap-2'>
+                      <span
+                        className='inline-block size-2 shrink-0 rounded-full'
+                        style={{ backgroundColor: SERVER_TYPE_COLOR[t] }}
+                      />
+                      {SERVER_TYPE_LABEL[t]}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

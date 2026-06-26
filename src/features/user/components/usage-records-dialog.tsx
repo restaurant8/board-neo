@@ -160,7 +160,7 @@ export function UsageRecordsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className='flex h-[85vh] max-w-5xl flex-col gap-3'>
+        <DialogContent className='flex h-[85vh] max-h-[85vh] w-[95vw] max-w-6xl flex-col gap-3'>
           <DialogHeader>
             <DialogTitle>使用记录</DialogTitle>
             <DialogDescription>
@@ -223,30 +223,30 @@ export function UsageRecordsDialog({
           </div>
 
           {/* 表格 */}
-          <div className='flex-1 overflow-auto rounded-md border'>
-            <Table>
-              <TableHeader className='sticky top-0 bg-background'>
+          <div className='flex-1 overflow-y-auto overflow-x-auto rounded-md border'>
+            <Table className='min-w-[960px] table-fixed'>
+              <TableHeader className='sticky top-0 z-10 bg-background'>
                 <TableRow>
-                  <TableHead>用户</TableHead>
+                  <TableHead className='w-[180px]'>用户</TableHead>
                   <TableHead
-                    className='cursor-pointer select-none'
+                    className='w-[72px] cursor-pointer select-none whitespace-nowrap'
                     onClick={() => toggleSort('online')}
                   >
                     在线IP{sortIcon('online')}
                   </TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead>IP</TableHead>
-                  <TableHead>归属地</TableHead>
-                  <TableHead>节点</TableHead>
+                  <TableHead className='w-[72px]'>类型</TableHead>
+                  <TableHead className='w-[130px]'>IP</TableHead>
+                  <TableHead className='w-[120px]'>归属地</TableHead>
+                  <TableHead className='w-[110px]'>节点</TableHead>
                   <TableHead>User-Agent</TableHead>
                   <TableHead
-                    className='cursor-pointer select-none'
+                    className='w-[64px] cursor-pointer select-none whitespace-nowrap'
                     onClick={() => toggleSort('count')}
                   >
                     次数{sortIcon('count')}
                   </TableHead>
                   <TableHead
-                    className='cursor-pointer select-none'
+                    className='w-[170px] cursor-pointer select-none whitespace-nowrap'
                     onClick={() => toggleSort('record_at')}
                   >
                     时间{sortIcon('record_at')}
@@ -263,8 +263,13 @@ export function UsageRecordsDialog({
                 ) : rows.length > 0 ? (
                   rows.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell>
-                        <div>{r.user_email || `#${r.user_id}`}</div>
+                      <TableCell className='align-top'>
+                        <div
+                          className='truncate'
+                          title={r.user_email || `#${r.user_id}`}
+                        >
+                          {r.user_email || `#${r.user_id}`}
+                        </div>
                         <div className='text-xs text-muted-foreground'>
                           ID {r.user_id}
                         </div>
@@ -291,17 +296,25 @@ export function UsageRecordsDialog({
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className='font-mono text-xs'>{r.ip}</TableCell>
-                      <TableCell>
+                      <TableCell
+                        className='truncate font-mono text-xs'
+                        title={r.ip}
+                      >
+                        {r.ip}
+                      </TableCell>
+                      <TableCell className='truncate' title={r.location || ''}>
                         {r.location || (
                           <span className='text-muted-foreground'>—</span>
                         )}
                       </TableCell>
-                      <TableCell className='text-sm text-muted-foreground'>
+                      <TableCell
+                        className='truncate text-sm text-muted-foreground'
+                        title={r.server_name || ''}
+                      >
                         {r.server_name || '—'}
                       </TableCell>
                       <TableCell
-                        className='max-w-[220px] truncate text-xs text-muted-foreground'
+                        className='truncate text-xs text-muted-foreground'
                         title={r.ua ?? ''}
                       >
                         {r.ua || '—'}

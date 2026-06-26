@@ -30,6 +30,21 @@ export const SERVER_TYPE_LABEL: Record<ServerType, string> = {
   mieru: 'Mieru',
 }
 
+/** 各协议类型对应的标识色（对齐原版协议下拉的彩色圆点）。 */
+export const SERVER_TYPE_COLOR: Record<ServerType, string> = {
+  shadowsocks: '#10b981', // 绿
+  vmess: '#ec4899', // 粉
+  vless: '#111827', // 黑
+  trojan: '#f59e0b', // 黄
+  hysteria: '#3b82f6', // 蓝
+  tuic: '#22c55e', // 绿
+  anytls: '#8b5cf6', // 紫
+  socks: '#06b6d4', // 青
+  naive: '#6366f1', // 靛蓝
+  http: '#f97316', // 橙
+  mieru: '#ef4444', // 红
+}
+
 /** 权限组精简对象（getNodes 注入的 groups[]） */
 export type NodeGroup = { id: number; name: string }
 

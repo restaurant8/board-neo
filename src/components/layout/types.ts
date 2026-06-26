@@ -16,6 +16,8 @@ type BaseNavItem = {
   title: string
   badge?: string
   icon?: React.ElementType
+  /** 可选 search 参数，随 Link 一起带上（如流量统计的 tab）。 */
+  search?: Record<string, unknown>
 }
 
 type NavLink = BaseNavItem & {
