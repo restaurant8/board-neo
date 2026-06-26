@@ -9,10 +9,16 @@ import { playwright } from '@vitest/browser-playwright'
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, __dirname, '')
+  // Deploy target. 'embed' (default) builds for serving from inside Xboard's
+  // backend (`/assets/admin/`). 'standalone' builds a self-hosted SPA served at
+  // root on a separate server/CDN that talks to the backend purely over the
+  // cross-origin API. Set via `.env.standalone` or `VITE_DEPLOY_MODE`.
+  const isStandalone = (env.VITE_DEPLOY_MODE || 'embed') === 'standalone'
   return {
-  // Production build is served from the backend's `/assets/admin/` directory,
-  // so assets must resolve under that base. Dev server stays at root.
-  base: command === 'build' ? '/assets/admin/' : '/',
+  // Embedded build is served from the backend's `/assets/admin/` directory, so
+  // assets must resolve under that base. Standalone build and the dev server
+  // are served at root.
+  base: command === 'build' && !isStandalone ? '/assets/admin/' : '/',
   plugins: [
     tanstackRouter({
       target: 'react',
@@ -23,7 +29,8 @@ export default defineConfig(({ command, mode }) => {
   ],
   build: {
     // Emit manifest.json so Xboard's admin.blade.php can discover the entry.
-    manifest: true,
+    // Not needed for standalone hosting (index.html is the entry).
+    manifest: !isStandalone,
   },
   resolve: {
     alias: {

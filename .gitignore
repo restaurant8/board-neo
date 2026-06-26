@@ -14,6 +14,8 @@ deploy
 *.local
 
 .env
+# 独立部署的真实后端地址不入库；保留 .env.standalone.example 模板
+.env.standalone
 
 # Editor directories and files
 .vscode/*
