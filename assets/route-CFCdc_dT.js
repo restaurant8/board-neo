@@ -1,1 +1,0 @@
-import{t as e}from"./authenticated-layout-CZ4xQ4Xy.js";var t=e;export{t as component};

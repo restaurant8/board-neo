@@ -1,1 +1,0 @@
-import{j as e}from"./index-BVxPRS1n.js";var t=e;export{t as component};
