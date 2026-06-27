@@ -112,18 +112,20 @@ export function AdvancedConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-2xl'>
+      <DialogContent className='flex max-h-[90vh] flex-col sm:max-w-2xl'>
         <DialogHeader>
           <DialogTitle>高级协议配置</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue='tls' className='w-full'>
+        <Tabs defaultValue='tls' className='flex min-h-0 w-full flex-1 flex-col'>
           <TabsList className='grid w-full grid-cols-3'>
             <TabsTrigger value='tls'>TLS</TabsTrigger>
             <TabsTrigger value='outbounds'>自定义 Outbounds</TabsTrigger>
             <TabsTrigger value='routes'>自定义 Routes</TabsTrigger>
           </TabsList>
 
+          {/* 中间内容区可滚动，避免证书内容过长把底部 Save 顶出视口 */}
+          <div className='min-h-0 flex-1 overflow-y-auto pe-1'>
           <TabsContent value='tls' className='grid gap-4 pt-2'>
             <div className='grid gap-2'>
               <Label>证书模式</Label>
@@ -315,6 +317,7 @@ export function AdvancedConfigDialog({
               placeholder='[]'
             />
           </TabsContent>
+          </div>
         </Tabs>
 
         <DialogFooter>
