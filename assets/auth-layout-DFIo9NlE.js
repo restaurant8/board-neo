@@ -1,1 +1,0 @@
-import{i as e}from"./react-B8IZ02wI.js";import{t}from"./jsx-runtime-fBfwind-.js";var n=e(t(),1);function r({children:e}){return(0,n.jsx)(`div`,{className:`container grid h-svh max-w-none items-center justify-center`,children:(0,n.jsx)(`div`,{className:`mx-auto flex w-full flex-col justify-center py-8 sm:p-8`,children:e})})}export{r as t};
