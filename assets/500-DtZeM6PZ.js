@@ -1,0 +1,1 @@
+import{j as e}from"./index-pVBlSQ-y.js";var t=e;export{t as component};
