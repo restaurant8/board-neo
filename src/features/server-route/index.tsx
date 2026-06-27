@@ -258,8 +258,8 @@ export function ServerRoutePage() {
                     </div>
                   </div>
                 </TableHead>
-                <TableHead>备注</TableHead>
-                <TableHead className='w-64'>动作值</TableHead>
+                <TableHead className='w-24'>备注</TableHead>
+                <TableHead>动作值</TableHead>
                 <TableHead className='w-28'>动作</TableHead>
                 <TableHead className='w-28'>
                   <div className='text-right'>操作</div>
