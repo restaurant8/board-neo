@@ -61,6 +61,10 @@ export type User = {
   plan?: PlanBrief | null
   invite_user?: UserBrief | null
   group?: { id: number; name: string } | null
+  /** 订阅类记录的去重归属地数量（>1 视为异地）。fetch 注入。 */
+  subscribe_locations?: number
+  /** 连接类记录的去重归属地数量（>1 视为异地）。fetch 注入。 */
+  connect_locations?: number
 }
 
 /** 过滤条件项：value 支持 "eq:1"、"like" 默认模糊、数组（in）。 */

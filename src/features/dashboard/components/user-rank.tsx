@@ -47,14 +47,13 @@ export function UserRank() {
             <TableRow>
               <TableHead className='w-10'>#</TableHead>
               <TableHead>用户</TableHead>
-              <TableHead className='text-end'>流量</TableHead>
-              <TableHead className='text-end'>环比</TableHead>
+              <TableHead className='text-end'>环比 / 流量</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className='h-24 text-center'>
+                <TableCell colSpan={3} className='h-24 text-center'>
                   加载中...
                 </TableCell>
               </TableRow>
@@ -65,27 +64,29 @@ export function UserRank() {
                   <TableCell className='max-w-[180px] truncate font-medium'>
                     {r.name}
                   </TableCell>
-                  <TableCell className='text-end'>{formatBytes(r.value)}</TableCell>
                   <TableCell className='text-end'>
-                    <span
-                      className={cn(
-                        'inline-flex items-center text-xs',
-                        r.change >= 0 ? 'text-emerald-600' : 'text-destructive'
-                      )}
-                    >
-                      {r.change >= 0 ? (
-                        <ArrowUpRight className='size-3' />
-                      ) : (
-                        <ArrowDownRight className='size-3' />
-                      )}
-                      {formatPercent(r.change)}
-                    </span>
+                    <div className='flex flex-col items-end'>
+                      <span
+                        className={cn(
+                          'inline-flex items-center text-xs',
+                          r.change >= 0 ? 'text-emerald-600' : 'text-destructive'
+                        )}
+                      >
+                        {r.change >= 0 ? (
+                          <ArrowUpRight className='size-3' />
+                        ) : (
+                          <ArrowDownRight className='size-3' />
+                        )}
+                        {formatPercent(r.change)}
+                      </span>
+                      <span className='font-medium'>{formatBytes(r.value)}</span>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className='h-24 text-center'>
+                <TableCell colSpan={3} className='h-24 text-center'>
                   暂无数据
                 </TableCell>
               </TableRow>

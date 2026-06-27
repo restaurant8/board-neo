@@ -23,7 +23,14 @@ import { giBToBytes } from '../format'
 import { type PlanBrief, type UserFilter } from '../api'
 
 /** 字段值类型，决定可用操作符与值输入控件。 */
-type FieldType = 'text' | 'number' | 'bytes' | 'date' | 'banned' | 'plan'
+type FieldType =
+  | 'text'
+  | 'number'
+  | 'bytes'
+  | 'date'
+  | 'banned'
+  | 'plan'
+  | 'remote'
 
 type FieldDef = {
   /** 后端列名（filter.id）。 */
@@ -49,6 +56,8 @@ const FIELD_DEFS: FieldDef[] = [
   { column: 'token', label: 'Token', type: 'text' },
   { column: 'banned', label: '账号状态', type: 'banned' },
   { column: 'remarks', label: '备注', type: 'text' },
+  { column: 'subscribe_remote', label: '订阅异地', type: 'remote' },
+  { column: 'connect_remote', label: '连接异地', type: 'remote' },
 ]
 
 type OperatorDef = { op: string; label: string }
@@ -79,6 +88,7 @@ const OPERATORS: Record<FieldType, OperatorDef[]> = {
   ],
   banned: [{ op: 'eq', label: '等于' }],
   plan: [{ op: 'eq', label: '等于' }],
+  remote: [{ op: 'eq', label: '等于' }],
 }
 
 /** 一条筛选条件的本地编辑态。 */
@@ -139,7 +149,7 @@ function toFilterItem(cond: FilterCondition): UserFilter | null {
     const ms = new Date(raw).getTime()
     if (Number.isNaN(ms)) return null
     raw = String(Math.floor(ms / 1000))
-  } else if (field.type === 'banned') {
+  } else if (field.type === 'banned' || field.type === 'remote') {
     if (raw !== '0' && raw !== '1') return null
   } else if (field.type === 'plan') {
     if (raw.trim() === '') return null
@@ -293,7 +303,22 @@ export function UserAdvancedFilter({
                             <Label className='text-xs'>
                               {field.type === 'bytes' ? '值（GB）' : '值'}
                             </Label>
-                            {field.type === 'banned' ? (
+                            {field.type === 'remote' ? (
+                              <Select
+                                value={cond.value}
+                                onValueChange={(v) =>
+                                  patch(cond.key, { value: v })
+                                }
+                              >
+                                <SelectTrigger className='h-9'>
+                                  <SelectValue placeholder='选择' />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value='1'>异地（多地区）</SelectItem>
+                                  <SelectItem value='0'>正常（单地区）</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : field.type === 'banned' ? (
                               <Select
                                 value={cond.value}
                                 onValueChange={(v) =>

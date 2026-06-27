@@ -131,6 +131,18 @@ export function UserPage() {
       </TableHead>
     )
   }
+  // 异地登录单元格：去重地区数 >1 标红「异地·N」，=1 显示 1，0 显示 —
+  const remoteCell = (n?: number) => {
+    const c = n ?? 0
+    if (c <= 0) return <span className='text-muted-foreground'>—</span>
+    if (c > 1)
+      return (
+        <Badge variant='destructive' className='whitespace-nowrap'>
+          异地 · {c}
+        </Badge>
+      )
+    return <span>{c}</span>
+  }
 
   // 多选（当前页选中的用户 id）
   const [selected, setSelected] = useState<number[]>([])
@@ -454,6 +466,8 @@ export function UserPage() {
                 {sortHead('balance', '余额')}
                 {sortHead('commission_balance', '佣金')}
                 {sortHead('online_count', '在线设备')}
+                <TableHead className='whitespace-nowrap'>订阅异地</TableHead>
+                <TableHead className='whitespace-nowrap'>连接异地</TableHead>
                 {sortHead('banned', '状态')}
                 {sortHead('created_at', '注册时间')}
                 <TableHead className='w-12 text-end'>操作</TableHead>
@@ -462,7 +476,7 @@ export function UserPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={13} className='h-24 text-center'>
+                  <TableCell colSpan={15} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -533,6 +547,8 @@ export function UserPage() {
                           </span>
                         )}
                       </TableCell>
+                      <TableCell>{remoteCell(u.subscribe_locations)}</TableCell>
+                      <TableCell>{remoteCell(u.connect_locations)}</TableCell>
                       <TableCell>
                         {u.banned ? (
                           <Badge variant='destructive'>封禁</Badge>
@@ -624,7 +640,7 @@ export function UserPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={13} className='h-24 text-center'>
+                  <TableCell colSpan={15} className='h-24 text-center'>
                     未找到结果
                   </TableCell>
                 </TableRow>

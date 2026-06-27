@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import {
   Card,
   CardContent,
@@ -14,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { fetchTrafficRank } from '../api'
-import { formatBytes } from '../format'
+import { formatBytes, formatPercent } from '../format'
 import { TimeRangeSelect, useTimeRange } from './time-range'
 
 export function ServerRank() {
@@ -48,7 +50,7 @@ export function ServerRank() {
             <TableRow>
               <TableHead className='w-10'>#</TableHead>
               <TableHead>节点</TableHead>
-              <TableHead className='text-end'>流量</TableHead>
+              <TableHead className='text-end'>环比 / 流量</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -63,7 +65,24 @@ export function ServerRank() {
                 <TableRow key={s.id}>
                   <TableCell className='text-muted-foreground'>{i + 1}</TableCell>
                   <TableCell className='font-medium'>{s.name}</TableCell>
-                  <TableCell className='text-end'>{formatBytes(s.value)}</TableCell>
+                  <TableCell className='text-end'>
+                    <div className='flex flex-col items-end'>
+                      <span
+                        className={cn(
+                          'inline-flex items-center text-xs',
+                          s.change >= 0 ? 'text-emerald-600' : 'text-destructive'
+                        )}
+                      >
+                        {s.change >= 0 ? (
+                          <ArrowUpRight className='size-3' />
+                        ) : (
+                          <ArrowDownRight className='size-3' />
+                        )}
+                        {formatPercent(s.change)}
+                      </span>
+                      <span className='font-medium'>{formatBytes(s.value)}</span>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (

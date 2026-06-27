@@ -21,5 +21,9 @@ export function formatYuan(yuan: number | null | undefined): string {
 
 export function formatPercent(p: number | null | undefined): string {
   const n = Number(p ?? 0)
-  return `${n > 0 ? '+' : ''}${n}%`
+  if (!Number.isFinite(n)) return '—'
+  // 基数≈0 时环比会出现成千上万倍的离谱数值，统一显示「新增」
+  if (n >= 1000) return '新增'
+  const r = Math.round(n * 10) / 10
+  return `${r > 0 ? '+' : ''}${r}%`
 }
