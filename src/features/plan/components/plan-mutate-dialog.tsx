@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -73,6 +74,21 @@ const emptyPrices = Object.fromEntries(
   PLAN_PERIODS.map((p) => [p, ''])
 ) as Record<(typeof PLAN_PERIODS)[number], string>
 
+/**
+ * 「基础价格」快捷填充系数（对齐原版）：各周期价 = 基础月价 × 月数 × 折扣。
+ * 月付/一次性/流量重置包不打折（系数 1）。
+ */
+const PERIOD_PRICE_FACTORS: Record<(typeof PLAN_PERIODS)[number], number> = {
+  monthly: 1,
+  quarterly: 3 * 0.95,
+  half_yearly: 6 * 0.9,
+  yearly: 12 * 0.85,
+  two_yearly: 24 * 0.8,
+  three_yearly: 36 * 0.75,
+  onetime: 1,
+  reset_traffic: 1,
+}
+
 function toNum(v?: string): number | null {
   if (v == null || v.trim() === '') return null
   const n = Number(v)
@@ -82,6 +98,9 @@ function toNum(v?: string): number | null {
 export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
   const isEdit = !!current
   const queryClient = useQueryClient()
+
+  // 「基础价格」快捷填充输入（仅辅助，不入表单/不提交）
+  const [basePrice, setBasePrice] = useState('')
 
   const { data: groups } = useQuery({
     queryKey: ['server-groups'],
@@ -109,8 +128,31 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     },
   })
 
+  // 按基础月价自动推算各周期价格（对齐原版，输入非法/空时不动）
+  const applyBasePrice = (v: string) => {
+    setBasePrice(v)
+    const base = Number(v)
+    if (v.trim() === '' || Number.isNaN(base)) return
+    for (const p of PLAN_PERIODS) {
+      form.setValue(
+        `prices.${p}` as const,
+        (base * PERIOD_PRICE_FACTORS[p]).toFixed(2),
+        { shouldDirty: true }
+      )
+    }
+  }
+
+  // 清空所有周期价格
+  const clearPrices = () => {
+    setBasePrice('')
+    for (const p of PLAN_PERIODS) {
+      form.setValue(`prices.${p}` as const, '', { shouldDirty: true })
+    }
+  }
+
   useEffect(() => {
     if (!open) return
+    setBasePrice('')
     const prices = { ...emptyPrices }
     if (current?.prices) {
       for (const p of PLAN_PERIODS) {
@@ -331,7 +373,35 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
             />
 
             <div>
-              <FormLabel>价格（元）</FormLabel>
+              <div className='flex flex-wrap items-center justify-between gap-2'>
+                <FormLabel>价格（元）</FormLabel>
+                <div className='flex items-center gap-2'>
+                  <div className='relative'>
+                    <span className='text-muted-foreground absolute start-2 top-1/2 -translate-y-1/2 text-xs'>
+                      ¥
+                    </span>
+                    <Input
+                      type='number'
+                      min={0}
+                      step='0.01'
+                      placeholder='基础价格'
+                      value={basePrice}
+                      onChange={(e) => applyBasePrice(e.target.value)}
+                      className='h-8 w-28 ps-5 text-xs'
+                    />
+                  </div>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    className='h-8 px-2'
+                    onClick={clearPrices}
+                    title='清空所有周期价格'
+                  >
+                    <Trash2 className='size-3.5' />
+                  </Button>
+                </div>
+              </div>
               <div className='mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4'>
                 {PLAN_PERIODS.map((p) => (
                   <FormField

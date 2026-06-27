@@ -659,7 +659,7 @@ export function ServerManagePage() {
                     />
                   </TableHead>
                 )}
-                <TableHead className='w-24'>
+                <TableHead className='w-20'>
                   <button
                     type='button'
                     className='-ms-1 inline-flex items-center gap-1 rounded px-1 hover:text-foreground disabled:cursor-default'
@@ -676,9 +676,9 @@ export function ServerManagePage() {
                     )}
                   </button>
                 </TableHead>
-                <TableHead className='w-16'>显隐</TableHead>
-                <TableHead>节点</TableHead>
-                <TableHead className='w-40'>
+                <TableHead className='w-14'>显隐</TableHead>
+                <TableHead className='w-64'>节点</TableHead>
+                <TableHead className='w-52'>
                   <Tooltip>
                     <TooltipTrigger>部署方式</TooltipTrigger>
                     <TooltipContent>
@@ -686,7 +686,7 @@ export function ServerManagePage() {
                     </TooltipContent>
                   </Tooltip>
                 </TableHead>
-                <TableHead>地址</TableHead>
+                <TableHead className='w-44'>地址</TableHead>
                 <TableHead className='w-20'>
                   <Tooltip>
                     <TooltipTrigger>在线人数</TooltipTrigger>
@@ -695,14 +695,14 @@ export function ServerManagePage() {
                     </TooltipContent>
                   </Tooltip>
                 </TableHead>
-                <TableHead className='w-16'>
+                <TableHead className='w-20'>
                   <Tooltip>
                     <TooltipTrigger>倍率</TooltipTrigger>
                     <TooltipContent>流量扣费倍率</TooltipContent>
                   </Tooltip>
                 </TableHead>
                 <TableHead className='w-40'>权限组</TableHead>
-                <TableHead className='w-44'>
+                <TableHead className='w-32'>
                   <Tooltip>
                     <TooltipTrigger>流量使用</TooltipTrigger>
                     <TooltipContent>
@@ -710,7 +710,7 @@ export function ServerManagePage() {
                     </TooltipContent>
                   </Tooltip>
                 </TableHead>
-                <TableHead className='w-16 text-end'>操作</TableHead>
+                <TableHead className='w-14 text-end'>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -859,7 +859,7 @@ export function ServerManagePage() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className='max-w-[220px] truncate'>
+                      <TableCell className='max-w-[11rem] truncate'>
                         {n.host}:{n.port}
                         {n.server_port != null && (
                           <span className='text-muted-foreground ms-1 text-xs'>

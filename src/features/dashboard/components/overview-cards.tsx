@@ -141,8 +141,12 @@ export function OverviewCards() {
         icon={<DollarSign className='size-4' />}
         sub='有佣金需要确认'
         onClick={() =>
-          // 对齐原版：仅看真正待处理的佣金（有邀请人、订单未取消/未待支付、佣金>0）
-          navigate({ to: '/order', search: { is_commission: true } })
+          // 对齐原版：仅看待确认佣金的有效订单
+          //（commission_status=待确认(0)，且 is_commission：有邀请人、未取消/未待支付、佣金>0）
+          navigate({
+            to: '/order',
+            search: { commission_status: ['0'], is_commission: true },
+          })
         }
       />
       <StatCard

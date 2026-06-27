@@ -111,8 +111,6 @@ const PROTOCOL_DEFAULTS: Record<ServerType, Record<string, unknown>> = {
     tls: 1,
     network: 'tcp',
     network_settings: {},
-    server_name: '',
-    allow_insecure: false,
     tls_settings: { server_name: '', allow_insecure: false },
     reality_settings: {
       server_name: '',
@@ -168,9 +166,6 @@ const TLS_SETTINGS_TYPES: ServerType[] = [
 ]
 /** 走对象式 tls（SNI / allow_insecure / ech 在 tls.*）。 */
 const TLS_OBJECT_TYPES: ServerType[] = ['hysteria', 'tuic', 'anytls']
-
-/** 含 TLS 概念、需展示 SNI/不安全/ECH 的协议。 */
-const HAS_TLS_TYPES: ServerType[] = [...TLS_SETTINGS_TYPES, ...TLS_OBJECT_TYPES]
 
 const SS_CIPHERS = [
   'aes-128-gcm',
@@ -355,9 +350,14 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         show: !!current.show,
         enabled: !!current.enabled,
       })
-      setPs((current.protocol_settings ?? {}) as Dict)
+      const loadedPs = (current.protocol_settings ?? {}) as Dict
+      setPs(loadedPs)
       setAdvanced({
-        cert_config: (current.cert_config ?? {}) as Dict,
+        // cert_config 实际嵌套在 protocol_settings 内（对齐原版/后端存储位置），
+        // 顶层 current.cert_config 仅作历史数据兜底。
+        cert_config: ((loadedPs.cert_config as Dict) ??
+          (current.cert_config as Dict) ??
+          {}) as Dict,
         custom_outbounds: current.custom_outbounds ?? [],
         custom_routes: current.custom_routes ?? [],
       })
@@ -377,7 +377,16 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
     setPs({ ...(PROTOCOL_DEFAULTS[type] ?? {}) })
   }
 
-  const supportsTls = useMemo(() => HAS_TLS_TYPES.includes(base.type), [base.type])
+  // SNI / allow_insecure / ECH 显隐（对齐原版，避免与 Reality 字段重复）：
+  // - 对象式 TLS 协议（hysteria/tuic/anytls）恒有 TLS，始终显示；
+  // - 数组式 TLS 协议（vmess/vless/trojan/socks/naive/http）仅在 tls=1(普通 TLS) 时显示；
+  //   tls=0(关闭) 不显示，tls=2(Reality) 交由协议配置块内的 Reality 字段维护。
+  const showTlsSettings = useMemo(() => {
+    if (TLS_OBJECT_TYPES.includes(base.type)) return true
+    if (TLS_SETTINGS_TYPES.includes(base.type))
+      return Number(getPath(ps, 'tls')) === 1
+    return false
+  }, [base.type, ps])
 
   /** SNI / allow_insecure / ech 的路径前缀（按协议 TLS 形态）。 */
   const tlsPrefix = useMemo(
@@ -419,8 +428,8 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         machine_id: base.machine_id ? Number(base.machine_id) : null,
         show: base.show ? 1 : 0,
         enabled: base.enabled,
-        protocol_settings: ps,
-        cert_config: advanced.cert_config,
+        // cert_config 嵌入 protocol_settings（对齐原版/后端存储位置）
+        protocol_settings: { ...ps, cert_config: advanced.cert_config },
         custom_outbounds: advanced.custom_outbounds,
         custom_routes: advanced.custom_routes,
       })
@@ -778,8 +787,8 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                   </Field>
                 </div>
 
-                {/* SNI / allow_insecure / ECH — 仅有 TLS 的协议 */}
-                {supportsTls && (
+                {/* SNI / allow_insecure / ECH — 仅普通 TLS 模式（Reality 用自有字段） */}
+                {showTlsSettings && (
                   <>
                     <div className='grid grid-cols-2 gap-4'>
                       <Field label='服务器名称指示 (SNI)'>
@@ -1429,22 +1438,6 @@ function ProtocolFields(props: FieldProps) {
                 onChange={(v) => set('network', v)}
               />
             </Field>
-          </div>
-          <div className='grid grid-cols-2 gap-4'>
-            <Field label='server_name'>
-              <Input
-                value={str('server_name')}
-                onChange={(e) => set('server_name', e.target.value)}
-                placeholder='如 node.example.com'
-              />
-            </Field>
-            <div className='flex items-end gap-2 pb-2'>
-              <Switch
-                checked={bool('allow_insecure')}
-                onCheckedChange={(c) => set('allow_insecure', c)}
-              />
-              <Label>allow_insecure</Label>
-            </div>
           </div>
           <NetworkSettings str={str} set={set} />
           {num('tls') === '2' && (

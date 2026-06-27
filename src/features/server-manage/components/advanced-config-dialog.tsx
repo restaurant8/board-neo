@@ -38,18 +38,15 @@ type Props = {
 }
 
 /**
- * 证书模式（对应 cert_config.cert_mode）。
- * 取值沿用项目既有约定（http / dns / self / reality / none）：
- * 后端 ServerService 仅判断 `cert_mode !== 'none'` 后将整个 cert_config 透传给节点，
- * 值的语义由节点后端解释，故此处保持与已部署/已存数据一致。
- * content（Cert Push）对应取值为 'reality'（仅标签显示为 content）。
+ * 证书模式（对应 protocol_settings.cert_config.cert_mode）。
+ * 取值严格对齐原版：none / http / dns / self / content。
  */
 const CERT_MODES = [
   { value: 'none', label: '不使用 (none)' },
   { value: 'http', label: 'http-01 (ACME)' },
   { value: 'dns', label: 'dns-01 (ACME)' },
   { value: 'self', label: 'self-signed' },
-  { value: 'reality', label: 'content (Cert Push)' },
+  { value: 'content', label: 'content (Cert Push)' },
 ]
 
 function str(obj: Record<string, unknown>, key: string): string {
@@ -172,10 +169,10 @@ export function AdvancedConfigDialog({
                   <Label>认证端口</Label>
                   <Input
                     type='number'
-                    value={str(cert, 'port')}
+                    value={str(cert, 'http_port')}
                     onChange={(e) =>
                       setCertField(
-                        'port',
+                        'http_port',
                         e.target.value === '' ? '' : Number(e.target.value)
                       )
                     }
@@ -260,7 +257,7 @@ export function AdvancedConfigDialog({
               </>
             )}
 
-            {certMode === 'reality' && (
+            {certMode === 'content' && (
               <>
                 <p className='text-muted-foreground text-xs'>
                   内容推送模式：直接将证书内容下发至节点
@@ -278,8 +275,8 @@ export function AdvancedConfigDialog({
                   <Textarea
                     rows={6}
                     className='font-mono text-xs'
-                    value={str(cert, 'cert')}
-                    onChange={(e) => setCertField('cert', e.target.value)}
+                    value={str(cert, 'cert_content')}
+                    onChange={(e) => setCertField('cert_content', e.target.value)}
                     placeholder='-----BEGIN CERTIFICATE-----'
                   />
                 </div>
@@ -288,8 +285,8 @@ export function AdvancedConfigDialog({
                   <Textarea
                     rows={6}
                     className='font-mono text-xs'
-                    value={str(cert, 'key')}
-                    onChange={(e) => setCertField('key', e.target.value)}
+                    value={str(cert, 'key_content')}
+                    onChange={(e) => setCertField('key_content', e.target.value)}
                     placeholder='-----BEGIN RSA PRIVATE KEY-----'
                   />
                 </div>

@@ -1,4 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { ExternalLink } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+/** 用户/邀请人邮箱：点击跳转到用户管理并按邮箱过滤（对齐原版）。 */
+function UserLink({
+  email,
+  fallback,
+  onNavigate,
+}: {
+  email?: string | null
+  fallback: React.ReactNode
+  onNavigate: () => void
+}) {
+  if (!email) return <>{fallback}</>
+  return (
+    <Link
+      to='/user'
+      search={{ email }}
+      onClick={onNavigate}
+      className='text-primary group inline-flex items-center gap-1 hover:underline'
+    >
+      {email}
+      <ExternalLink className='size-3.5 opacity-0 transition-opacity group-hover:opacity-100' />
+    </Link>
+  )
+}
+
 export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ['order-detail', orderId],
@@ -61,7 +87,16 @@ export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
           ) : (
             <div className='divide-y'>
               <Row label='订单号' value={data.trade_no} />
-              <Row label='用户' value={data.user?.email ?? data.user_id} />
+              <Row
+                label='用户'
+                value={
+                  <UserLink
+                    email={data.user?.email}
+                    fallback={data.user_id}
+                    onNavigate={() => onOpenChange(false)}
+                  />
+                }
+              />
               <Row label='套餐' value={data.plan?.name ?? data.plan_id} />
               <Row
                 label='周期'
@@ -84,7 +119,13 @@ export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
               <Row label='折抵金额' value={yuan(data.surplus_amount)} />
               <Row
                 label='邀请人'
-                value={data.invite_user?.email ?? data.invite_user_id ?? '-'}
+                value={
+                  <UserLink
+                    email={data.invite_user?.email}
+                    fallback={data.invite_user_id ?? '-'}
+                    onNavigate={() => onOpenChange(false)}
+                  />
+                }
               />
               <Row label='佣金' value={yuan(data.commission_balance)} />
               <Row label='创建时间' value={time(data.created_at)} />

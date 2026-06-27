@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { getRouteApi } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminApi } from '@/lib/api-client'
+import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -82,12 +84,17 @@ import {
   formatOnlineStatus,
 } from './format'
 
+const route = getRouteApi('/_authenticated/user/')
+
 export function UserPage() {
   const queryClient = useQueryClient()
 
+  // 从其他页面（如订单详情）跳转时携带的邮箱，作为快速搜索的初始值
+  const { email: emailFromUrl } = route.useSearch()
+
   // 快速搜索（邮箱）
-  const [emailInput, setEmailInput] = useState('')
-  const [appliedEmail, setAppliedEmail] = useState('')
+  const [emailInput, setEmailInput] = useState(emailFromUrl ?? '')
+  const [appliedEmail, setAppliedEmail] = useState(emailFromUrl ?? '')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
@@ -462,7 +469,8 @@ export function UserPage() {
                 <TableHead>订阅</TableHead>
                 <TableHead>权限组</TableHead>
                 {sortHead('expired_at', '到期时间')}
-                {sortHead('total_used', '已用 / 总流量')}
+                {sortHead('total_used', '已用流量')}
+                {sortHead('transfer_enable', '总流量')}
                 {sortHead('balance', '余额')}
                 {sortHead('commission_balance', '佣金')}
                 {sortHead('online_count', '在线设备')}
@@ -476,7 +484,7 @@ export function UserPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={15} className='h-24 text-center'>
+                  <TableCell colSpan={16} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -493,19 +501,30 @@ export function UserPage() {
                           aria-label={`选择 ${u.email}`}
                         />
                       </TableCell>
-                      <TableCell>{u.id}</TableCell>
+                      <TableCell>
+                        <Badge variant='outline' className='font-mono'>
+                          {u.id}
+                        </Badge>
+                      </TableCell>
                       <TableCell className='font-medium'>
-                        {u.email}
-                        {!!u.is_admin && (
-                          <Badge className='ms-1' variant='outline'>
-                            管理员
-                          </Badge>
-                        )}
-                        {!!u.is_staff && (
-                          <Badge className='ms-1' variant='outline'>
-                            员工
-                          </Badge>
-                        )}
+                        <div className='flex items-center gap-2.5'>
+                          <span
+                            title={on.text}
+                            className={cn(
+                              'size-2.5 shrink-0 rounded-full ring-2 ring-offset-2 transition-all duration-300',
+                              on.online
+                                ? 'bg-green-500 ring-green-500/20'
+                                : 'bg-gray-300 ring-gray-300/20'
+                            )}
+                          />
+                          <span className='break-all'>{u.email}</span>
+                          {!!u.is_admin && (
+                            <Badge variant='outline'>管理员</Badge>
+                          )}
+                          {!!u.is_staff && (
+                            <Badge variant='outline'>员工</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {u.plan?.name ?? (
@@ -513,7 +532,14 @@ export function UserPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {u.group?.name ?? (
+                        {u.group?.name ? (
+                          <Badge
+                            variant='outline'
+                            className='bg-secondary/50 border-border/50 hover:bg-secondary/70 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none'
+                          >
+                            {u.group.name}
+                          </Badge>
+                        ) : (
                           <span className='text-muted-foreground'>—</span>
                         )}
                       </TableCell>
@@ -526,10 +552,41 @@ export function UserPage() {
                           {exp.text}
                         </span>
                       </TableCell>
-                      <TableCell className='whitespace-nowrap text-sm'>
-                        {formatBytes((u.u ?? 0) + (u.d ?? 0))} /{' '}
-                        {formatBytes(u.transfer_enable)}
-                      </TableCell>
+                      {(() => {
+                        const used = u.total_used ?? (u.u ?? 0) + (u.d ?? 0)
+                        const total = u.transfer_enable ?? 0
+                        const pct = total > 0 ? (used / total) * 100 : 0
+                        return (
+                          <>
+                            <TableCell className='min-w-[7rem] text-sm'>
+                              <div className='w-full space-y-1'>
+                                <div className='flex items-center justify-between gap-2'>
+                                  <span className='text-muted-foreground whitespace-nowrap'>
+                                    {formatBytes(used)}
+                                  </span>
+                                  <span className='text-muted-foreground text-xs tabular-nums'>
+                                    {pct.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className='bg-secondary h-1.5 w-full rounded-full'>
+                                  <div
+                                    className={cn(
+                                      'h-full rounded-full transition-all',
+                                      u.banned || pct > 90
+                                        ? 'bg-destructive'
+                                        : 'bg-primary'
+                                    )}
+                                    style={{ width: `${Math.min(pct, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className='text-muted-foreground font-medium whitespace-nowrap'>
+                              {formatBytes(total)}
+                            </TableCell>
+                          </>
+                        )
+                      })()}
                       <TableCell className='whitespace-nowrap'>
                         {formatMoney(u.balance)}
                       </TableCell>
@@ -640,7 +697,7 @@ export function UserPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={15} className='h-24 text-center'>
+                  <TableCell colSpan={16} className='h-24 text-center'>
                     未找到结果
                   </TableCell>
                 </TableRow>
