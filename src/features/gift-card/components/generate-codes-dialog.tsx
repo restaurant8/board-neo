@@ -99,7 +99,7 @@ export function GenerateCodesDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
               <Label>生成数量</Label>
               <Input
@@ -120,7 +120,7 @@ export function GenerateCodesDialog({
               />
             </div>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
               <Label>有效期（小时）</Label>
               <Input

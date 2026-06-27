@@ -83,7 +83,7 @@ export function TrafficStatPage() {
         </div>
 
         {/* 汇总 */}
-        <div className='grid grid-cols-3 gap-3'>
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
           <Card className='flex-row items-center justify-between p-4'>
             <div>
               <div className='text-muted-foreground text-sm'>上行</div>

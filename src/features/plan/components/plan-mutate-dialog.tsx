@@ -245,7 +245,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
             )}
             className='grid gap-4'
           >
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <FormField
                 control={form.control}
                 name='name'
@@ -289,7 +289,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
               />
             </div>
 
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <FormField
                 control={form.control}
                 name='transfer_enable'
@@ -402,7 +402,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   </Button>
                 </div>
               </div>
-              <div className='mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4'>
+              <div className='mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:grid-cols-4'>
                 {PLAN_PERIODS.map((p) => (
                   <FormField
                     key={p}

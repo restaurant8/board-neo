@@ -238,7 +238,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
           <div className='grid gap-4'>
             {/* 基础配置 */}
             <Section title='🌐 基础配置'>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='模板名称'>
                   <Input
                     placeholder='请输入模板名称'
@@ -272,7 +272,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </Field>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='排序'>
                   <Input
                     type='number'
@@ -295,7 +295,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 奖励内容 */}
             <Section title='🎁 奖励内容'>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='奖励余额 (元)'>
                   <Input
                     type='number'
@@ -331,7 +331,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                 </Field>
               </div>
               {type === TYPE_PLAN && (
-                <div className='grid grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                   <Field label='赠送套餐'>
                     <Select
                       value={planId || 'none'}
@@ -384,7 +384,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                   onChange={(e) => setNewUserMaxDays(e.target.value)}
                 />
               </Field>
-              <div className='grid grid-cols-3 gap-2'>
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-3'>
                 <div className='flex items-center justify-between rounded-md border p-2'>
                   <Label className='text-xs'>仅限新用户</Label>
                   <Switch checked={newUserOnly} onCheckedChange={setNewUserOnly} />
@@ -413,7 +413,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 使用限制 */}
             <Section title='🛡 使用限制'>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='单用户最大使用次数' hint='留空则不限制'>
                   <Input
                     type='number'
@@ -447,7 +447,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 特殊配置 */}
             <Section title='🕒 特殊配置'>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='活动开始时间'>
                   <Input
                     type='datetime-local'
@@ -479,7 +479,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 显示效果 */}
             <Section title='🎨 显示效果'>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='主题色'>
                   <Input
                     value={themeColor}

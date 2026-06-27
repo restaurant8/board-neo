@@ -213,7 +213,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
                 placeholder='https://...'
               />
             </div>
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='grid gap-2'>
                 <Label>固定手续费（元）</Label>
                 <Input

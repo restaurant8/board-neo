@@ -165,7 +165,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
               <Label>类型</Label>
               <Select
@@ -198,7 +198,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               />
             </div>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
               <Label>开始时间</Label>
               <Input
@@ -216,7 +216,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               />
             </div>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
               <Label>总可用次数</Label>
               <Input
@@ -266,7 +266,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
             </p>
           </div>
           {!isEdit && (
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='grid gap-2'>
                 <Label>券码</Label>
                 <Input

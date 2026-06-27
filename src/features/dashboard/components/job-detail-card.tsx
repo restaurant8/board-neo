@@ -60,7 +60,7 @@ export function JobDetailCard() {
         <CardDescription>队列处理详细信息</CardDescription>
       </CardHeader>
       <CardContent className='flex flex-col gap-6'>
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
           <div>
             <div className='text-muted-foreground flex items-center gap-1 text-sm'>
               7日报错数量

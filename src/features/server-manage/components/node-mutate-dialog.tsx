@@ -562,7 +562,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 <CardTitle className='text-base'>基础信息</CardTitle>
               </CardHeader>
               <CardContent className='grid gap-4'>
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <Field label='节点名称'>
                     <Input
                       value={base.name}
@@ -644,7 +644,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                   )}
                 </div>
 
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <Field label='流量限制 (GB)' hint='0 或留空 = 不限制'>
                     <Input
                       value={base.transfer_enable_gb}
@@ -766,7 +766,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                   </Field>
                 </div>
 
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <Field label='连接端口 (port)' hint='支持端口跳跃，如 1000-2000'>
                     <Input
                       value={base.port}
@@ -790,7 +790,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 {/* SNI / allow_insecure / ECH — 仅普通 TLS 模式（Reality 用自有字段） */}
                 {showTlsSettings && (
                   <>
-                    <div className='grid grid-cols-2 gap-4'>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                       <Field label='服务器名称指示 (SNI)'>
                         <Input
                           value={str(`${tlsPrefix}.server_name`)}
@@ -899,7 +899,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 <CardTitle className='text-base'>关联设置</CardTitle>
               </CardHeader>
               <CardContent className='grid gap-4'>
-                <div className='grid grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <Field label='父级节点'>
                     <Select
                       value={base.parent_id || 'none'}
@@ -1077,7 +1077,7 @@ function NetworkSelect({
 /** network_settings 结构化字段（随 network：path/host/serviceName）。 */
 function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
   return (
-    <div className='grid grid-cols-3 gap-4 rounded-md border p-3'>
+    <div className='grid grid-cols-1 gap-4 rounded-md border p-3 sm:grid-cols-3'>
       <Field label='path（ws/http 路径）'>
         <Input
           value={str('network_settings.path')}
@@ -1108,7 +1108,7 @@ function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'se
   return (
     <div className='grid gap-3 rounded-md border p-3'>
       <Label className='text-sm font-semibold'>Reality 配置</Label>
-      <div className='grid grid-cols-2 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
         <Field label='server_name'>
           <Input
             value={str('reality_settings.server_name')}
@@ -1167,7 +1167,7 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
       </div>
       {enabled && (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='protocol'>
               <Select
                 value={str('multiplex.protocol') || 'yamux'}
@@ -1210,7 +1210,7 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
             <Label>Brutal 加速</Label>
           </div>
           {bool('multiplex.brutal.enabled') && (
-            <div className='grid grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <Field label='brutal up_mbps'>
                 <Input
                   value={num('multiplex.brutal.up_mbps')}
@@ -1310,7 +1310,7 @@ function ProtocolFields(props: FieldProps) {
               onChange={(e) => set('obfs', e.target.value)}
             />
           </Field>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='obfs path'>
               <Input
                 value={str('obfs_settings.path')}
@@ -1326,7 +1326,7 @@ function ProtocolFields(props: FieldProps) {
               />
             </Field>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='plugin'>
               <Input
                 value={str('plugin')}
@@ -1346,7 +1346,7 @@ function ProtocolFields(props: FieldProps) {
     case 'vmess':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='TLS'>
               <TlsSelect value={num('tls')} onChange={(v) => set('tls', v)} />
             </Field>
@@ -1366,7 +1366,7 @@ function ProtocolFields(props: FieldProps) {
     case 'vless':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='TLS'>
               <TlsSelect
                 value={num('tls')}
@@ -1397,7 +1397,7 @@ function ProtocolFields(props: FieldProps) {
               <Label>启用 encryption（VLESS 加密）</Label>
             </div>
             {bool('encryption.enabled') && (
-              <div className='grid grid-cols-2 gap-4'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                 <Field label='encryption（客户端公钥）'>
                   <Input
                     value={str('encryption.encryption')}
@@ -1424,7 +1424,7 @@ function ProtocolFields(props: FieldProps) {
     case 'trojan':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='TLS'>
               <TlsSelect
                 value={num('tls')}
@@ -1451,7 +1451,7 @@ function ProtocolFields(props: FieldProps) {
     case 'hysteria':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='版本 (version)'>
               <Select
                 value={num('version') || '2'}
@@ -1479,7 +1479,7 @@ function ProtocolFields(props: FieldProps) {
               />
             </Field>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='上行带宽 bandwidth.up（Mbps）'>
               <Input
                 value={num('bandwidth.up')}
@@ -1518,7 +1518,7 @@ function ProtocolFields(props: FieldProps) {
               <Label>启用混淆 (obfs.open)</Label>
             </div>
             {bool('obfs.open') && (
-              <div className='grid grid-cols-2 gap-4'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                 <Field label='obfs.type'>
                   <Input
                     value={str('obfs.type')}
@@ -1541,7 +1541,7 @@ function ProtocolFields(props: FieldProps) {
     case 'tuic':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='版本 (version)'>
               <Select
                 value={num('version') || '5'}
@@ -1572,7 +1572,7 @@ function ProtocolFields(props: FieldProps) {
               </Select>
             </Field>
           </div>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='udp_relay_mode'>
               <Select
                 value={str('udp_relay_mode') || 'native'}
@@ -1610,7 +1610,7 @@ function ProtocolFields(props: FieldProps) {
     case 'mieru':
       return (
         <>
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <Field label='传输方式 (transport)'>
               <Select
                 value={str('transport') || 'TCP'}

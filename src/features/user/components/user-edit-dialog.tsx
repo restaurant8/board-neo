@@ -198,7 +198,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
           <form
             id='user-edit-form'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
-            className='grid grid-cols-2 gap-4'
+            className='grid grid-cols-1 sm:grid-cols-2 gap-4'
           >
             <FormField
               control={form.control}
