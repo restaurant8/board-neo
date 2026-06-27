@@ -55,52 +55,56 @@ export function JobDetailCard() {
     <Card>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
-          <Cpu className='size-5' /> 作业详情
+          <Cpu className='h-5 w-5' /> 作业详情
         </CardTitle>
         <CardDescription>队列处理详细信息</CardDescription>
       </CardHeader>
-      <CardContent className='flex flex-col gap-6'>
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-          <div>
-            <div className='text-muted-foreground flex items-center gap-1 text-sm'>
-              7日报错数量
+      <CardContent>
+        <div className='space-y-4'>
+          <div className='grid grid-cols-2 gap-4'>
+            <div className='space-y-2 rounded-lg bg-muted/50 p-3'>
+              <p className='text-sm text-muted-foreground'>7日报错数量</p>
+              <div className='flex items-center gap-2'>
+                <span
+                  className='cursor-pointer text-2xl font-bold text-destructive hover:underline'
+                  title='查看报错详情'
+                  onClick={() => setFailedOpen(true)}
+                  style={{ userSelect: 'none' }}
+                >
+                  {isLoading ? '—' : failedJobs}
+                </span>
+                <Eye
+                  className='h-4 w-4 cursor-pointer text-muted-foreground hover:text-destructive'
+                  onClick={() => setFailedOpen(true)}
+                  aria-label='查看报错详情'
+                />
+              </div>
+              <div className='text-xs text-muted-foreground'>
+                保留 {retention} 小时
+              </div>
             </div>
-            <div className='mt-1 flex items-center gap-2'>
-              <span className='text-2xl font-bold text-destructive'>
-                {isLoading ? '—' : failedJobs}
-              </span>
-              <button
-                type='button'
-                title='查看报错详情'
-                className='text-muted-foreground hover:text-foreground'
-                onClick={() => setFailedOpen(true)}
-              >
-                <Eye className='size-4' />
-              </button>
-            </div>
-            <div className='text-muted-foreground text-xs'>
-              保留 {retention} 小时
+            <div className='space-y-2 rounded-lg bg-muted/50 p-3'>
+              <p className='text-sm text-muted-foreground'>最长运行队列</p>
+              <p className='text-2xl font-bold'>0s</p>
+              <div className='truncate text-xs text-muted-foreground'>
+                {isLoading ? '—' : maxRuntimeQueue}
+              </div>
             </div>
           </div>
-          <div>
-            <div className='text-muted-foreground text-sm'>最长运行队列</div>
-            <div className='mt-1 text-2xl font-bold'>0s</div>
-            <div className='text-muted-foreground text-xs'>
-              {isLoading ? '—' : maxRuntimeQueue}
-            </div>
-          </div>
-        </div>
 
-        <div>
-          <div className='text-muted-foreground mb-2 flex items-center justify-between text-sm'>
-            <span>活跃进程</span>
-            <span className='font-medium'>{isLoading ? '—' : processes}</span>
-          </div>
-          <div className='bg-muted h-2 w-full overflow-hidden rounded-full'>
-            <div
-              className={up ? 'bg-foreground h-full' : 'bg-muted-foreground h-full'}
-              style={{ width: processes > 0 ? '100%' : '0%' }}
-            />
+          <div className='rounded-lg bg-muted/50 p-3'>
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-muted-foreground'>活跃进程</span>
+              <span className='font-medium'>{isLoading ? '—' : processes}</span>
+            </div>
+            <div className='mt-2 h-1 w-full overflow-hidden rounded-full bg-muted'>
+              <div
+                className={
+                  up ? 'h-full bg-primary' : 'h-full bg-muted-foreground'
+                }
+                style={{ width: processes > 0 ? '100%' : '0%' }}
+              />
+            </div>
           </div>
         </div>
       </CardContent>

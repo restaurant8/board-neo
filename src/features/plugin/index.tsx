@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUpCircle, Settings, Trash2 } from 'lucide-react'
+import { Puzzle, Search, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { FileDropzone } from '@/components/file-dropzone'
@@ -10,34 +10,52 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   type Plugin,
   deletePlugin,
   disablePlugin,
   enablePlugin,
+  getPluginTypes,
   getPlugins,
   installPlugin,
   uninstallPlugin,
   uploadPlugin,
   upgradePlugin,
 } from './api'
+import { PluginCard } from './components/plugin-card'
 import { PluginConfigDialog } from './components/plugin-config-dialog'
 
 export function PluginPage() {
   const queryClient = useQueryClient()
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null)
   const [deleting, setDeleting] = useState<Plugin | null>(null)
+  const [loadingCode, setLoadingCode] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [typeTab, setTypeTab] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [uploadOpen, setUploadOpen] = useState(false)
+
+  const { data: types } = useQuery({
+    queryKey: ['plugin-types'],
+    queryFn: getPluginTypes,
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['plugins'],
@@ -47,24 +65,28 @@ export function PluginPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['plugins'] })
 
   const mkAction = (fn: (code: string) => Promise<unknown>, msg: string) => ({
-    mutationFn: fn,
+    mutationFn: (code: string) => {
+      setLoadingCode(code)
+      return fn(code)
+    },
     onSuccess: () => {
       toast.success(msg)
       refresh()
     },
     onError: handleServerError,
+    onSettled: () => setLoadingCode(null),
   })
 
-  const installMutation = useMutation(mkAction(installPlugin, '插件已安装'))
-  const uninstallMutation = useMutation(mkAction(uninstallPlugin, '插件已卸载'))
-  const enableMutation = useMutation(mkAction(enablePlugin, '插件已启用'))
-  const disableMutation = useMutation(mkAction(disablePlugin, '插件已禁用'))
-  const upgradeMutation = useMutation(mkAction(upgradePlugin, '插件已升级'))
+  const installMutation = useMutation(mkAction(installPlugin, '插件安装成功'))
+  const uninstallMutation = useMutation(mkAction(uninstallPlugin, '插件卸载成功'))
+  const enableMutation = useMutation(mkAction(enablePlugin, '插件启用成功'))
+  const disableMutation = useMutation(mkAction(disablePlugin, '插件禁用成功'))
+  const upgradeMutation = useMutation(mkAction(upgradePlugin, '插件升级成功'))
 
   const deleteMutation = useMutation({
     mutationFn: (code: string) => deletePlugin(code),
     onSuccess: () => {
-      toast.success('插件已删除')
+      toast.success('插件删除成功')
       refresh()
       setDeleting(null)
     },
@@ -75,14 +97,60 @@ export function PluginPage() {
     mutationFn: (file: File) => uploadPlugin(file),
     onSuccess: () => {
       toast.success('插件上传成功')
+      setUploadOpen(false)
       refresh()
     },
     onError: handleServerError,
   })
 
+  const typeInfo = (t: string) => types?.find((x) => x.value === t)
+
+  const filtered = (data ?? []).filter((p) => {
+    const q = search.toLowerCase()
+    const matchSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.code.toLowerCase().includes(q)
+    const matchType = typeTab === 'all' || p.type === typeTab
+    const matchStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'installed' && p.is_installed) ||
+      (statusFilter === 'available' && !p.is_installed)
+    return matchSearch && matchType && matchStatus
+  })
+
+  const renderList = () =>
+    isLoading ? (
+      <div className='text-muted-foreground py-12 text-center'>加载中...</div>
+    ) : (
+      <div className='space-y-4'>
+        {filtered.map((p) => (
+          <PluginCard
+            key={p.code}
+            plugin={p}
+            typeInfo={typeInfo(p.type)}
+            isLoading={loadingCode === p.code}
+            onInstall={(c) => installMutation.mutate(c)}
+            onUpgrade={(c) => upgradeMutation.mutate(c)}
+            onUninstall={(c) => uninstallMutation.mutate(c)}
+            onToggleEnable={(c, enabled) =>
+              enabled ? disableMutation.mutate(c) : enableMutation.mutate(c)
+            }
+            onOpenConfig={setConfigPlugin}
+            onDelete={setDeleting}
+          />
+        ))}
+      </div>
+    )
+
   return (
     <>
       <Header fixed>
+        <div className='flex items-center gap-2'>
+          <Puzzle className='h-6 w-6' />
+          <h1 className='text-2xl font-bold tracking-tight'>插件管理</h1>
+        </div>
         <div className='ms-auto flex items-center gap-2'>
           <ThemeSwitch />
           <ConfigDrawer />
@@ -90,105 +158,80 @@ export function PluginPage() {
         </div>
       </Header>
 
-      <Main className='flex flex-1 flex-col gap-4'>
-        <div>
-          <h2 className='text-2xl font-bold tracking-tight'>插件管理</h2>
-          <p className='text-muted-foreground'>安装、启用、配置与升级插件。</p>
-        </div>
-        <FileDropzone
-          onFile={(f) => uploadMutation.mutate(f)}
-          loading={uploadMutation.isPending}
-          accept='.zip'
-          title='拖拽 .zip 插件包到此处，或点击选择'
-          hint='仅支持 .zip 格式的插件包'
-        />
-
-        {isLoading ? (
-          <div className='text-muted-foreground py-12 text-center'>加载中...</div>
-        ) : (
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-            {(data ?? []).map((p) => (
-              <Card key={p.code}>
-                <CardHeader>
-                  <CardTitle className='flex flex-wrap items-center gap-2'>
-                    {p.name}
-                    <span className='text-muted-foreground text-xs font-normal'>
-                      v{p.version}
-                    </span>
-                    {p.is_protected && <Badge variant='secondary'>核心</Badge>}
-                    {p.need_upgrade && <Badge>可升级</Badge>}
-                  </CardTitle>
-                  <CardDescription>{p.description}</CardDescription>
-                </CardHeader>
-                <CardContent className='flex items-center justify-between text-sm'>
-                  <span className='text-muted-foreground'>{p.author}</span>
-                  {p.is_installed && (
-                    <div className='flex items-center gap-2'>
-                      <span className='text-muted-foreground text-xs'>启用</span>
-                      <Switch
-                        checked={p.is_enabled}
-                        onCheckedChange={(b) =>
-                          b
-                            ? enableMutation.mutate(p.code)
-                            : disableMutation.mutate(p.code)
-                        }
-                      />
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className='flex flex-wrap gap-2'>
-                  {!p.is_installed ? (
-                    <Button
-                      size='sm'
-                      onClick={() => installMutation.mutate(p.code)}
-                      disabled={installMutation.isPending}
-                    >
-                      安装
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        onClick={() => setConfigPlugin(p)}
-                      >
-                        <Settings className='size-4' /> 配置
-                      </Button>
-                      {p.need_upgrade && (
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          onClick={() => upgradeMutation.mutate(p.code)}
-                          disabled={upgradeMutation.isPending}
-                        >
-                          <ArrowUpCircle className='size-4' /> 升级
-                        </Button>
-                      )}
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        onClick={() => uninstallMutation.mutate(p.code)}
-                        disabled={p.is_enabled || uninstallMutation.isPending}
-                      >
-                        卸载
-                      </Button>
-                    </>
-                  )}
-                  {p.can_be_deleted && (
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      onClick={() => setDeleting(p)}
-                    >
-                      <Trash2 className='size-4 text-destructive' />
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            ))}
+      <Main>
+        <div className='mb-8 space-y-4'>
+          <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+            <div className='relative max-w-sm flex-1'>
+              <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+              <Input
+                placeholder='搜索插件名称或描述...'
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className='pl-9'
+              />
+            </div>
+            <div className='flex items-center gap-4'>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className='w-[140px]'>
+                  <SelectValue placeholder='安装状态' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>全部状态</SelectItem>
+                  <SelectItem value='installed'>已安装</SelectItem>
+                  <SelectItem value='available'>可安装</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => setUploadOpen(true)}
+                variant='outline'
+                className='shrink-0'
+                size='sm'
+              >
+                <Upload className='mr-2 h-4 w-4' />
+                上传插件
+              </Button>
+            </div>
           </div>
-        )}
+
+          <Tabs value={typeTab} onValueChange={setTypeTab} className='w-full'>
+            <TabsList>
+              {types?.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  <div className='flex items-center gap-2'>
+                    <span>{t.label}</span>
+                  </div>
+                </TabsTrigger>
+              ))}
+              <TabsTrigger value='all'>所有插件</TabsTrigger>
+            </TabsList>
+            <TabsContent value='all' className='mt-6'>
+              {renderList()}
+            </TabsContent>
+            {types?.map((t) => (
+              <TabsContent key={t.value} value={t.value} className='mt-6'>
+                {renderList()}
+              </TabsContent>
+            ))}
+          </Tabs>
+        </div>
       </Main>
+
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>上传插件</DialogTitle>
+            <DialogDescription>上传插件包 (.zip)</DialogDescription>
+          </DialogHeader>
+          <FileDropzone
+            onFile={(f) => uploadMutation.mutate(f)}
+            loading={uploadMutation.isPending}
+            accept='.zip'
+            title='拖拽插件包到此处，或点击浏览'
+            hint='仅支持 .zip 格式文件'
+            className='mt-4 h-64'
+          />
+        </DialogContent>
+      </Dialog>
 
       <PluginConfigDialog
         open={!!configPlugin}
@@ -200,7 +243,7 @@ export function PluginPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title='删除插件'
-        desc={`确定删除插件「${deleting?.name}」吗？此操作不可撤销。`}
+        desc={`确定要删除此插件吗？此操作无法撤销。`}
         confirmText='删除'
         destructive
         isLoading={deleteMutation.isPending}

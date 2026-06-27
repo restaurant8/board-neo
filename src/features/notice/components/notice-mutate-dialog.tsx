@@ -98,131 +98,167 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-lg'>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? '编辑公告' : '新建公告'}</DialogTitle>
-          <DialogDescription>填写公告信息后保存。</DialogDescription>
+      <DialogContent className='max-w-4xl gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+        <DialogHeader className='border-b bg-muted/20 px-6 pb-4 pt-6'>
+          <DialogTitle className='font-mono text-lg tracking-tight'>
+            {isEdit ? '编辑公告' : '添加公告'}
+          </DialogTitle>
+          <DialogDescription className='font-mono text-xs opacity-70'>
+            发布或编辑系统公告，支持 Markdown 格式。
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form
             id='notice-form'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
-            className='grid gap-4'
           >
-            <FormField
-              control={form.control}
-              name='title'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>标题</FormLabel>
-                  <FormControl>
-                    <Input placeholder='请输入公告标题' {...field} />
-                  </FormControl>
-                  <p className='text-muted-foreground text-xs'>
-                    公告标题，显示在公告列表与弹窗顶部。
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='content'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>公告内容</FormLabel>
-                  <FormControl>
-                    <Textarea rows={6} placeholder='请输入公告内容，支持 HTML / Markdown' {...field} />
-                  </FormControl>
-                  <p className='text-muted-foreground text-xs'>
-                    公告正文，支持 HTML / Markdown 富文本。
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='img_url'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>公告背景</FormLabel>
-                  <FormControl>
-                    <Input placeholder='请输入公告背景图片URL' {...field} />
-                  </FormControl>
-                  <p className='text-muted-foreground text-xs'>
-                    公告背景图片地址（可选），留空则不显示背景图。
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='tags'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>标签（逗号分隔）</FormLabel>
-                  <FormControl>
-                    <Input placeholder='活动,公告' {...field} />
-                  </FormControl>
-                  <p className='text-muted-foreground text-xs'>
-                    公告标签，多个标签用英文逗号分隔。
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className='flex gap-8'>
+            <div className='max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4 font-mono'>
               <FormField
                 control={form.control}
-                name='show'
+                name='title'
                 render={({ field }) => (
-                  <FormItem className='flex items-center gap-2'>
-                    <FormLabel title='开启后该公告将在用户端展示。'>显示</FormLabel>
+                  <FormItem>
+                    <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                      标题
+                    </FormLabel>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                      <Input
+                        placeholder='请输入公告标题'
+                        {...field}
+                        className='h-9 font-mono text-xs'
                       />
                     </FormControl>
+                    <FormMessage className='text-[10px]' />
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name='content'
+                render={({ field }) => (
+                  <FormItem className='space-y-2'>
+                    <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                      公告内容
+                    </FormLabel>
+                    <FormControl>
+                      <div className='overflow-hidden rounded-md border border-input focus-within:ring-1 focus-within:ring-ring'>
+                        <Textarea
+                          rows={14}
+                          placeholder='请输入公告内容，支持 HTML / Markdown'
+                          {...field}
+                          className='border-none font-mono text-xs focus-visible:ring-0'
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className='text-[10px]' />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='img_url'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                      公告背景
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='text'
+                        placeholder='请输入公告背景图片URL'
+                        {...field}
+                        value={field.value || ''}
+                        className='h-9 font-mono text-xs'
+                      />
+                    </FormControl>
+                    <FormMessage className='text-[10px]' />
+                  </FormItem>
+                )}
+              />
+              <div className='grid gap-4 md:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='tags'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                        节点标签
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='输入后用英文逗号分隔，如 活动,公告'
+                          {...field}
+                          className='h-9 w-full font-mono text-xs'
+                        />
+                      </FormControl>
+                      <FormMessage className='text-[10px]' />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='show'
+                  render={({ field }) => (
+                    <FormItem className='flex flex-col'>
+                      <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                        显示
+                      </FormLabel>
+                      <div className='flex h-9 items-center'>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage className='text-[10px]' />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name='popup'
                 render={({ field }) => (
-                  <FormItem className='flex items-center gap-2'>
-                    <FormLabel title='开启后用户进入站点时将以弹窗形式提示该公告。'>弹窗</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
+                  <FormItem className='flex flex-col'>
+                    <FormLabel className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+                      弹窗
+                    </FormLabel>
+                    <div className='flex h-9 items-center'>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage className='text-[10px]' />
                   </FormItem>
                 )}
               />
             </div>
+            <DialogFooter className='border-t bg-muted/20 px-6 py-4'>
+              <div className='flex w-full items-center justify-end gap-3'>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  className='h-8 px-4 font-mono text-xs font-bold'
+                  onClick={() => onOpenChange(false)}
+                  disabled={mutation.isPending}
+                >
+                  取消
+                </Button>
+                <Button
+                  type='submit'
+                  className='h-8 px-8 font-mono text-xs font-bold'
+                  disabled={mutation.isPending}
+                >
+                  提交
+                </Button>
+              </div>
+            </DialogFooter>
           </form>
         </Form>
-        <DialogFooter>
-          <Button
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-            disabled={mutation.isPending}
-          >
-            取消
-          </Button>
-          <Button
-            type='submit'
-            form='notice-form'
-            disabled={mutation.isPending}
-          >
-            保存
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

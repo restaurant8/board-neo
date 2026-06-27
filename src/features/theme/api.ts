@@ -15,7 +15,8 @@ export type ThemeItem = {
   name: string
   description?: string
   version?: string
-  images?: string
+  images?: string[]
+  background_url?: string
   configs?: ThemeConfigField[]
   can_delete?: boolean
   is_system?: boolean

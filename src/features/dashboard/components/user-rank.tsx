@@ -1,98 +1,57 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Activity, Users } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { fetchTrafficRank } from '../api'
-import { formatBytes, formatPercent } from '../format'
+import { RankRow } from './server-rank'
 import { TimeRangeSelect, useTimeRange } from './time-range'
 
 export function UserRank() {
   const timeRange = useTimeRange('today')
   const { start_date, end_date } = timeRange.range
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['traffic-rank', 'user', start_date, end_date],
+  const { data } = useQuery({
+    queryKey: ['userTrafficRank', start_date, end_date],
     queryFn: () =>
       fetchTrafficRank({
         type: 'user',
         start_time: start_date,
         end_time: end_date,
       }),
+    refetchInterval: 30000,
   })
 
   const rows = (data?.data ?? []).slice(0, 10)
+  const max = rows[0]?.value || 1
 
   return (
     <Card>
-      <CardHeader className='flex flex-row items-center justify-between gap-2'>
-        <CardTitle>用户流量排行</CardTitle>
-        <TimeRangeSelect {...timeRange} />
+      <CardHeader className='flex-none pb-2'>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <CardTitle className='flex items-center text-base font-medium'>
+            <Users className='mr-2 h-4 w-4' />
+            用户流量排行
+          </CardTitle>
+          <div className='flex min-w-0 items-center gap-1'>
+            <TimeRangeSelect {...timeRange} />
+            <Activity className='h-4 w-4 flex-shrink-0 text-muted-foreground' />
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className='w-10'>#</TableHead>
-              <TableHead>用户</TableHead>
-              <TableHead className='text-end'>环比 / 流量</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={3} className='h-24 text-center'>
-                  加载中...
-                </TableCell>
-              </TableRow>
-            ) : rows.length > 0 ? (
-              rows.map((r, i) => (
-                <TableRow key={r.id}>
-                  <TableCell className='text-muted-foreground'>{i + 1}</TableCell>
-                  <TableCell className='max-w-[180px] truncate font-medium'>
-                    {r.name}
-                  </TableCell>
-                  <TableCell className='text-end'>
-                    <div className='flex flex-col items-end'>
-                      <span
-                        className={cn(
-                          'inline-flex items-center text-xs',
-                          r.change >= 0 ? 'text-emerald-600' : 'text-destructive'
-                        )}
-                      >
-                        {r.change >= 0 ? (
-                          <ArrowUpRight className='size-3' />
-                        ) : (
-                          <ArrowDownRight className='size-3' />
-                        )}
-                        {formatPercent(r.change)}
-                      </span>
-                      <span className='font-medium'>{formatBytes(r.value)}</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={3} className='h-24 text-center'>
-                  暂无数据
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+      <CardContent className='flex-1'>
+        {rows.length ? (
+          <ScrollArea className='h-[400px] pr-4'>
+            <div className='space-y-3'>
+              {rows.map((e) => (
+                <RankRow key={e.id} item={e} max={max} />
+              ))}
+            </div>
+          </ScrollArea>
+        ) : (
+          <div className='flex h-[400px] items-center justify-center'>
+            <div className='animate-pulse'>加载中...</div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

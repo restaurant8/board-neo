@@ -15,17 +15,21 @@ type BaseProps = {
   description?: string
 }
 
+/**
+ * Field wrapper matching the original Xboard 系统配置 form item:
+ * FormItem (space-y-2) > FormLabel (text-base) > control > FormDescription.
+ */
 export function FieldRow({
   label,
   description,
   children,
 }: BaseProps & { children: React.ReactNode }) {
   return (
-    <div className='grid gap-2'>
-      <Label>{label}</Label>
+    <div className='space-y-2'>
+      <Label className='text-base'>{label}</Label>
       {children}
       {description && (
-        <p className='text-muted-foreground text-xs'>{description}</p>
+        <p className='text-muted-foreground text-sm'>{description}</p>
       )}
     </div>
   )
@@ -82,6 +86,10 @@ export function TextareaField({
   )
 }
 
+/**
+ * Toggle field matching the original: label + description stacked in a
+ * space-y-0.5 block, with the switch rendered below.
+ */
 export function SwitchField({
   label,
   description,
@@ -92,11 +100,11 @@ export function SwitchField({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className='flex items-center justify-between gap-4 rounded-md border p-3'>
-      <div className='grid gap-0.5'>
-        <Label>{label}</Label>
+    <div className='space-y-2'>
+      <div className='space-y-0.5'>
+        <Label className='text-base'>{label}</Label>
         {description && (
-          <p className='text-muted-foreground text-xs'>{description}</p>
+          <p className='text-muted-foreground text-sm'>{description}</p>
         )}
       </div>
       <Switch checked={!!value} onCheckedChange={onChange} />
@@ -119,7 +127,10 @@ export function SelectField({
 }) {
   return (
     <FieldRow label={label} description={description}>
-      <Select value={value != null ? String(value) : ''} onValueChange={onChange}>
+      <Select
+        value={value != null ? String(value) : ''}
+        onValueChange={onChange}
+      >
         <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
