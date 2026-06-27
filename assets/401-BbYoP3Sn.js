@@ -1,0 +1,1 @@
+import{t as e}from"./unauthorized-error-TAaZ25o3.js";var t=e;export{t as component};

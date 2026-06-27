@@ -1,1 +1,0 @@
-import{t as e}from"./forbidden-BU0b77MQ.js";var t=e;export{t as component};

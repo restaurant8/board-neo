@@ -1,0 +1,1 @@
+import{M as e}from"./index-DyvVl6_E.js";var t=e;export{t as component};
