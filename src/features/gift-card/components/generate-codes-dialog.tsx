@@ -85,10 +85,10 @@ export function GenerateCodesDialog({
         </DialogHeader>
         <div className='grid gap-4'>
           <div className='grid gap-2'>
-            <Label>礼品卡模板</Label>
+            <Label>选择模板</Label>
             <Select value={tplId} onValueChange={setTplId}>
               <SelectTrigger>
-                <SelectValue placeholder='选择模板' />
+                <SelectValue placeholder='请选择一个模板来生成兑换码' />
               </SelectTrigger>
               <SelectContent>
                 {(templates?.data ?? []).map((t) => (
@@ -112,7 +112,7 @@ export function GenerateCodesDialog({
               />
             </div>
             <div className='grid gap-2'>
-              <Label>前缀</Label>
+              <Label>自定义前缀 (可选)</Label>
               <Input
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value.toUpperCase())}
@@ -122,7 +122,7 @@ export function GenerateCodesDialog({
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
-              <Label>有效期（小时）</Label>
+              <Label>有效期 (小时)</Label>
               <Input
                 type='number'
                 placeholder='留空长期有效'

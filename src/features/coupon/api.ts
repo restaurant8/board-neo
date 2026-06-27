@@ -6,6 +6,12 @@ export const COUPON_TYPE_MAP: Record<number, string> = {
   2: '比例',
 }
 
+/** 列表「类型」列徽标文案，对齐原版 table.toolbar.types。 */
+export const COUPON_TYPE_BADGE_MAP: Record<number, string> = {
+  1: '按金额优惠',
+  2: '按比例优惠',
+}
+
 export const COUPON_TYPE_AMOUNT = 1
 export const COUPON_TYPE_PERCENT = 2
 

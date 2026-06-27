@@ -22,18 +22,18 @@ export function GiftCardPage() {
 
       <Main className='flex flex-1 flex-col gap-4'>
         <div>
-          <h2 className='text-2xl font-bold tracking-tight'>礼品卡</h2>
+          <h2 className='text-2xl font-bold tracking-tight'>礼品卡管理</h2>
           <p className='text-muted-foreground'>
-            管理礼品卡模板、兑换码、使用记录与统计。
+            在这里可以管理礼品卡模板、兑换码和使用记录等功能。
           </p>
         </div>
 
         <Tabs defaultValue='templates' className='flex-1'>
           <TabsList>
-            <TabsTrigger value='templates'>模板</TabsTrigger>
-            <TabsTrigger value='codes'>卡密</TabsTrigger>
+            <TabsTrigger value='templates'>模板管理</TabsTrigger>
+            <TabsTrigger value='codes'>兑换码管理</TabsTrigger>
             <TabsTrigger value='usages'>使用记录</TabsTrigger>
-            <TabsTrigger value='statistics'>统计</TabsTrigger>
+            <TabsTrigger value='statistics'>统计数据</TabsTrigger>
           </TabsList>
           <TabsContent value='templates' className='mt-4'>
             <TemplatesTab />

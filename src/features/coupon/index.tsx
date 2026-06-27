@@ -10,6 +10,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -23,7 +24,7 @@ import {
 import {
   type Coupon,
   COUPON_TYPE_AMOUNT,
-  COUPON_TYPE_MAP,
+  COUPON_TYPE_BADGE_MAP,
   dropCoupon,
   fetchCoupons,
   toggleCouponShow,
@@ -86,8 +87,10 @@ export function CouponPage() {
       <Main className='flex flex-1 flex-col gap-4'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>优惠券</h2>
-            <p className='text-muted-foreground'>管理折扣与优惠券。</p>
+            <h2 className='text-2xl font-bold tracking-tight'>优惠券管理</h2>
+            <p className='text-muted-foreground'>
+              在这里可以查看优惠券，包括增加、查看、删除等操作。
+            </p>
           </div>
           <Button
             onClick={() => {
@@ -95,7 +98,7 @@ export function CouponPage() {
               setMutateOpen(true)
             }}
           >
-            <Plus className='size-4' /> 新增优惠券
+            <Plus className='size-4' /> 添加优惠券
           </Button>
         </div>
 
@@ -104,19 +107,21 @@ export function CouponPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className='w-16'>ID</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>券码</TableHead>
-                <TableHead className='w-20'>类型</TableHead>
+                <TableHead className='w-20'>启用</TableHead>
+                <TableHead>卷名称</TableHead>
+                <TableHead className='w-24'>类型</TableHead>
+                <TableHead>卷码</TableHead>
                 <TableHead className='w-24 text-end'>面值</TableHead>
+                <TableHead className='w-24 text-end'>剩余次数</TableHead>
+                <TableHead className='w-28 text-end'>可用次数/用户</TableHead>
                 <TableHead>有效期</TableHead>
-                <TableHead className='w-24'>显示</TableHead>
                 <TableHead className='w-28 text-end'>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className='h-24 text-center'>
+                  <TableCell colSpan={10} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -124,18 +129,38 @@ export function CouponPage() {
                 rows.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.id}</TableCell>
-                    <TableCell className='font-medium'>{c.name}</TableCell>
-                    <TableCell className='font-mono text-xs'>{c.code}</TableCell>
-                    <TableCell>{COUPON_TYPE_MAP[c.type] ?? c.type}</TableCell>
-                    <TableCell className='text-end'>{couponValue(c)}</TableCell>
-                    <TableCell className='text-xs'>
-                      {time(c.started_at)} ~ {time(c.ended_at)}
-                    </TableCell>
                     <TableCell>
                       <Switch
                         checked={!!c.show}
                         onCheckedChange={() => toggleMutation.mutate(c.id)}
                       />
+                    </TableCell>
+                    <TableCell className='font-medium'>{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant='outline'>
+                        {COUPON_TYPE_BADGE_MAP[c.type] ?? c.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant='secondary' className='font-mono'>
+                        {c.code}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className='text-end'>{couponValue(c)}</TableCell>
+                    <TableCell className='text-end'>
+                      <Badge variant='outline'>
+                        {c.limit_use === null ? '无限次' : c.limit_use}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className='text-end'>
+                      <Badge variant='outline'>
+                        {c.limit_use_with_user === null
+                          ? '无限制'
+                          : c.limit_use_with_user}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className='text-xs'>
+                      {time(c.started_at)} ~ {time(c.ended_at)}
                     </TableCell>
                     <TableCell className='text-end'>
                       <Button
@@ -160,7 +185,7 @@ export function CouponPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className='h-24 text-center'>
+                  <TableCell colSpan={10} className='h-24 text-center'>
                     暂无优惠券
                   </TableCell>
                 </TableRow>

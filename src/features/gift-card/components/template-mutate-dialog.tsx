@@ -237,7 +237,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
         <ScrollArea className='max-h-[65vh] pr-4'>
           <div className='grid gap-4'>
             {/* 基础配置 */}
-            <Section title='🌐 基础配置'>
+            <Section title='基础配置'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='模板名称'>
                   <Input
@@ -294,7 +294,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             </Section>
 
             {/* 奖励内容 */}
-            <Section title='🎁 奖励内容'>
+            <Section title='奖励内容'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='奖励余额 (元)'>
                   <Input
@@ -372,7 +372,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             </Section>
 
             {/* 使用条件 */}
-            <Section title='🎯 使用条件'>
+            <Section title='使用条件'>
               <Field
                 label='新用户注册天数限制'
                 hint='例如 7 表示仅注册 7 天内的用户可用，留空不限'
@@ -412,7 +412,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             </Section>
 
             {/* 使用限制 */}
-            <Section title='🛡 使用限制'>
+            <Section title='使用限制'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='单用户最大使用次数' hint='留空则不限制'>
                   <Input
@@ -446,7 +446,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             </Section>
 
             {/* 特殊配置 */}
-            <Section title='🕒 特殊配置'>
+            <Section title='特殊配置'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='活动开始时间'>
                   <Input
@@ -478,7 +478,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             </Section>
 
             {/* 显示效果 */}
-            <Section title='🎨 显示效果'>
+            <Section title='显示效果'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                 <Field label='主题色'>
                   <Input

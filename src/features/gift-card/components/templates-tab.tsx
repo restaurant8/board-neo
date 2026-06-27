@@ -70,7 +70,7 @@ export function TemplatesTab() {
             setMutateOpen(true)
           }}
         >
-          <Plus className='size-4' /> 新建模板
+          <Plus className='size-4' /> 添加模板
         </Button>
       </div>
 
@@ -100,7 +100,9 @@ export function TemplatesTab() {
                   <TableCell>{t.id}</TableCell>
                   <TableCell className='font-medium'>{t.name}</TableCell>
                   <TableCell>
-                    {t.type_name ?? GIFT_CARD_TYPE_MAP[t.type] ?? t.type}
+                    <Badge variant='outline'>
+                      {t.type_name ?? GIFT_CARD_TYPE_MAP[t.type] ?? t.type}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {t.status ? (

@@ -124,7 +124,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>{isEdit ? '编辑支付方式' : '新增支付方式'}</DialogTitle>
+          <DialogTitle>{isEdit ? '编辑支付方式' : '添加支付方式'}</DialogTitle>
           <DialogDescription>
             配置网关参数。手续费金额单位为「元」。
           </DialogDescription>
@@ -134,24 +134,24 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
             <div className='grid gap-2'>
               <Label>显示名称</Label>
               <Input
-                placeholder='如 支付宝'
+                placeholder='请输入支付名称'
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className='grid gap-2'>
-              <Label>图标</Label>
+              <Label>图标URL</Label>
               <Input
                 value={icon}
                 onChange={(e) => setIcon(e.target.value)}
-                placeholder='图标 URL 或标识'
+                placeholder='https://example.com/icon.svg'
               />
             </div>
             <div className='grid gap-2'>
-              <Label>支付网关</Label>
+              <Label>支付接口</Label>
               <Select value={payment} onValueChange={setPayment}>
                 <SelectTrigger>
-                  <SelectValue placeholder='选择网关' />
+                  <SelectValue placeholder='请选择支付接口' />
                 </SelectTrigger>
                 <SelectContent>
                   {(methods ?? []).map((m) => (
@@ -206,12 +206,13 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
               })}
 
             <div className='grid gap-2'>
-              <Label>自定义通知域名</Label>
+              <Label>通知域名</Label>
               <Input
                 value={notifyDomain}
                 onChange={(e) => setNotifyDomain(e.target.value)}
-                placeholder='https://...'
+                placeholder='https://example.com'
               />
+              <p className='text-muted-foreground text-xs'>网关通知将发送到该域名</p>
             </div>
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='grid gap-2'>
@@ -219,17 +220,17 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
                 <Input
                   type='number'
                   step='0.01'
-                  placeholder='如 0.50'
+                  placeholder='0'
                   value={feeFixed}
                   onChange={(e) => setFeeFixed(e.target.value)}
                 />
               </div>
               <div className='grid gap-2'>
-                <Label>百分比手续费（%）</Label>
+                <Label>百分比手续费(%)</Label>
                 <Input
                   type='number'
                   step='0.01'
-                  placeholder='如 2.5'
+                  placeholder='0-100'
                   value={feePercent}
                   onChange={(e) => setFeePercent(e.target.value)}
                 />
@@ -249,7 +250,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !name || !payment}
           >
-            保存
+            提交
           </Button>
         </DialogFooter>
       </DialogContent>

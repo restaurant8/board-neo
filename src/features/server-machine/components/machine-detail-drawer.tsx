@@ -215,9 +215,11 @@ export function MachineDetailDrawer({
             <div className='flex flex-wrap items-center gap-2'>
               <Badge variant='secondary'>SID:{machine.id}</Badge>
               {online ? (
-                <Badge>在线</Badge>
+                <Badge className='border-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'>
+                  在线
+                </Badge>
               ) : (
-                <Badge variant='outline'>离线</Badge>
+                <Badge variant='destructive'>离线</Badge>
               )}
               <span className='text-muted-foreground text-sm'>
                 CPU {(load.cpu ?? 0).toFixed(1)}%

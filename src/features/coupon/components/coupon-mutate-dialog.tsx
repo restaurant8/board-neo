@@ -151,16 +151,16 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>{isEdit ? '编辑优惠券' : '新增优惠券'}</DialogTitle>
+          <DialogTitle>{isEdit ? '编辑优惠券' : '添加优惠券'}</DialogTitle>
           <DialogDescription>
             金额型单位为「元」，比例型为百分比。
           </DialogDescription>
         </DialogHeader>
         <div className='grid gap-4'>
           <div className='grid gap-2'>
-            <Label>名称</Label>
+            <Label>优惠券名称</Label>
             <Input
-              placeholder='如 新春优惠券'
+              placeholder='请输入优惠券名称'
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -218,19 +218,19 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div className='grid gap-2'>
-              <Label>总可用次数</Label>
+              <Label>最大使用次数</Label>
               <Input
                 type='number'
-                placeholder='留空不限'
+                placeholder='限制最大使用次数，留空则不限制'
                 value={limitUse}
                 onChange={(e) => setLimitUse(e.target.value)}
               />
             </div>
             <div className='grid gap-2'>
-              <Label>每用户可用次数</Label>
+              <Label>每个用户可使用次数</Label>
               <Input
                 type='number'
-                placeholder='留空不限'
+                placeholder='限制每个用户可使用次数，留空则不限制'
                 value={limitUseWithUser}
                 onChange={(e) => setLimitUseWithUser(e.target.value)}
               />
@@ -248,7 +248,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               empty='暂无套餐'
             />
             <p className='text-muted-foreground text-xs'>
-              留空则不限制可用套餐。
+              选择可以使用优惠券的订阅计划，留空表示不限制计划。
             </p>
           </div>
           <div className='grid gap-2'>
@@ -262,15 +262,15 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               onChange={setLimitPeriod}
             />
             <p className='text-muted-foreground text-xs'>
-              留空则不限制可用周期。
+              选择可以使用优惠券的订阅周期，留空表示不限制使用周期。
             </p>
           </div>
           {!isEdit && (
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               <div className='grid gap-2'>
-                <Label>券码</Label>
+                <Label>自定义优惠码</Label>
                 <Input
-                  placeholder='留空自动生成'
+                  placeholder='自定义优惠码，留空则自动生成'
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   disabled={!!generateCount}
@@ -280,7 +280,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
                 <Label>批量生成数量</Label>
                 <Input
                   type='number'
-                  placeholder='单张留空，最大 500'
+                  placeholder='批量生成优惠码数量，留空则生成单个'
                   value={generateCount}
                   onChange={(e) => setGenerateCount(e.target.value)}
                 />

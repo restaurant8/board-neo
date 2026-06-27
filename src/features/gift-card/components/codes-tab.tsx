@@ -24,6 +24,7 @@ import {
 import {
   type GiftCardCode,
   GIFT_CODE_STATUS_DISABLED,
+  GIFT_CODE_STATUS_EXPIRED,
   GIFT_CODE_STATUS_MAP,
   GIFT_CODE_STATUS_USED,
   deleteCode,
@@ -37,10 +38,15 @@ function time(ts?: number | null) {
   return new Date(ts * 1000).toLocaleString('zh-CN')
 }
 
+/** 对齐原版：未使用→default，已使用→secondary，已禁用/已过期→destructive。 */
 function statusVariant(status: number) {
-  if (status === GIFT_CODE_STATUS_USED) return 'default' as const
-  if (status === GIFT_CODE_STATUS_DISABLED) return 'destructive' as const
-  return 'secondary' as const
+  if (status === GIFT_CODE_STATUS_USED) return 'secondary' as const
+  if (
+    status === GIFT_CODE_STATUS_DISABLED ||
+    status === GIFT_CODE_STATUS_EXPIRED
+  )
+    return 'destructive' as const
+  return 'default' as const
 }
 
 export function CodesTab() {
@@ -112,7 +118,7 @@ export function CodesTab() {
           <TableHeader>
             <TableRow>
               <TableHead>兑换码</TableHead>
-              <TableHead>模板</TableHead>
+              <TableHead>模板名称</TableHead>
               <TableHead className='w-20'>状态</TableHead>
               <TableHead>使用者</TableHead>
               <TableHead className='w-24 text-end'>次数</TableHead>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -75,7 +75,9 @@ export function PaymentPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>支付配置</h2>
-            <p className='text-muted-foreground'>管理支付网关与手续费。</p>
+            <p className='text-muted-foreground'>
+              在这里可以配置支付方式，包括支付宝、微信等。
+            </p>
           </div>
           <Button
             onClick={() => {
@@ -83,7 +85,7 @@ export function PaymentPage() {
               setMutateOpen(true)
             }}
           >
-            <Plus className='size-4' /> 新增支付方式
+            <Plus className='size-4' /> 添加支付方式
           </Button>
         </div>
 
@@ -92,9 +94,10 @@ export function PaymentPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className='w-16'>ID</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>网关</TableHead>
+                <TableHead>显示名称</TableHead>
+                <TableHead>支付接口</TableHead>
                 <TableHead>手续费</TableHead>
+                <TableHead>通知地址</TableHead>
                 <TableHead className='w-24'>启用</TableHead>
                 <TableHead className='w-28 text-end'>操作</TableHead>
               </TableRow>
@@ -102,7 +105,7 @@ export function PaymentPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className='h-24 text-center'>
+                  <TableCell colSpan={7} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -111,8 +114,30 @@ export function PaymentPage() {
                   <TableRow key={p.id}>
                     <TableCell>{p.id}</TableCell>
                     <TableCell className='font-medium'>{p.name}</TableCell>
-                    <TableCell>{p.payment}</TableCell>
+                    <TableCell className='font-medium'>{p.payment}</TableCell>
                     <TableCell>{fee(p)}</TableCell>
+                    <TableCell>
+                      {p.notify_url ? (
+                        <div className='group/url flex items-center gap-1'>
+                          <span className='max-w-[260px] truncate font-medium'>
+                            {p.notify_url}
+                          </span>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='text-muted-foreground/40 size-6 shrink-0 opacity-0 group-hover/url:opacity-100'
+                            onClick={() => {
+                              navigator.clipboard.writeText(p.notify_url!)
+                              toast.success('已复制')
+                            }}
+                          >
+                            <Copy className='size-3.5' />
+                          </Button>
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Switch
                         checked={p.enable}
@@ -142,7 +167,7 @@ export function PaymentPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className='h-24 text-center'>
+                  <TableCell colSpan={7} className='h-24 text-center'>
                     暂无支付方式
                   </TableCell>
                 </TableRow>
@@ -161,8 +186,8 @@ export function PaymentPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
-        title='删除支付方式'
-        desc={`确定删除「${deleting?.name}」吗？此操作不可撤销。`}
+        title='删除确认'
+        desc={`确定要删除「${deleting?.name}」吗？此操作无法撤销。`}
         confirmText='删除'
         destructive
         isLoading={dropMutation.isPending}

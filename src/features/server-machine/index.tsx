@@ -90,6 +90,20 @@ function SummaryCard({
   )
 }
 
+/** 负载阈值（与原版一致）。 */
+const LOAD_THRESHOLDS = {
+  CPU: { warn: 70, danger: 85 },
+  MEM: { warn: 75, danger: 90 },
+  DISK: { warn: 80, danger: 90 },
+} as const
+
+function loadTone(label: keyof typeof LOAD_THRESHOLDS, percent: number) {
+  const t = LOAD_THRESHOLDS[label]
+  if (percent >= t.danger) return 'bg-red-500'
+  if (percent >= t.warn) return 'bg-amber-500'
+  return 'bg-primary'
+}
+
 function LoadBar({
   icon,
   label,
@@ -97,7 +111,7 @@ function LoadBar({
   percent,
 }: {
   icon: React.ReactNode
-  label: string
+  label: keyof typeof LOAD_THRESHOLDS
   value: string
   percent: number
 }) {
@@ -105,16 +119,27 @@ function LoadBar({
     <div className='grid gap-0.5'>
       <div className='text-muted-foreground flex items-center gap-1 text-xs'>
         {icon}
-        <span className='w-8'>{label}</span>
+        <span className='w-8 uppercase'>{label}</span>
         <span className='text-foreground ms-auto'>{value}</span>
       </div>
       <div className='bg-muted h-1 w-36 overflow-hidden rounded-full max-sm:w-full'>
         <div
-          className='bg-primary h-full rounded-full'
+          className={cn('h-full rounded-full', loadTone(label, percent))}
           style={{ width: `${percent}%` }}
         />
       </div>
     </div>
+  )
+}
+
+/** 状态徽章：在线为绿色软底，离线为红色（destructive）。 */
+function StatusBadge({ online }: { online: boolean }) {
+  return online ? (
+    <Badge className='border-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'>
+      在线
+    </Badge>
+  ) : (
+    <Badge variant='destructive'>离线</Badge>
   )
 }
 
@@ -193,12 +218,7 @@ export function ServerMachinePage() {
       {
         id: 'status',
         header: () => <div>状态</div>,
-        cell: ({ row }) =>
-          isOnline(row.original.last_seen_at) ? (
-            <Badge>在线</Badge>
-          ) : (
-            <Badge variant='outline'>离线</Badge>
-          ),
+        cell: ({ row }) => <StatusBadge online={isOnline(row.original.last_seen_at)} />,
       },
       {
         id: 'load',
@@ -235,14 +255,22 @@ export function ServerMachinePage() {
         cell: ({ row }) => {
           const m = row.original
           return (
-            <div>
-              <div>{m.servers_count} 已承载节点</div>
+            <div className='space-y-2'>
+              <div className='flex items-center gap-2'>
+                <span className='font-mono text-base font-semibold'>
+                  {m.servers_count}
+                </span>
+                <span className='text-muted-foreground text-xs'>
+                  {(m.servers_count ?? 0) > 0 ? '已承载节点' : '暂无承载'}
+                </span>
+              </div>
               <Button
-                variant='link'
-                className='h-auto p-0 text-xs'
+                variant='outline'
+                size='sm'
+                className='h-7 gap-1.5 px-2 text-xs'
                 onClick={() => openDetail(m)}
               >
-                <Eye className='size-3' /> 服务器详情
+                <Eye className='size-3.5' /> 服务器详情
               </Button>
             </div>
           )
@@ -251,11 +279,18 @@ export function ServerMachinePage() {
       {
         id: 'last_seen',
         header: () => <div>最后心跳</div>,
-        cell: ({ row }) => (
-          <div className='text-muted-foreground text-xs'>
-            {fmtAgo(row.original.last_seen_at)}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const reportedAt = (row.original.load_status as { updated_at?: number } | null)
+            ?.updated_at
+          return (
+            <div className='space-y-1 text-xs'>
+              <div className='font-medium'>{fmtAgo(row.original.last_seen_at)}</div>
+              <div className='text-muted-foreground'>
+                {reportedAt ? `负载上报: ${fmtAgo(reportedAt)}` : '暂无负载数据'}
+              </div>
+            </div>
+          )
+        },
       },
       {
         id: 'actions',
@@ -263,10 +298,20 @@ export function ServerMachinePage() {
         cell: ({ row }) => {
           const m = row.original
           return (
-            <div className='text-end whitespace-nowrap'>
+            <div className='flex items-center justify-end gap-1 whitespace-nowrap'>
               <Button
                 variant='ghost'
                 size='icon'
+                className='h-8 w-8'
+                title='查看详情'
+                onClick={() => openDetail(m)}
+              >
+                <Eye className='size-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-8 w-8'
                 title='编辑'
                 onClick={() => {
                   setCurrent(m)
@@ -278,10 +323,11 @@ export function ServerMachinePage() {
               <Button
                 variant='ghost'
                 size='icon'
+                className='h-8 w-8 text-destructive hover:text-destructive'
                 title='删除'
                 onClick={() => setDeleting(m)}
               >
-                <Trash2 className='text-destructive size-4' />
+                <Trash2 className='size-4' />
               </Button>
             </div>
           )
