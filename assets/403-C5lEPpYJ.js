@@ -1,0 +1,1 @@
+import{t as e}from"./forbidden-wUMfITMf.js";var t=e;export{t as component};
