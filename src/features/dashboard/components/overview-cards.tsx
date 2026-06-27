@@ -40,14 +40,15 @@ function StatCard({
   return (
     <Card
       className={cn(
-        'transition-colors',
+        // gap-2：收紧新版 Card 默认的 gap-6，去掉标题与数值之间的大片空白
+        'gap-2 py-4 transition-colors',
         onClick && 'cursor-pointer hover:bg-muted/50',
         highlight && 'border-primary/50',
         className
       )}
       onClick={onClick}
     >
-      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-0'>
         <CardTitle className='text-sm font-medium'>{title}</CardTitle>
         {icon}
       </CardHeader>
@@ -83,8 +84,8 @@ function StatCard({
 
 function StatsSkeletonCard() {
   return (
-    <Card>
-      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+    <Card className='gap-2 py-4'>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-0'>
         <div className='h-4 w-[120px] animate-pulse rounded-md bg-primary/10' />
         <div className='h-4 w-4 animate-pulse rounded-md bg-primary/10' />
       </CardHeader>
