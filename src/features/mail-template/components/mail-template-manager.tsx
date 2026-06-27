@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type OnMount } from '@monaco-editor/react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { fetchConfig } from '@/features/config/api'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -67,8 +68,14 @@ export function MailTemplateManager() {
     queryFn: listMailTemplates,
   })
 
+  // {{url}} 示例值用「站点设置-站点网址」(app_url)，不是后台地址
+  const { data: siteConfig } = useQuery({
+    queryKey: ['config'],
+    queryFn: fetchConfig,
+  })
   const siteUrl =
-    typeof window !== 'undefined' ? window.location.origin : ''
+    siteConfig?.site?.app_url ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
   const varMeta = useMemo(() => buildVarMeta(siteUrl), [siteUrl])
 
   // Effective active tab: explicit selection, else the first available template.
