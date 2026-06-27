@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Trash2, FileText, Eye, EyeOff } from 'lucide-react'
+import { Trash2, FileText } from 'lucide-react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { MarkdownEditor } from '@/components/markdown-editor'
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_NAMES,
@@ -122,8 +122,6 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
 
   // 「基础价格」快捷填充输入（仅辅助，不入表单/不提交）
   const [basePrice, setBasePrice] = useState('')
-  // 套餐说明预览开关（对齐原版 显示预览/隐藏预览）
-  const [showPreview, setShowPreview] = useState(false)
 
   const { data: groups } = useQuery({
     queryKey: ['server-groups'],
@@ -176,7 +174,6 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
   useEffect(() => {
     if (!open) return
     setBasePrice('')
-    setShowPreview(false)
     const prices = { ...emptyPrices }
     if (current?.prices) {
       for (const p of PLAN_PERIODS) {
@@ -597,52 +594,25 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     <FormItem className='space-y-3'>
                       <div className='flex items-center justify-between'>
                         <FormLabel className={fieldLabelCls}>套餐说明</FormLabel>
-                        <div className='flex items-center gap-2'>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-8'
-                            type='button'
-                            onClick={() => field.onChange(CONTENT_TEMPLATE)}
-                          >
-                            <FileText className='mr-2 h-3.5 w-3.5' />
-                            使用模板
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            className='h-8'
-                            type='button'
-                            onClick={() => setShowPreview((v) => !v)}
-                          >
-                            {showPreview ? (
-                              <EyeOff className='mr-2 h-3.5 w-3.5' />
-                            ) : (
-                              <Eye className='mr-2 h-3.5 w-3.5' />
-                            )}
-                            {showPreview ? '隐藏预览' : '显示预览'}
-                          </Button>
-                        </div>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          className='h-8'
+                          type='button'
+                          onClick={() => field.onChange(CONTENT_TEMPLATE)}
+                        >
+                          <FileText className='mr-2 h-3.5 w-3.5' />
+                          使用模板
+                        </Button>
                       </div>
-                      <div
-                        className={`grid gap-4 ${
-                          showPreview ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
-                        }`}
-                      >
-                        <FormControl>
-                          <Textarea
-                            placeholder='请输入套餐说明'
-                            style={{ height: '300px' }}
-                            className='resize-none rounded-md border font-mono text-xs'
-                            {...field}
-                          />
-                        </FormControl>
-                        {showPreview && (
-                          <div className='prose prose-sm dark:prose-invert h-[300px] max-w-none overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/20 p-4 text-xs'>
-                            {field.value || ''}
-                          </div>
-                        )}
-                      </div>
+                      <FormControl>
+                        <MarkdownEditor
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          height={400}
+                          placeholder='请输入套餐说明'
+                        />
+                      </FormControl>
                       <p className={fieldDescCls}>支持 Markdown 格式</p>
                       <FormMessage className={fieldMsgCls} />
                     </FormItem>

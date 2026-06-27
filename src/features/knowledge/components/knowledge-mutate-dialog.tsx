@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { MarkdownEditor } from '@/components/markdown-editor'
 import {
   KNOWLEDGE_LANGUAGES,
   type KnowledgeListItem,
@@ -251,14 +251,12 @@ export function KnowledgeMutateDialog({ open, onOpenChange, current }: Props) {
                       内容
                     </FormLabel>
                     <FormControl>
-                      <div className='overflow-hidden rounded-md border border-input focus-within:ring-1 focus-within:ring-ring'>
-                        <Textarea
-                          rows={14}
-                          placeholder='支持 HTML / Markdown'
-                          {...field}
-                          className='border-none font-mono text-xs focus-visible:ring-0'
-                        />
-                      </div>
+                      <MarkdownEditor
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        height={400}
+                        placeholder='支持 HTML / Markdown'
+                      />
                     </FormControl>
                     <FormMessage className='text-[10px]' />
                   </FormItem>
