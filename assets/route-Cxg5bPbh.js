@@ -1,0 +1,1 @@
+import{t as e}from"./authenticated-layout-BVomOp8D.js";var t=e;export{t as component};
