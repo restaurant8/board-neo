@@ -73,3 +73,58 @@ jobs:
       # 到此为止：仅构建并把产物推到 board-neo-admin-dist。
       # 【已移除】改写 Xboard 子模块指针 与 SSH 部署两步，
       # 确保推送 board-neo 不会影响线上后台（服务器保持原版 admin）。
+
+  # 独立部署（standalone）自更新：构建 base=/ 的 SPA，推到本仓库 dist-standalone
+  # 分支。站点根的 update.php 比对/拉取的就是该分支 → 后台「系统更新」自动识别。
+  # 后端地址不写死进产物：由 dist-standalone 分支上的 settings.js 运行时提供，
+  # 故本作业【保留】分支已有的 settings.js，仅替换构建产物。
+  build-standalone:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout board-neo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build standalone (base=/，后端由 settings.js 运行时配置)
+        env:
+          VITE_DEPLOY_MODE: standalone
+        run: |
+          npm ci
+          npm run build:standalone
+
+      - name: Checkout dist-standalone branch
+        uses: actions/checkout@v4
+        with:
+          ref: dist-standalone
+          path: standalone-out
+
+      - name: Sync build into dist-standalone (保留分支上的 settings.js)
+        run: |
+          D=standalone-out
+          # 备份分支现有 settings.js（运行时后端配置，不能被构建默认模板覆盖）
+          cp "$D/settings.js" /tmp/keep-settings.js 2>/dev/null || true
+          # 整目录替换旧产物（保留 .git），避免 hash 资源堆积
+          find "$D" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r dist/. "$D/"
+          # 还原分支的 settings.js（分支原本没有时则沿用构建产物里的默认模板）
+          if [ -f /tmp/keep-settings.js ]; then cp /tmp/keep-settings.js "$D/settings.js"; fi
+
+      - name: Commit & push dist-standalone
+        run: |
+          cd standalone-out
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "build: standalone dist from board-neo@${GITHUB_SHA::7}"
+            git push
+          fi
