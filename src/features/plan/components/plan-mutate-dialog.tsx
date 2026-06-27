@@ -225,7 +225,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-2xl'>
         <DialogHeader>
-          <DialogTitle>{isEdit ? '编辑套餐' : '新建套餐'}</DialogTitle>
+          <DialogTitle>{isEdit ? '编辑套餐' : '添加套餐'}</DialogTitle>
           <DialogDescription>
             价格单位为元，留空表示不开放该周期。
           </DialogDescription>
@@ -264,14 +264,14 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                 name='group_id'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>权限组</FormLabel>
+                    <FormLabel>服务器分组</FormLabel>
                     <Select
                       value={field.value || 'none'}
                       onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder='选择权限组' />
+                          <SelectValue placeholder='请选择服务器分组' />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -372,9 +372,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
               )}
             />
 
-            <div>
+            <div className='rounded-lg border p-4'>
               <div className='flex flex-wrap items-center justify-between gap-2'>
-                <FormLabel>价格（元）</FormLabel>
+                <FormLabel className='text-sm font-semibold'>价格设置</FormLabel>
                 <div className='flex items-center gap-2'>
                   <div className='relative'>
                     <span className='text-muted-foreground absolute start-2 top-1/2 -translate-y-1/2 text-xs'>
@@ -402,8 +402,11 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   </Button>
                 </div>
               </div>
-              <div className='mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:grid-cols-4'>
-                {PLAN_PERIODS.map((p) => (
+              {/* 时间周期价格 */}
+              <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4'>
+                {PLAN_PERIODS.filter(
+                  (p) => p !== 'onetime' && p !== 'reset_traffic'
+                ).map((p) => (
                   <FormField
                     key={p}
                     control={form.control}
@@ -426,6 +429,55 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     )}
                   />
                 ))}
+              </div>
+              {/* 流量包 / 重置包（独立成行，对齐原版） */}
+              <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='prices.onetime'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className='text-xs text-muted-foreground'>
+                        {PLAN_PERIOD_NAMES['onetime']}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          step='0.01'
+                          placeholder='—'
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className='text-muted-foreground text-xs'>
+                        一次性流量包，无时间限制
+                      </p>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='prices.reset_traffic'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className='text-xs text-muted-foreground'>
+                        {PLAN_PERIOD_NAMES['reset_traffic']}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          step='0.01'
+                          placeholder='—'
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className='text-muted-foreground text-xs'>
+                        重置流量包，可多次使用
+                      </p>
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 
@@ -523,7 +575,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
             取消
           </Button>
           <Button type='submit' form='plan-form' disabled={mutation.isPending}>
-            保存
+            提交
           </Button>
         </DialogFooter>
       </DialogContent>
