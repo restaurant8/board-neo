@@ -6,13 +6,13 @@ import {
   ChevronsUpDown,
   Pencil,
   Plus,
-  Search,
   Server as ServerIcon,
   Trash2,
   Users,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -131,13 +131,29 @@ export function ServerGroupPage() {
   const sortIcon = (key: SortKey) =>
     sort?.key === key ? (
       sort.dir === 'asc' ? (
-        <ArrowUp className='size-3.5' />
+        <ArrowUp className='h-4 w-4 text-foreground/70' />
       ) : (
-        <ArrowDown className='size-3.5' />
+        <ArrowDown className='h-4 w-4 text-foreground/70' />
       )
     ) : (
-      <ChevronsUpDown className='size-3.5 opacity-50' />
+      <ChevronsUpDown className='h-4 w-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
     )
+
+  const renderSortHeader = (sortKey: SortKey, title: string) => (
+    <div className='flex items-center gap-1'>
+      <div className='flex items-center gap-2'>
+        <Button
+          variant='ghost'
+          size='default'
+          className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
+          onClick={() => toggleSort(sortKey)}
+        >
+          <span>{title}</span>
+          {sortIcon(sortKey)}
+        </Button>
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -150,28 +166,27 @@ export function ServerGroupPage() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-4'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
+        <div className='mb-2 flex items-center justify-between space-y-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>权限组管理</h2>
-            <p className='text-muted-foreground'>
+            <p className='mt-2 text-muted-foreground'>
               管理所有权限组，包括添加、删除、编辑等操作。
             </p>
           </div>
         </div>
 
         {/* ----------------------------- 工具栏 ----------------------------- */}
-        <div className='flex flex-wrap items-center gap-2'>
-          <Button
-            size='sm'
-            onClick={() => {
-              setCurrent(null)
-              setMutateOpen(true)
-            }}
-          >
-            <Plus className='size-4' /> 添加权限组
-          </Button>
-          <div className='relative w-full max-w-xs'>
-            <Search className='text-muted-foreground absolute start-2 top-1/2 size-4 -translate-y-1/2' />
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex flex-1 flex-wrap items-center gap-2 sm:flex-nowrap'>
+            <Button
+              size='sm'
+              onClick={() => {
+                setCurrent(null)
+                setMutateOpen(true)
+              }}
+            >
+              <Plus className='size-4' /> 添加权限组
+            </Button>
             <Input
               value={keyword}
               onChange={(e) => {
@@ -179,21 +194,24 @@ export function ServerGroupPage() {
                 setPage(1)
               }}
               placeholder='搜索权限组...'
-              className='h-8 ps-8'
+              className={cn(
+                'h-8 w-full min-w-[150px] sm:w-[150px] lg:w-[250px]',
+                keyword && 'border-primary/50 ring-primary/20'
+              )}
             />
+            {keyword && (
+              <Button
+                variant='ghost'
+                onClick={() => {
+                  setKeyword('')
+                  setPage(1)
+                }}
+                className='h-8 px-2 lg:px-3'
+              >
+                重置 <X className='ml-2 h-4 w-4' />
+              </Button>
+            )}
           </div>
-          {keyword && (
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => {
-                setKeyword('')
-                setPage(1)
-              }}
-            >
-              重置 <X className='size-4' />
-            </Button>
-          )}
         </div>
 
         <div className='overflow-hidden rounded-md border'>
@@ -208,46 +226,18 @@ export function ServerGroupPage() {
                   />
                 </TableHead>
                 <TableHead className='w-24'>
-                  <button
-                    type='button'
-                    className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-                    onClick={() => toggleSort('id')}
-                  >
-                    组ID
-                    {sortIcon('id')}
-                  </button>
+                  {renderSortHeader('id', '组ID')}
                 </TableHead>
-                <TableHead>
-                  <button
-                    type='button'
-                    className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-                    onClick={() => toggleSort('name')}
-                  >
-                    组名称
-                    {sortIcon('name')}
-                  </button>
+                <TableHead>{renderSortHeader('name', '组名称')}</TableHead>
+                <TableHead className='w-36'>
+                  {renderSortHeader('users_count', '用户数量')}
                 </TableHead>
                 <TableHead className='w-36'>
-                  <button
-                    type='button'
-                    className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-                    onClick={() => toggleSort('users_count')}
-                  >
-                    用户数量
-                    {sortIcon('users_count')}
-                  </button>
+                  {renderSortHeader('server_count', '节点数量')}
                 </TableHead>
-                <TableHead className='w-36'>
-                  <button
-                    type='button'
-                    className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-                    onClick={() => toggleSort('server_count')}
-                  >
-                    节点数量
-                    {sortIcon('server_count')}
-                  </button>
+                <TableHead className='w-28'>
+                  <div className='flex items-center justify-end gap-2'>操作</div>
                 </TableHead>
-                <TableHead className='w-28 text-end'>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -268,41 +258,55 @@ export function ServerGroupPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Badge variant='outline'>{g.id}</Badge>
+                      <div className='flex items-center space-x-2'>
+                        <Badge variant='outline'>{g.id}</Badge>
+                      </div>
                     </TableCell>
-                    <TableCell className='font-medium'>{g.name}</TableCell>
                     <TableCell>
-                      <span className='flex items-center gap-2 px-2'>
-                        <Users className='text-muted-foreground size-4' />
+                      <div className='flex space-x-2'>
+                        <span className='max-w-32 truncate font-medium'>
+                          {g.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className='flex items-center space-x-2 px-4'>
+                        <Users className='h-4 w-4' />
                         <span className='font-medium'>{g.users_count ?? 0}</span>
-                      </span>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <span className='flex items-center gap-2 px-2'>
-                        <ServerIcon className='text-muted-foreground size-4' />
+                      <div className='flex items-center space-x-2 px-4'>
+                        <ServerIcon className='h-4 w-4' />
                         <span className='font-medium'>
                           {g.server_count ?? 0}
                         </span>
-                      </span>
+                      </div>
                     </TableCell>
-                    <TableCell className='text-end'>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => {
-                          setCurrent(g)
-                          setMutateOpen(true)
-                        }}
-                      >
-                        <Pencil className='size-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => setDeleting(g)}
-                      >
-                        <Trash2 className='text-destructive size-4' />
-                      </Button>
+                    <TableCell>
+                      <div className='flex items-center justify-center'>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-8 w-8 hover:bg-muted'
+                          onClick={() => {
+                            setCurrent(g)
+                            setMutateOpen(true)
+                          }}
+                        >
+                          <Pencil className='h-4 w-4 text-muted-foreground hover:text-foreground' />
+                          <span className='sr-only'>编辑</span>
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900'
+                          onClick={() => setDeleting(g)}
+                        >
+                          <Trash2 className='h-4 w-4 text-muted-foreground hover:text-red-600 dark:hover:text-red-400' />
+                          <span className='sr-only'>删除</span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

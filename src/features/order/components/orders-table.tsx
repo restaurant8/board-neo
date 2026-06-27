@@ -127,7 +127,7 @@ function FacetFilter({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-52 p-0' align='start'>
+      <PopoverContent className='w-[200px] p-0' align='start'>
         <Command>
           <CommandInput placeholder={title} />
           <CommandList>
@@ -398,7 +398,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
             }
           }}
           onBlur={submitSearch}
-          className='h-8 w-40 lg:w-64'
+          className='h-8 w-full min-w-[150px] sm:w-[150px] lg:w-[250px]'
         />
         <FacetFilter
           title='类型'

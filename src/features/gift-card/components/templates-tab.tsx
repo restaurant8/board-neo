@@ -6,6 +6,7 @@ import { handleServerError } from '@/lib/handle-server-error'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -19,6 +20,7 @@ import {
   GIFT_CARD_TYPE_MAP,
   deleteTemplate,
   fetchTemplates,
+  updateTemplate,
 } from '../api'
 import { GenerateCodesDialog } from './generate-codes-dialog'
 import { SimplePagination } from './simple-pagination'
@@ -45,6 +47,30 @@ export function TemplatesTab() {
       toast.success('已删除')
       queryClient.invalidateQueries({ queryKey: ['gift-templates'] })
       setDeleting(null)
+    },
+    onError: handleServerError,
+  })
+
+  const statusMutation = useMutation({
+    mutationFn: (t: GiftCardTemplate) =>
+      updateTemplate({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        type: t.type,
+        status: !t.status,
+        conditions: t.conditions,
+        rewards: t.rewards,
+        limits: t.limits,
+        special_config: t.special_config,
+        icon: t.icon,
+        background_image: t.background_image,
+        theme_color: t.theme_color,
+        sort: t.sort,
+      }),
+    onSuccess: () => {
+      toast.success('模板更新成功')
+      queryClient.invalidateQueries({ queryKey: ['gift-templates'] })
     },
     onError: handleServerError,
   })
@@ -84,7 +110,7 @@ export function TemplatesTab() {
               <TableHead className='w-20'>状态</TableHead>
               <TableHead className='w-24 text-end'>兑换码数</TableHead>
               <TableHead className='w-24 text-end'>已使用</TableHead>
-              <TableHead className='w-36 text-end'>操作</TableHead>
+              <TableHead className='text-end'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -97,19 +123,21 @@ export function TemplatesTab() {
             ) : rows.length > 0 ? (
               rows.map((t) => (
                 <TableRow key={t.id}>
-                  <TableCell>{t.id}</TableCell>
-                  <TableCell className='font-medium'>{t.name}</TableCell>
+                  <TableCell>
+                    <Badge>{t.id}</Badge>
+                  </TableCell>
+                  <TableCell>{t.name}</TableCell>
                   <TableCell>
                     <Badge variant='outline'>
                       {t.type_name ?? GIFT_CARD_TYPE_MAP[t.type] ?? t.type}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {t.status ? (
-                      <Badge>启用</Badge>
-                    ) : (
-                      <Badge variant='secondary'>禁用</Badge>
-                    )}
+                    <Switch
+                      checked={t.status}
+                      disabled={statusMutation.isPending}
+                      onCheckedChange={() => statusMutation.mutate(t)}
+                    />
                   </TableCell>
                   <TableCell className='text-end'>
                     {t.codes_count ?? '-'}
@@ -118,34 +146,38 @@ export function TemplatesTab() {
                     {t.used_count ?? '-'}
                   </TableCell>
                   <TableCell className='text-end'>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      title='生成兑换码'
-                      onClick={() => {
-                        setGenTemplate(t.id)
-                        setGenOpen(true)
-                      }}
-                    >
-                      <Ticket className='size-4' />
-                    </Button>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      onClick={() => {
-                        setCurrent(t)
-                        setMutateOpen(true)
-                      }}
-                    >
-                      <Pencil className='size-4' />
-                    </Button>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      onClick={() => setDeleting(t)}
-                    >
-                      <Trash2 className='size-4 text-destructive' />
-                    </Button>
+                    <div className='flex justify-end space-x-2'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => {
+                          setGenTemplate(t.id)
+                          setGenOpen(true)
+                        }}
+                      >
+                        <Ticket className='h-4 w-4' />
+                        生成
+                      </Button>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => {
+                          setCurrent(t)
+                          setMutateOpen(true)
+                        }}
+                      >
+                        <Pencil className='h-4 w-4' />
+                        编辑
+                      </Button>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => setDeleting(t)}
+                      >
+                        <Trash2 className='h-4 w-4' />
+                        删除
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

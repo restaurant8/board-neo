@@ -11,7 +11,6 @@ import {
   Network,
   Pencil,
   Plus,
-  Search,
   Trash2,
   X,
 } from 'lucide-react'
@@ -64,25 +63,25 @@ const ACTION_STYLE: Record<RouteAction, ActionStyle> = {
     icon: Ban,
     variant: 'destructive',
     className:
-      'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-400 dark:hover:bg-red-800',
+      'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800',
   },
   dns: {
     icon: Globe,
     variant: 'secondary',
     className:
-      'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-400 dark:hover:bg-blue-800',
+      'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800',
   },
   direct: {
     icon: Network,
     variant: 'secondary',
     className:
-      'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-400 dark:hover:bg-green-800',
+      'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800',
   },
   proxy: {
     icon: ArrowRightLeft,
     variant: 'default',
     className:
-      'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-400 dark:hover:bg-purple-800',
+      'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-800',
   },
 }
 
@@ -181,27 +180,27 @@ export function ServerRoutePage() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-4'>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
+        <div className='mb-2 flex items-center justify-between space-y-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>路由规则</h2>
-            <p className='text-muted-foreground'>
-              配置节点流量的匹配与处理动作（阻断/直连/DNS/代理）。
+            <h2 className='text-2xl font-bold tracking-tight'>路由管理</h2>
+            <p className='mt-2 text-muted-foreground'>
+              管理所有路由组，包括添加、删除、编辑等操作。
             </p>
           </div>
-          <Button
-            onClick={() => {
-              setCurrent(null)
-              setMutateOpen(true)
-            }}
-          >
-            <Plus className='size-4' /> 新建规则
-          </Button>
         </div>
 
         {/* ----------------------------- 工具栏 ----------------------------- */}
-        <div className='flex flex-wrap items-center gap-2'>
-          <div className='relative w-full max-w-xs'>
-            <Search className='text-muted-foreground absolute start-2 top-1/2 size-4 -translate-y-1/2' />
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2'>
+            <Button
+              size='sm'
+              onClick={() => {
+                setCurrent(null)
+                setMutateOpen(true)
+              }}
+            >
+              <Plus className='size-4' /> 添加路由
+            </Button>
             <Input
               value={keyword}
               onChange={(e) => {
@@ -209,21 +208,21 @@ export function ServerRoutePage() {
                 setPage(1)
               }}
               placeholder='搜索路由...'
-              className='h-8 ps-8'
+              className='h-8 w-full min-w-[150px] sm:w-[150px] lg:w-[250px]'
             />
+            {keyword && (
+              <Button
+                variant='ghost'
+                onClick={() => {
+                  setKeyword('')
+                  setPage(1)
+                }}
+                className='h-8 px-2 lg:px-3'
+              >
+                重置 <X className='ml-2 h-4 w-4' />
+              </Button>
+            )}
           </div>
-          {keyword && (
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => {
-                setKeyword('')
-                setPage(1)
-              }}
-            >
-              重置 <X className='size-4' />
-            </Button>
-          )}
         </div>
 
         <div className='overflow-hidden rounded-md border'>
@@ -238,26 +237,33 @@ export function ServerRoutePage() {
                   />
                 </TableHead>
                 <TableHead className='w-20'>
-                  <button
-                    type='button'
-                    className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-                    onClick={cycleIdSort}
-                  >
-                    ID
-                    {idSort === 'asc' ? (
-                      <ArrowUp className='size-3.5' />
-                    ) : idSort === 'desc' ? (
-                      <ArrowDown className='size-3.5' />
-                    ) : (
-                      <ChevronsUpDown className='size-3.5 opacity-50' />
-                    )}
-                  </button>
+                  <div className='flex items-center gap-1'>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        variant='ghost'
+                        size='default'
+                        className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
+                        onClick={cycleIdSort}
+                      >
+                        <span>组ID</span>
+                        {idSort === 'asc' ? (
+                          <ArrowUp className='h-4 w-4 text-foreground/70' />
+                        ) : idSort === 'desc' ? (
+                          <ArrowDown className='h-4 w-4 text-foreground/70' />
+                        ) : (
+                          <ChevronsUpDown className='h-4 w-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 </TableHead>
                 <TableHead>备注</TableHead>
                 <TableHead>匹配规则</TableHead>
                 <TableHead className='w-28'>动作</TableHead>
                 <TableHead className='w-64'>动作值</TableHead>
-                <TableHead className='w-28 text-end'>操作</TableHead>
+                <TableHead className='w-28'>
+                  <div className='text-right'>操作</div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -283,10 +289,16 @@ export function ServerRoutePage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Badge variant='outline'>{r.id}</Badge>
+                        <div className='flex items-center space-x-2'>
+                          <Badge variant='outline'>{r.id}</Badge>
+                        </div>
                       </TableCell>
-                      <TableCell className='max-w-72 truncate font-medium'>
-                        {r.remarks}
+                      <TableCell>
+                        <div className='flex space-x-2'>
+                          <span className='max-w-32 truncate font-medium sm:max-w-72 md:max-w-[31rem]'>
+                            {r.remarks}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className='flex flex-wrap gap-1'>
@@ -308,50 +320,57 @@ export function ServerRoutePage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant={style?.variant ?? 'default'}
-                          className={cn(
-                            'flex w-fit items-center gap-1.5 px-3 py-1 capitalize',
-                            style?.className
-                          )}
-                        >
-                          {Icon && <Icon className='size-3.5' />}
-                          {ACTION_LABEL[r.action] ?? r.action}
-                        </Badge>
+                        <div className='flex items-center space-x-2'>
+                          <Badge
+                            variant={style?.variant ?? 'default'}
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1 capitalize',
+                              style?.className
+                            )}
+                          >
+                            {Icon && <Icon className='h-3.5 w-3.5' />}
+                            {ACTION_LABEL[r.action] ?? r.action}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className='flex flex-col space-y-1'>
-                          <span
-                            className={cn(
-                              'text-sm font-medium',
-                              av.destructive && 'text-destructive'
+                          <span className='text-sm font-medium'>
+                            {av.destructive ? (
+                              <span className='text-destructive'>{av.text}</span>
+                            ) : (
+                              av.text
                             )}
-                          >
-                            {av.text}
                           </span>
-                          <span className='text-muted-foreground text-xs'>
+                          <span className='text-xs text-muted-foreground'>
                             匹配{matchCount}条规则
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className='text-end'>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          onClick={() => {
-                            setCurrent(r)
-                            setMutateOpen(true)
-                          }}
-                        >
-                          <Pencil className='size-4' />
-                        </Button>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          onClick={() => setDeleting(r)}
-                        >
-                          <Trash2 className='text-destructive size-4' />
-                        </Button>
+                      <TableCell>
+                        <div className='flex items-center justify-center'>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='h-8 w-8 hover:bg-muted'
+                            onClick={() => {
+                              setCurrent(r)
+                              setMutateOpen(true)
+                            }}
+                          >
+                            <Pencil className='h-4 w-4 text-muted-foreground hover:text-foreground' />
+                            <span className='sr-only'>编辑</span>
+                          </Button>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900'
+                            onClick={() => setDeleting(r)}
+                          >
+                            <Trash2 className='h-4 w-4 text-muted-foreground hover:text-red-600 dark:hover:text-red-400' />
+                            <span className='sr-only'>删除</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )

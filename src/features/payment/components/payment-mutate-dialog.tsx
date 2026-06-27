@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -28,10 +27,39 @@ import {
   savePayment,
 } from '../api'
 
+// 原版字段视觉签名（对齐 Xboard NYt 字段组件）
+const fieldLabelCls =
+  'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground'
+const fieldInputCls = 'h-9 font-mono text-xs transition-all focus-visible:ring-1'
+const fieldDescCls = 'font-mono text-[10px] leading-relaxed text-muted-foreground'
+
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   current?: Payment | null
+}
+
+function Field({
+  label,
+  required,
+  description,
+  children,
+}: {
+  label: string
+  required?: boolean
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className='space-y-1.5'>
+      <Label className={fieldLabelCls}>
+        {label}
+        {required && <span className='ml-1 text-destructive'>*</span>}
+      </Label>
+      <div className='relative'>{children}</div>
+      {description && <p className={fieldDescCls}>{description}</p>}
+    </div>
+  )
 }
 
 export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
@@ -105,7 +133,7 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
         handling_fee_percent: feePercent ? Number(feePercent) : null,
       }),
     onSuccess: () => {
-      toast.success(isEdit ? '已更新' : '已创建')
+      toast.success('保存成功')
       queryClient.invalidateQueries({ queryKey: ['payments'] })
       onOpenChange(false)
     },
@@ -122,136 +150,175 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-lg'>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? '编辑支付方式' : '添加支付方式'}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className='flex max-h-[90vh] max-w-xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
+        <DialogHeader className='flex-shrink-0 border-b px-6 pb-4 pt-6'>
+          <DialogTitle className='text-lg tracking-tight'>
+            {isEdit ? '编辑支付方式' : '添加支付方式'}
+          </DialogTitle>
+          <DialogDescription className='text-xs opacity-70'>
             配置网关参数。手续费金额单位为「元」。
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className='max-h-[60vh] pr-4'>
-          <div className='grid gap-4'>
-            <div className='grid gap-2'>
-              <Label>显示名称</Label>
-              <Input
-                placeholder='请输入支付名称'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className='grid gap-2'>
-              <Label>图标URL</Label>
-              <Input
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                placeholder='https://example.com/icon.svg'
-              />
-            </div>
-            <div className='grid gap-2'>
-              <Label>支付接口</Label>
-              <Select value={payment} onValueChange={setPayment}>
-                <SelectTrigger>
-                  <SelectValue placeholder='请选择支付接口' />
-                </SelectTrigger>
-                <SelectContent>
-                  {(methods ?? []).map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className='min-h-0 flex-1 overflow-y-auto'>
+          <div className='space-y-4 px-6 py-4 text-sm'>
+            <form
+              className='space-y-4'
+              onSubmit={(e) => {
+                e.preventDefault()
+                mutation.mutate()
+              }}
+            >
+              <Field label='显示名称' required description='用于前端显示'>
+                <Input
+                  placeholder='请输入支付名称'
+                  className={fieldInputCls}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
 
-            {formFields &&
-              Object.entries(formFields).map(([key, field]) => {
-                const opts = optionEntries(field.options)
-                return (
-                  <div key={key} className='grid gap-2'>
-                    <Label>{field.label || key}</Label>
-                    {opts.length > 0 ? (
-                      <Select
-                        value={String(config[key] ?? '')}
-                        onValueChange={(v) =>
-                          setConfig((c) => ({ ...c, [key]: v }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={field.placeholder} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {opts.map(([val, label]) => (
-                            <SelectItem key={val} value={val}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        value={String(config[key] ?? '')}
-                        placeholder={field.placeholder}
-                        onChange={(e) =>
-                          setConfig((c) => ({ ...c, [key]: e.target.value }))
-                        }
-                      />
-                    )}
-                    {field.description && (
-                      <p className='text-muted-foreground text-xs'>
-                        {field.description}
-                      </p>
-                    )}
+              <Field label='图标URL' description='用于前端显示的图标地址'>
+                <Input
+                  className={fieldInputCls}
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value)}
+                  placeholder='https://example.com/icon.svg'
+                />
+              </Field>
+
+              <Field label='通知域名' description='网关通知将发送到该域名'>
+                <Input
+                  className={fieldInputCls}
+                  value={notifyDomain}
+                  onChange={(e) => setNotifyDomain(e.target.value)}
+                  placeholder='https://example.com'
+                />
+              </Field>
+
+              <div className='grid grid-cols-2 gap-4'>
+                <Field label='百分比手续费(%)'>
+                  <Input
+                    type='number'
+                    step='0.01'
+                    className={`${fieldInputCls} pr-10`}
+                    placeholder='0-100'
+                    value={feePercent}
+                    onChange={(e) => setFeePercent(e.target.value)}
+                  />
+                  <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
+                    <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                      %
+                    </span>
                   </div>
-                )
-              })}
+                </Field>
+                <Field label='固定手续费'>
+                  <Input
+                    type='number'
+                    step='0.01'
+                    className={`${fieldInputCls} pr-10`}
+                    placeholder='0'
+                    value={feeFixed}
+                    onChange={(e) => setFeeFixed(e.target.value)}
+                  />
+                  <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
+                    <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                      元
+                    </span>
+                  </div>
+                </Field>
+              </div>
 
-            <div className='grid gap-2'>
-              <Label>通知域名</Label>
-              <Input
-                value={notifyDomain}
-                onChange={(e) => setNotifyDomain(e.target.value)}
-                placeholder='https://example.com'
-              />
-              <p className='text-muted-foreground text-xs'>网关通知将发送到该域名</p>
-            </div>
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              <div className='grid gap-2'>
-                <Label>固定手续费（元）</Label>
-                <Input
-                  type='number'
-                  step='0.01'
-                  placeholder='0'
-                  value={feeFixed}
-                  onChange={(e) => setFeeFixed(e.target.value)}
-                />
+              <div className='space-y-1.5'>
+                <Label className={fieldLabelCls}>
+                  支付接口<span className='ml-1 text-destructive'>*</span>
+                </Label>
+                <Select value={payment} onValueChange={setPayment}>
+                  <SelectTrigger className='h-9 font-mono text-xs'>
+                    <SelectValue placeholder='请选择支付接口' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(methods ?? []).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className={fieldDescCls}>选择要使用的支付接口</p>
               </div>
-              <div className='grid gap-2'>
-                <Label>百分比手续费(%)</Label>
-                <Input
-                  type='number'
-                  step='0.01'
-                  placeholder='0-100'
-                  value={feePercent}
-                  onChange={(e) => setFeePercent(e.target.value)}
-                />
-              </div>
-            </div>
+
+              {formFields && Object.keys(formFields).length > 0 && (
+                <div className='space-y-4 border-t pt-4'>
+                  <div className='text-[11px] font-semibold uppercase tracking-wider text-muted-foreground'>
+                    支付配置
+                  </div>
+                  <div className='grid grid-cols-1 gap-4'>
+                    {Object.entries(formFields).map(([key, field]) => {
+                      const opts = optionEntries(field.options)
+                      return (
+                        <Field
+                          key={key}
+                          label={field.label || key}
+                          description={field.description}
+                        >
+                          {opts.length > 0 ? (
+                            <Select
+                              value={String(config[key] ?? '')}
+                              onValueChange={(v) =>
+                                setConfig((c) => ({ ...c, [key]: v }))
+                              }
+                            >
+                              <SelectTrigger className='h-9 font-mono text-xs'>
+                                <SelectValue placeholder={field.placeholder} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {opts.map(([val, label]) => (
+                                  <SelectItem key={val} value={val}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              className={fieldInputCls}
+                              value={String(config[key] ?? '')}
+                              placeholder={field.placeholder}
+                              onChange={(e) =>
+                                setConfig((c) => ({
+                                  ...c,
+                                  [key]: e.target.value,
+                                }))
+                              }
+                            />
+                          )}
+                        </Field>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </form>
           </div>
-        </ScrollArea>
-        <DialogFooter>
-          <Button
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-            disabled={mutation.isPending}
-          >
-            取消
-          </Button>
-          <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !name || !payment}
-          >
-            提交
-          </Button>
+        </div>
+        <DialogFooter className='flex-shrink-0 border-t px-6 py-4 sm:items-center sm:justify-end'>
+          <div className='flex items-center gap-3'>
+            <Button
+              variant='ghost'
+              className='h-8 px-4 text-xs font-bold'
+              onClick={() => onOpenChange(false)}
+              disabled={mutation.isPending}
+            >
+              取消
+            </Button>
+            <Button
+              className='h-8 px-8 text-xs font-bold'
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || !name || !payment}
+            >
+              提交
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

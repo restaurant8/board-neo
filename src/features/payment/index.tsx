@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Copy } from 'lucide-react'
+import { Plus, Pencil, Trash2, Copy, HelpCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -9,8 +9,14 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   Table,
   TableBody,
@@ -75,7 +81,7 @@ export function PaymentPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>支付配置</h2>
-            <p className='text-muted-foreground'>
+            <p className='mt-2 text-muted-foreground'>
               在这里可以配置支付方式，包括支付宝、微信等。
             </p>
           </div>
@@ -97,7 +103,19 @@ export function PaymentPage() {
                 <TableHead>显示名称</TableHead>
                 <TableHead>支付接口</TableHead>
                 <TableHead>手续费</TableHead>
-                <TableHead>通知地址</TableHead>
+                <TableHead>
+                  <div className='flex items-center'>
+                    <span>通知地址</span>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger className='ml-1'>
+                        <HelpCircle className='h-4 w-4 text-muted-foreground' />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        支付网关将会把数据通知到本地址，请通过防火墙放行本地址。
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TableHead>
                 <TableHead className='w-24'>启用</TableHead>
                 <TableHead className='w-28 text-end'>操作</TableHead>
               </TableRow>
@@ -112,9 +130,21 @@ export function PaymentPage() {
               ) : data && data.length > 0 ? (
                 data.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>{p.id}</TableCell>
-                    <TableCell className='font-medium'>{p.name}</TableCell>
-                    <TableCell className='font-medium'>{p.payment}</TableCell>
+                    <TableCell>
+                      <Badge variant='outline' className='font-mono'>
+                        {p.id}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className='block max-w-[200px] truncate font-medium'>
+                        {p.name}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className='block max-w-[200px] truncate font-medium'>
+                        {p.payment}
+                      </span>
+                    </TableCell>
                     <TableCell>{fee(p)}</TableCell>
                     <TableCell>
                       {p.notify_url ? (
@@ -125,13 +155,13 @@ export function PaymentPage() {
                           <Button
                             variant='ghost'
                             size='icon'
-                            className='text-muted-foreground/40 size-6 shrink-0 opacity-0 group-hover/url:opacity-100'
+                            className='size-6 shrink-0 text-muted-foreground/40 opacity-0 transition-all duration-200 hover:text-muted-foreground group-hover/url:opacity-100'
                             onClick={() => {
                               navigator.clipboard.writeText(p.notify_url!)
-                              toast.success('已复制')
+                              toast.success('复制成功')
                             }}
                           >
-                            <Copy className='size-3.5' />
+                            <Copy className='size-3' />
                           </Button>
                         </div>
                       ) : (
@@ -145,23 +175,27 @@ export function PaymentPage() {
                       />
                     </TableCell>
                     <TableCell className='text-end'>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => {
-                          setCurrent(p)
-                          setMutateOpen(true)
-                        }}
-                      >
-                        <Pencil className='size-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => setDeleting(p)}
-                      >
-                        <Trash2 className='size-4 text-destructive' />
-                      </Button>
+                      <div className='flex items-center justify-end space-x-2'>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-8 w-8 hover:bg-muted'
+                          onClick={() => {
+                            setCurrent(p)
+                            setMutateOpen(true)
+                          }}
+                        >
+                          <Pencil className='h-4 w-4 text-muted-foreground hover:text-foreground' />
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-8 w-8 hover:bg-destructive hover:text-destructive-foreground'
+                          onClick={() => setDeleting(p)}
+                        >
+                          <Trash2 className='h-4 w-4 text-muted-foreground' />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -187,7 +221,7 @@ export function PaymentPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title='删除确认'
-        desc={`确定要删除「${deleting?.name}」吗？此操作无法撤销。`}
+        desc='确定要删除该支付方式吗？此操作无法撤销。'
         confirmText='删除'
         destructive
         isLoading={dropMutation.isPending}

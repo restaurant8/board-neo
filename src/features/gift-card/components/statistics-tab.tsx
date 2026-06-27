@@ -18,10 +18,8 @@ import { fetchStatistics } from '../api'
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <Card>
-      <CardHeader className='pb-2'>
-        <CardTitle className='text-muted-foreground text-sm font-normal'>
-          {label}
-        </CardTitle>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+        <CardTitle className='text-sm font-medium'>{label}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className='text-2xl font-bold'>{value}</div>
@@ -46,7 +44,7 @@ export function StatisticsTab() {
 
   return (
     <div className='flex flex-col gap-6'>
-      <div className='grid grid-cols-2 gap-4 md:grid-cols-5'>
+      <div className='grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5'>
         <Stat label='模板总数' value={s.templates_count} />
         <Stat label='启用模板' value={s.active_templates_count} />
         <Stat label='兑换码总数' value={s.codes_count} />

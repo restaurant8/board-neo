@@ -30,11 +30,7 @@ import {
   toggleCouponShow,
 } from './api'
 import { CouponMutateDialog } from './components/coupon-mutate-dialog'
-
-function time(ts?: number | null) {
-  if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleDateString('zh-CN')
-}
+import { CouponValidityCell } from './components/coupon-validity-cell'
 
 function couponValue(c: Coupon) {
   return c.type === COUPON_TYPE_AMOUNT
@@ -88,7 +84,7 @@ export function CouponPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>优惠券管理</h2>
-            <p className='text-muted-foreground'>
+            <p className='text-muted-foreground mt-2'>
               在这里可以查看优惠券，包括增加、查看、删除等操作。
             </p>
           </div>
@@ -128,23 +124,23 @@ export function CouponPage() {
               ) : rows.length > 0 ? (
                 rows.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell>{c.id}</TableCell>
+                    <TableCell>
+                      <Badge>{c.id}</Badge>
+                    </TableCell>
                     <TableCell>
                       <Switch
                         checked={!!c.show}
                         onCheckedChange={() => toggleMutation.mutate(c.id)}
                       />
                     </TableCell>
-                    <TableCell className='font-medium'>{c.name}</TableCell>
+                    <TableCell>{c.name}</TableCell>
                     <TableCell>
                       <Badge variant='outline'>
                         {COUPON_TYPE_BADGE_MAP[c.type] ?? c.type}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant='secondary' className='font-mono'>
-                        {c.code}
-                      </Badge>
+                      <Badge variant='secondary'>{c.code}</Badge>
                     </TableCell>
                     <TableCell className='text-end'>{couponValue(c)}</TableCell>
                     <TableCell className='text-end'>
@@ -159,27 +155,33 @@ export function CouponPage() {
                           : c.limit_use_with_user}
                       </Badge>
                     </TableCell>
-                    <TableCell className='text-xs'>
-                      {time(c.started_at)} ~ {time(c.ended_at)}
+                    <TableCell>
+                      <CouponValidityCell coupon={c} />
                     </TableCell>
-                    <TableCell className='text-end'>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => {
-                          setCurrent(c)
-                          setMutateOpen(true)
-                        }}
-                      >
-                        <Pencil className='size-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => setDeleting(c)}
-                      >
-                        <Trash2 className='size-4 text-destructive' />
-                      </Button>
+                    <TableCell>
+                      <div className='flex items-center justify-end space-x-2'>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='hover:bg-muted h-8 w-8'
+                          onClick={() => {
+                            setCurrent(c)
+                            setMutateOpen(true)
+                          }}
+                        >
+                          <Pencil className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                          <span className='sr-only'>编辑</span>
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          className='h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900'
+                          onClick={() => setDeleting(c)}
+                        >
+                          <Trash2 className='text-muted-foreground h-4 w-4 hover:text-red-600 dark:hover:text-red-400' />
+                          <span className='sr-only'>删除</span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

@@ -79,8 +79,8 @@ import {
 } from './components/user-advanced-filter'
 import {
   formatBytes,
+  formatDeviceLimit,
   formatExpireStatus,
-  formatMoney,
   formatOnlineStatus,
 } from './format'
 
@@ -357,7 +357,7 @@ export function UserPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>用户管理</h2>
-            <p className='text-muted-foreground'>
+            <p className='mt-2 text-muted-foreground'>
               在这里可以管理用户，包括增加、删除、编辑、查询等操作。
             </p>
           </div>
@@ -502,22 +502,24 @@ export function UserPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Badge variant='outline' className='font-mono'>
-                          {u.id}
-                        </Badge>
+                        <Badge variant='outline'>{u.id}</Badge>
                       </TableCell>
                       <TableCell className='font-medium'>
-                        <div className='flex items-center gap-2.5'>
-                          <span
-                            title={on.text}
+                        <div
+                          className='group flex items-center gap-2.5'
+                          title={on.text}
+                        >
+                          <div
                             className={cn(
-                              'size-2.5 shrink-0 rounded-full ring-2 ring-offset-2 transition-all duration-300',
+                              'size-2.5 rounded-full ring-2 ring-offset-2 transition-all duration-300',
                               on.online
                                 ? 'bg-green-500 ring-green-500/20'
                                 : 'bg-gray-300 ring-gray-300/20'
                             )}
                           />
-                          <span className='break-all'>{u.email}</span>
+                          <span className='inline-flex flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
+                            <span className='break-all'>{u.email}</span>
+                          </span>
                           {!!u.is_admin && (
                             <Badge variant='outline'>管理员</Badge>
                           )}
@@ -527,30 +529,46 @@ export function UserPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {u.plan?.name ?? (
-                          <span className='text-muted-foreground'>无</span>
-                        )}
+                        <div className='min-w-[10em] break-all'>
+                          {u.plan?.name ?? (
+                            <span className='text-muted-foreground'>无</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {u.group?.name ? (
+                        <div className='flex flex-wrap gap-1'>
                           <Badge
                             variant='outline'
-                            className='bg-secondary/50 border-border/50 hover:bg-secondary/70 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none'
+                            className='border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium hover:bg-secondary/70 flex cursor-default items-center gap-1.5 whitespace-nowrap transition-all duration-200 select-none'
                           >
-                            {u.group.name}
+                            {u.group?.name || '-'}
                           </Badge>
-                        ) : (
-                          <span className='text-muted-foreground'>—</span>
-                        )}
+                        </div>
                       </TableCell>
                       <TableCell className='whitespace-nowrap'>
-                        <span
-                          className={
-                            exp.expired ? 'text-destructive' : undefined
-                          }
+                        <Badge
+                          variant='outline'
+                          className={cn(
+                            'w-full justify-center transition-colors',
+                            exp.expired
+                              ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                              : exp.permanent
+                                ? 'border-primary/40 bg-primary/5 text-primary/90'
+                                : 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-500'
+                          )}
                         >
-                          {exp.text}
-                        </span>
+                          {exp.permanent
+                            ? '长期有效'
+                            : (() => {
+                                const d = new Date(u.expired_at! * 1000)
+                                const m = String(d.getMonth() + 1).padStart(
+                                  2,
+                                  '0'
+                                )
+                                const day = String(d.getDate()).padStart(2, '0')
+                                return `${d.getFullYear()}-${m}-${day}`
+                              })()}
+                        </Badge>
                       </TableCell>
                       {(() => {
                         const used = u.total_used ?? (u.u ?? 0) + (u.d ?? 0)
@@ -558,23 +576,21 @@ export function UserPage() {
                         const pct = total > 0 ? (used / total) * 100 : 0
                         return (
                           <>
-                            <TableCell className='min-w-[7rem] text-sm'>
+                            <TableCell className='min-w-[7rem]'>
                               <div className='w-full space-y-1'>
-                                <div className='flex items-center justify-between gap-2'>
-                                  <span className='text-muted-foreground whitespace-nowrap'>
+                                <div className='flex justify-between text-sm'>
+                                  <span className='text-muted-foreground'>
                                     {formatBytes(used)}
                                   </span>
-                                  <span className='text-muted-foreground text-xs tabular-nums'>
+                                  <span className='text-muted-foreground text-xs'>
                                     {pct.toFixed(1)}%
                                   </span>
                                 </div>
-                                <div className='bg-secondary h-1.5 w-full rounded-full'>
+                                <div className='h-1.5 w-full rounded-full bg-secondary'>
                                   <div
                                     className={cn(
                                       'h-full rounded-full transition-all',
-                                      u.banned || pct > 90
-                                        ? 'bg-destructive'
-                                        : 'bg-primary'
+                                      pct > 90 ? 'bg-destructive' : 'bg-primary'
                                     )}
                                     style={{ width: `${Math.min(pct, 100)}%` }}
                                   />
@@ -588,30 +604,57 @@ export function UserPage() {
                         )
                       })()}
                       <TableCell className='whitespace-nowrap'>
-                        {formatMoney(u.balance)}
+                        <div className='flex items-center gap-1 font-medium'>
+                          <span className='text-sm text-muted-foreground'>
+                            ¥
+                          </span>
+                          <span className='tabular-nums text-foreground'>
+                            {Number(u.balance ?? 0).toFixed(2)}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className='whitespace-nowrap'>
-                        {formatMoney(u.commission_balance)}
-                      </TableCell>
-                      <TableCell title={on.text}>
-                        {on.online ? (
-                          <Badge variant='default'>
-                            {u.online_count ?? 0}
-                          </Badge>
-                        ) : (
-                          <span className='text-muted-foreground'>
-                            {u.online_count ?? 0}
+                        <div className='flex items-center gap-1 font-medium'>
+                          <span className='text-sm text-muted-foreground'>
+                            ¥
                           </span>
-                        )}
+                          <span className='tabular-nums text-foreground'>
+                            {Number(u.commission_balance ?? 0).toFixed(2)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell title={formatDeviceLimit(u.device_limit)}>
+                        <div className='flex items-center gap-1.5'>
+                          <Badge
+                            variant='outline'
+                            className={cn(
+                              'min-w-[4rem] justify-center',
+                              u.device_limit != null &&
+                                (u.online_count ?? 0) >= u.device_limit
+                                ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                                : 'border-primary/40 bg-primary/5 text-primary/90'
+                            )}
+                          >
+                            {u.online_count ?? 0} /{' '}
+                            {u.device_limit == null ? '∞' : u.device_limit}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>{remoteCell(u.subscribe_locations)}</TableCell>
                       <TableCell>{remoteCell(u.connect_locations)}</TableCell>
                       <TableCell>
-                        {u.banned ? (
-                          <Badge variant='destructive'>封禁</Badge>
-                        ) : (
-                          <Badge variant='secondary'>正常</Badge>
-                        )}
+                        <div className='flex justify-center'>
+                          <Badge
+                            className={cn(
+                              'min-w-20 justify-center transition-colors',
+                              u.banned
+                                ? 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                                : 'bg-green-500/15 text-green-600 hover:bg-green-500/25 dark:text-green-500'
+                            )}
+                          >
+                            {u.banned ? '封禁' : '正常'}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell className='whitespace-nowrap text-sm text-muted-foreground'>
                         {new Date(u.created_at * 1000).toLocaleDateString()}
@@ -619,7 +662,11 @@ export function UserPage() {
                       <TableCell className='text-end'>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant='ghost' size='icon'>
+                            <Button
+                              variant='ghost'
+                              className='h-8 w-8 p-0 hover:bg-muted'
+                              aria-label='操作'
+                            >
                               <MoreHorizontal className='size-4' />
                             </Button>
                           </DropdownMenuTrigger>

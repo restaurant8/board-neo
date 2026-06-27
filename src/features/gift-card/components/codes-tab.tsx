@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { format } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Ban, CheckCircle2, Trash2 } from 'lucide-react'
+import { Copy, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -26,6 +28,7 @@ import {
   GIFT_CODE_STATUS_DISABLED,
   GIFT_CODE_STATUS_EXPIRED,
   GIFT_CODE_STATUS_MAP,
+  GIFT_CODE_STATUS_UNUSED,
   GIFT_CODE_STATUS_USED,
   deleteCode,
   fetchCodes,
@@ -35,7 +38,7 @@ import { SimplePagination } from './simple-pagination'
 
 function time(ts?: number | null) {
   if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN')
+  return format(new Date(ts * 1000), 'yyyy/MM/dd HH:mm:ss')
 }
 
 /** 对齐原版：未使用→default，已使用→secondary，已禁用/已过期→destructive。 */
@@ -136,12 +139,41 @@ export function CodesTab() {
             ) : rows.length > 0 ? (
               rows.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className='font-mono text-xs'>{c.code}</TableCell>
+                  <TableCell>
+                    <div className='flex items-center space-x-2'>
+                      <Badge variant='secondary'>{c.code}</Badge>
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        className='h-6 w-6'
+                        onClick={() => {
+                          navigator.clipboard?.writeText(c.code)
+                          toast.success('已复制')
+                        }}
+                      >
+                        <Copy className='h-4 w-4' />
+                      </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>{c.template_name}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(c.status)}>
-                      {c.status_name ?? GIFT_CODE_STATUS_MAP[c.status]}
-                    </Badge>
+                    <div className='flex items-center space-x-2'>
+                      <Badge variant={statusVariant(c.status)}>
+                        {c.status_name ?? GIFT_CODE_STATUS_MAP[c.status]}
+                      </Badge>
+                      {(c.status === GIFT_CODE_STATUS_UNUSED ||
+                        c.status === GIFT_CODE_STATUS_DISABLED) && (
+                        <Switch
+                          checked={c.status !== GIFT_CODE_STATUS_DISABLED}
+                          onCheckedChange={(v) =>
+                            toggleMutation.mutate({
+                              id: c.id,
+                              action: v ? 'enable' : 'disable',
+                            })
+                          }
+                        />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className='text-xs'>
                     {c.user_email ?? '-'}
@@ -149,43 +181,17 @@ export function CodesTab() {
                   <TableCell className='text-end'>
                     {c.usage_count}/{c.max_usage}
                   </TableCell>
-                  <TableCell className='text-xs'>{time(c.expires_at)}</TableCell>
+                  <TableCell className='text-muted-foreground text-sm'>
+                    {time(c.expires_at)}
+                  </TableCell>
                   <TableCell className='text-end'>
-                    {c.status === GIFT_CODE_STATUS_DISABLED ? (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title='启用'
-                        onClick={() =>
-                          toggleMutation.mutate({
-                            id: c.id,
-                            action: 'enable',
-                          })
-                        }
-                      >
-                        <CheckCircle2 className='size-4 text-green-600' />
-                      </Button>
-                    ) : (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title='禁用'
-                        onClick={() =>
-                          toggleMutation.mutate({
-                            id: c.id,
-                            action: 'disable',
-                          })
-                        }
-                      >
-                        <Ban className='size-4' />
-                      </Button>
-                    )}
                     <Button
                       variant='ghost'
                       size='icon'
+                      className='h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900'
                       onClick={() => setDeleting(c)}
                     >
-                      <Trash2 className='size-4 text-destructive' />
+                      <Trash2 className='text-muted-foreground h-4 w-4 hover:text-red-600 dark:hover:text-red-400' />
                     </Button>
                   </TableCell>
                 </TableRow>

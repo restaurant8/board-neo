@@ -1,4 +1,5 @@
 import { type ColumnDef } from '@tanstack/react-table'
+import { format } from 'date-fns'
 import { ExternalLink, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTableColumnHeader } from '@/components/data-table'
-import { LongText } from '@/components/long-text'
 import {
   COMMISSION_STATUS_MAP,
   ORDER_STATUS_MAP,
@@ -20,29 +20,16 @@ import {
   PERIOD_MAP,
   type Order,
 } from '../api'
-import { COMMISSION_STATUS_ICON, ORDER_STATUS_ICON } from '../data'
-
-function yuan(cents?: number | null) {
-  if (cents == null) return '-'
-  return `¥${(cents / 100).toFixed(2)}`
-}
+import {
+  COMMISSION_STATUS_COLOR,
+  COMMISSION_STATUS_ICON,
+  ORDER_STATUS_COLOR,
+  ORDER_STATUS_ICON,
+} from '../data'
 
 function time(ts?: number | null) {
   if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN')
-}
-
-function orderStatusVariant(status: number) {
-  if (status === 3) return 'default' as const
-  if (status === 0) return 'secondary' as const
-  if (status === 2) return 'outline' as const
-  return 'secondary' as const
-}
-
-function commissionStatusVariant(status: number) {
-  if (status === 2) return 'default' as const
-  if (status === 3) return 'outline' as const
-  return 'secondary' as const
+  return format(new Date(ts * 1000), 'yyyy/MM/dd HH:mm:ss')
 }
 
 export type OrderColumnHandlers = {
@@ -89,16 +76,21 @@ export function getOrdersColumns(
       enableSorting: false,
       cell: ({ row }) => {
         const order = row.original
+        const t = order.trade_no
+        const short = t.length > 6 ? `${t.slice(0, 3)}...${t.slice(-3)}` : t
         return (
-          <button
-            type='button'
-            onClick={() => handlers.onView(order)}
-            className='hover:text-primary flex max-w-48 items-center gap-1.5 font-mono text-xs'
-            title='查看订单详情'
-          >
-            <span className='truncate'>{order.trade_no}</span>
-            <ExternalLink className='size-3.5 shrink-0 opacity-60' />
-          </button>
+          <div className='flex items-center'>
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={() => handlers.onView(order)}
+              className='hover:bg-primary/10 text-primary hover:text-primary/80 flex h-8 items-center gap-1.5 px-2 font-medium transition-colors'
+              title='查看订单详情'
+            >
+              <span className='font-mono'>{short}</span>
+              <ExternalLink className='h-3.5 w-3.5 opacity-70' />
+            </Button>
+          </div>
         )
       },
     },
@@ -109,7 +101,10 @@ export function getOrdersColumns(
       ),
       enableSorting: false,
       cell: ({ row }) => (
-        <Badge variant='outline'>
+        <Badge
+          variant='secondary'
+          className='border-border/50 text-nowrap border bg-slate-100/80 font-medium text-slate-700 transition-colors hover:bg-slate-200/80'
+        >
           {ORDER_TYPE_MAP[row.original.type] ?? row.original.type}
         </Badge>
       ),
@@ -123,9 +118,11 @@ export function getOrdersColumns(
       cell: ({ row }) => {
         const order = row.original
         return (
-          <LongText className='max-w-36'>
-            {order.plan?.name ?? String(order.plan_id)}
-          </LongText>
+          <div className='flex space-x-2'>
+            <span className='text-foreground/90 max-w-32 truncate font-medium sm:max-w-72 md:max-w-[31rem]'>
+              {order.plan?.name ?? String(order.plan_id)}
+            </span>
+          </div>
         )
       },
     },
@@ -138,7 +135,10 @@ export function getOrdersColumns(
       cell: ({ row }) => {
         const period = row.original.period
         return (
-          <Badge variant='secondary'>
+          <Badge
+            variant='secondary'
+            className='hover:bg-opacity-80 text-nowrap bg-slate-100/80 font-medium text-slate-700 transition-colors'
+          >
             {period ? (PERIOD_MAP[period] ?? period) : '-'}
           </Badge>
         )
@@ -149,10 +149,15 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='支付金额' />
       ),
-      enableSorting: false,
-      cell: ({ row }) => (
-        <span className='tabular-nums'>{yuan(row.original.total_amount)}</span>
-      ),
+      cell: ({ row }) => {
+        const v = row.original.total_amount
+        const n = typeof v === 'number' ? (v / 100).toFixed(2) : 'N/A'
+        return (
+          <div className='text-foreground/90 flex items-center font-mono'>
+            ¥{n}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'status',
@@ -162,14 +167,16 @@ export function getOrdersColumns(
       cell: ({ row }) => {
         const status = row.original.status
         const Icon = ORDER_STATUS_ICON[status]
+        const label = ORDER_STATUS_MAP[status]
+        if (label == null)
+          return <span className='text-muted-foreground'>-</span>
         return (
-          <Badge
-            variant={orderStatusVariant(status)}
-            className='gap-1 whitespace-nowrap'
-          >
-            {Icon && <Icon className='size-3.5' />}
-            {ORDER_STATUS_MAP[status] ?? status}
-          </Badge>
+          <div className='flex items-center gap-2'>
+            {Icon && (
+              <Icon className={cn('h-4 w-4', ORDER_STATUS_COLOR[status])} />
+            )}
+            <span className='text-sm font-medium'>{label}</span>
+          </div>
         )
       },
     },
@@ -178,11 +185,15 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='佣金金额' />
       ),
-      cell: ({ row }) => (
-        <span className='tabular-nums'>
-          {yuan(row.original.commission_balance)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const v = row.original.commission_balance
+        const n = v ? (v / 100).toFixed(2) : '-'
+        return (
+          <div className='text-foreground/90 flex items-center font-mono'>
+            {v ? `¥${n}` : '-'}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'commission_status',
@@ -191,16 +202,19 @@ export function getOrdersColumns(
       ),
       cell: ({ row }) => {
         const status = row.original.commission_status
-        if (status == null) return <span className='text-muted-foreground'>-</span>
+        const balance = row.original.commission_balance
+        if (status == null || !balance)
+          return <span className='text-muted-foreground'>-</span>
         const Icon = COMMISSION_STATUS_ICON[status]
         return (
-          <Badge
-            variant={commissionStatusVariant(status)}
-            className='gap-1 whitespace-nowrap'
-          >
-            {Icon && <Icon className='size-3.5' />}
-            {COMMISSION_STATUS_MAP[status] ?? status}
-          </Badge>
+          <div className='flex items-center gap-2'>
+            {Icon && (
+              <Icon className={cn('h-4 w-4', COMMISSION_STATUS_COLOR[status])} />
+            )}
+            <span className='text-sm font-medium'>
+              {COMMISSION_STATUS_MAP[status] ?? status}
+            </span>
+          </div>
         )
       },
     },
@@ -210,9 +224,9 @@ export function getOrdersColumns(
         <DataTableColumnHeader column={column} title='创建时间' />
       ),
       cell: ({ row }) => (
-        <span className='text-xs whitespace-nowrap'>
+        <div className='text-muted-foreground text-nowrap font-mono text-sm'>
           {time(row.original.created_at)}
-        </span>
+        </div>
       ),
     },
     {
@@ -248,7 +262,7 @@ export function getOrdersColumns(
                     )}
                     {order.commission_status !== 3 && (
                       <DropdownMenuItem
-                        className='text-destructive'
+                        className='text-destructive focus:text-destructive'
                         onClick={() => handlers.onSetCommission(order, 3)}
                       >
                         佣金无效
@@ -263,7 +277,7 @@ export function getOrdersColumns(
                       标记已支付
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className='text-destructive'
+                      className='text-destructive focus:text-destructive'
                       onClick={() => handlers.onCancel(order)}
                     >
                       取消订单

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { format } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -13,7 +15,7 @@ import { SimplePagination } from './simple-pagination'
 
 function time(ts?: number | null) {
   if (!ts) return '-'
-  return new Date(ts * 1000).toLocaleString('zh-CN')
+  return format(new Date(ts * 1000), 'yyyy/MM/dd HH:mm:ss')
 }
 
 function brief(obj: Record<string, unknown> | null) {
@@ -61,7 +63,9 @@ export function UsagesTab() {
             ) : rows.length > 0 ? (
               rows.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className='font-mono text-xs'>{u.code}</TableCell>
+                  <TableCell>
+                    <Badge variant='secondary'>{u.code}</Badge>
+                  </TableCell>
                   <TableCell>{u.template_name}</TableCell>
                   <TableCell className='text-xs'>{u.user_email}</TableCell>
                   <TableCell className='text-xs'>
@@ -70,7 +74,9 @@ export function UsagesTab() {
                   <TableCell className='max-w-xs truncate text-xs'>
                     {brief(u.rewards_given)}
                   </TableCell>
-                  <TableCell className='text-xs'>{time(u.created_at)}</TableCell>
+                  <TableCell className='text-muted-foreground text-sm'>
+                    {time(u.created_at)}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (

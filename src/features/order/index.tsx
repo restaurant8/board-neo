@@ -85,7 +85,7 @@ export function OrderPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>订单管理</h2>
-            <p className='text-muted-foreground'>
+            <p className='text-muted-foreground mt-2'>
               在这里可以查看用户订单，包括分配、查看、删除等操作。
             </p>
           </div>

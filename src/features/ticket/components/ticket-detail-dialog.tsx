@@ -39,7 +39,7 @@ function LevelBadge({ level }: { level: string | number | null }) {
 
 function StatusBadge({ data }: { data: TicketDetail }) {
   if (data.status === TICKET_STATUS_CLOSED)
-    return <Badge variant='outline'>已关闭</Badge>
+    return <Badge variant='default'>已关闭</Badge>
   return data.reply_status === 1 ? (
     <Badge variant='secondary'>已回复</Badge>
   ) : (

@@ -1,6 +1,5 @@
 import {
   CheckCircle2,
-  CircleDashed,
   CircleHelp,
   Clock,
   Loader2,
@@ -31,19 +30,36 @@ export const statusOptions = toOptions(ORDER_STATUS_MAP)
 /** 「佣金状态」筛选项。 */
 export const commissionStatusOptions = toOptions(COMMISSION_STATUS_MAP)
 
-/** 订单状态对应图标，用于状态 Badge。 */
+/** 订单状态对应图标，用于状态单元格（对齐原版 u6t）。 */
 export const ORDER_STATUS_ICON: Record<number, LucideIcon> = {
   0: Clock, // 待支付
   1: Loader2, // 开通中
   2: XCircle, // 已取消
   3: CheckCircle2, // 已完成
-  4: CircleDashed, // 已折抵
+  4: CheckCircle2, // 已折抵
 }
 
-/** 佣金状态图标（统一用 ? 图标，对齐原版）。 */
+/** 订单状态图标颜色（对齐原版：黄/蓝/红/绿/绿）。 */
+export const ORDER_STATUS_COLOR: Record<number, string> = {
+  0: 'text-yellow-500',
+  1: 'text-blue-500',
+  2: 'text-red-500',
+  3: 'text-green-500',
+  4: 'text-green-500',
+}
+
+/** 佣金状态图标（对齐原版 h6t）。 */
 export const COMMISSION_STATUS_ICON: Record<number, LucideIcon> = {
   0: CircleHelp,
   1: CircleHelp,
   2: CircleHelp,
   3: CircleHelp,
+}
+
+/** 佣金状态图标颜色（待确认黄 / 发放中蓝 / 已发放绿 / 无效红）。 */
+export const COMMISSION_STATUS_COLOR: Record<number, string> = {
+  0: 'text-yellow-500',
+  1: 'text-blue-500',
+  2: 'text-green-500',
+  3: 'text-red-500',
 }

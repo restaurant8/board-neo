@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, X } from 'lucide-react'
+import { Clock, Eye, Inbox, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   TICKET_LEVEL_META,
   TICKET_STATUS_CLOSED,
@@ -41,20 +42,34 @@ function LevelBadge({ level }: { level: string | number | null }) {
   const meta = TICKET_LEVEL_META[Number(level)]
   if (!meta) return <span>{String(level)}</span>
   return (
-    <Badge variant={meta.variant} className='whitespace-nowrap'>
-      {meta.label}
-    </Badge>
+    <div className='flex items-center space-x-2'>
+      <Badge variant={meta.variant} className='whitespace-nowrap'>
+        {meta.label}
+      </Badge>
+    </div>
   )
 }
 
 /** 状态徽章：已关闭 / 已回复 / 待回复（对齐原版颜色）。 */
 function StatusBadge({ t }: { t: Ticket }) {
-  if (t.status === TICKET_STATUS_CLOSED)
-    return <Badge variant='outline'>已关闭</Badge>
-  return t.reply_status === 1 ? (
-    <Badge variant='secondary'>已回复</Badge>
-  ) : (
-    <Badge variant='destructive'>待回复</Badge>
+  const variant =
+    t.status === TICKET_STATUS_CLOSED
+      ? 'default'
+      : t.reply_status === 1
+        ? 'secondary'
+        : 'destructive'
+  const label =
+    t.status === TICKET_STATUS_CLOSED
+      ? '已关闭'
+      : t.reply_status === 1
+        ? '已回复'
+        : '待回复'
+  return (
+    <div className='flex items-center space-x-2'>
+      <Badge variant={variant} className='whitespace-nowrap'>
+        {label}
+      </Badge>
+    </div>
   )
 }
 
@@ -113,32 +128,27 @@ export function TicketPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>工单管理</h2>
-            <p className='text-muted-foreground'>
+            <p className='mt-2 text-muted-foreground'>
               在这里可以查看用户工单，包括查看、回复、关闭等操作。
             </p>
           </div>
         </div>
 
-        {/* 处理中 / 已关闭 切换（对齐原版） */}
-        <div className='flex flex-wrap items-center gap-2'>
-          <div className='bg-muted inline-flex items-center rounded-md p-0.5'>
-            <Button
-              size='sm'
-              variant={status === TICKET_STATUS_OPENING ? 'default' : 'ghost'}
-              className='h-7'
-              onClick={() => switchStatus(TICKET_STATUS_OPENING)}
-            >
-              处理中
-            </Button>
-            <Button
-              size='sm'
-              variant={status === TICKET_STATUS_CLOSED ? 'default' : 'ghost'}
-              className='h-7'
-              onClick={() => switchStatus(TICKET_STATUS_CLOSED)}
-            >
-              已关闭
-            </Button>
-          </div>
+        {/* 处理中 / 已关闭 切换（对齐原版 Tabs 分段控件） */}
+        <div className='flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-4'>
+          <Tabs
+            value={String(status)}
+            onValueChange={(v) => switchStatus(Number(v))}
+          >
+            <TabsList className='grid w-full grid-cols-2'>
+              <TabsTrigger value={String(TICKET_STATUS_OPENING)}>
+                处理中
+              </TabsTrigger>
+              <TabsTrigger value={String(TICKET_STATUS_CLOSED)}>
+                已关闭
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         <div className='overflow-x-auto rounded-md border'>
@@ -164,38 +174,52 @@ export function TicketPage() {
               ) : rows.length > 0 ? (
                 rows.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell className='font-medium'>{t.id}</TableCell>
-                    <TableCell className='font-medium'>{t.subject}</TableCell>
+                    <TableCell>
+                      <Badge variant='outline'>{t.id}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className='flex items-center space-x-2'>
+                        <Inbox className='h-4 w-4 text-muted-foreground' />
+                        <span className='max-w-[500px] truncate font-medium'>
+                          {t.subject}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <LevelBadge level={t.level} />
                     </TableCell>
                     <TableCell>
                       <StatusBadge t={t} />
                     </TableCell>
-                    <TableCell className='text-muted-foreground text-xs'>
-                      {time(t.updated_at)}
+                    <TableCell>
+                      <div className='flex items-center space-x-2 text-muted-foreground'>
+                        <Clock className='h-4 w-4' />
+                        <span className='text-sm'>{time(t.updated_at)}</span>
+                      </div>
                     </TableCell>
-                    <TableCell className='text-muted-foreground text-xs'>
+                    <TableCell className='text-sm text-muted-foreground'>
                       {time(t.created_at)}
                     </TableCell>
                     <TableCell className='text-end'>
-                      <div className='flex items-center justify-end gap-1'>
+                      <div className='flex items-center justify-center'>
                         <Button
                           variant='ghost'
                           size='icon'
-                          title='详情'
+                          className='h-9 w-9'
+                          title='查看详情'
                           onClick={() => setDetailId(t.id)}
                         >
-                          <Eye className='size-4' />
+                          <Eye className='h-4 w-4' />
                         </Button>
                         <Button
                           variant='ghost'
                           size='icon'
+                          className='h-9 w-9'
                           title='关闭工单'
                           disabled={t.status === TICKET_STATUS_CLOSED}
                           onClick={() => setClosing(t)}
                         >
-                          <X className='size-4' />
+                          <X className='h-4 w-4 text-muted-foreground hover:text-destructive' />
                         </Button>
                       </div>
                     </TableCell>
