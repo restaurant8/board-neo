@@ -45,7 +45,7 @@ import {
 import { RouteMutateDialog } from './components/route-mutate-dialog'
 
 const ACTION_LABEL: Record<RouteAction, string> = {
-  block: '阻断',
+  block: '禁止访问',
   direct: '直连',
   dns: 'DNS',
   proxy: '代理',
@@ -193,6 +193,7 @@ export function ServerRoutePage() {
         <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
           <div className='flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2'>
             <Button
+              variant='outline'
               size='sm'
               onClick={() => {
                 setCurrent(null)
@@ -258,9 +259,8 @@ export function ServerRoutePage() {
                   </div>
                 </TableHead>
                 <TableHead>备注</TableHead>
-                <TableHead>匹配规则</TableHead>
-                <TableHead className='w-28'>动作</TableHead>
                 <TableHead className='w-64'>动作值</TableHead>
+                <TableHead className='w-28'>动作</TableHead>
                 <TableHead className='w-28'>
                   <div className='text-right'>操作</div>
                 </TableHead>
@@ -269,7 +269,7 @@ export function ServerRoutePage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className='h-24 text-center'>
+                  <TableCell colSpan={6} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -301,39 +301,6 @@ export function ServerRoutePage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className='flex flex-wrap gap-1'>
-                          {(r.match ?? []).slice(0, 6).map((m, i) => (
-                            <Badge
-                              key={`${m}-${i}`}
-                              variant='secondary'
-                              className='font-mono'
-                            >
-                              {m}
-                            </Badge>
-                          ))}
-                          {matchCount > 6 && (
-                            <Badge variant='outline'>+{matchCount - 6}</Badge>
-                          )}
-                          {matchCount === 0 && (
-                            <span className='text-muted-foreground'>-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex items-center space-x-2'>
-                          <Badge
-                            variant={style?.variant ?? 'default'}
-                            className={cn(
-                              'flex items-center gap-1.5 px-3 py-1 capitalize',
-                              style?.className
-                            )}
-                          >
-                            {Icon && <Icon className='h-3.5 w-3.5' />}
-                            {ACTION_LABEL[r.action] ?? r.action}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
                         <div className='flex flex-col space-y-1'>
                           <span className='text-sm font-medium'>
                             {av.destructive ? (
@@ -345,6 +312,20 @@ export function ServerRoutePage() {
                           <span className='text-xs text-muted-foreground'>
                             匹配{matchCount}条规则
                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex items-center space-x-2'>
+                          <Badge
+                            variant={style?.variant ?? 'default'}
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1',
+                              style?.className
+                            )}
+                          >
+                            {Icon && <Icon className='h-3.5 w-3.5' />}
+                            {ACTION_LABEL[r.action] ?? r.action}
+                          </Badge>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -377,7 +358,7 @@ export function ServerRoutePage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className='h-24 text-center'>
+                  <TableCell colSpan={6} className='h-24 text-center'>
                     暂无路由规则
                   </TableCell>
                 </TableRow>
