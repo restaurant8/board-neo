@@ -14,6 +14,19 @@ export const TICKET_REPLY_STATUS_MAP: Record<number, string> = {
   1: '已回复',
 }
 
+/**
+ * 工单优先级（level，后端整数 0/1/2）。对齐原版：
+ * 低优先=default(深色)、中优先=secondary(灰)、高优先=destructive(红)。
+ */
+export const TICKET_LEVEL_META: Record<
+  number,
+  { label: string; variant: 'default' | 'secondary' | 'destructive' }
+> = {
+  0: { label: '低优先', variant: 'default' },
+  1: { label: '中优先', variant: 'secondary' },
+  2: { label: '高优先', variant: 'destructive' },
+}
+
 export type TicketUser = {
   id: number
   email: string
