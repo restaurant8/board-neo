@@ -44,11 +44,11 @@ export function deleteTheme(name: string) {
 }
 
 /**
- * POST /theme/switchTheme — set the given theme as the active frontend theme.
- * Controller validates `name` and calls ThemeService::switch().
+ * GET /theme/switchTheme — set the given theme as the active frontend theme.
+ * 后端该路由仅注册为 GET（POST 会 405），name 走 query 参数。
  */
 export function switchTheme(name: string) {
-  return post<boolean>('/theme/switchTheme', { name })
+  return get<boolean>('/theme/switchTheme', { name })
 }
 
 /** POST /theme/getThemeConfig — current saved values for a theme. */
