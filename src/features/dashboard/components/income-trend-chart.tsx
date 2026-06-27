@@ -18,9 +18,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchOrderStat } from '../api'
-import { TimeRangeSelect, useTimeRange } from './time-range'
 
 // 原版收入概览：order 系列用主图表色，commission 系列用次图表色。
 // （原版用 --primary/--secondary；本项目 --secondary 近白色不可见，改用 --chart-1/2。）
@@ -75,16 +81,20 @@ function ChartTooltip({
 /** 收入概览（对齐原版 dashboard:overview）。时间范围由全局选择器传入。 */
 export function IncomeTrendChart() {
   const [mode, setMode] = useState<'amount' | 'count'>('amount')
-  const timeRange = useTimeRange('30')
+  // 对齐原版收入概览：预设 30/90/180/365 天，默认 30 天；
+  // 范围 = [今天 - N 天, 今天]（subDays(today, N) ~ today），格式 yyyy-MM-dd。
+  const [rangeDays, setRangeDays] = useState('30')
 
-  const start = useMemo(
-    () => tsToYmd(timeRange.range.start_date),
-    [timeRange.range.start_date]
-  )
-  const end = useMemo(
-    () => tsToYmd(timeRange.range.end_date - 86400),
-    [timeRange.range.end_date]
-  )
+  const { start, end } = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const from = new Date(today)
+    from.setDate(from.getDate() - Number(rangeDays))
+    const p = (n: number) => String(n).padStart(2, '0')
+    const ymd = (d: Date) =>
+      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    return { start: ymd(from), end: ymd(today) }
+  }, [rangeDays])
 
   const { data } = useQuery({
     queryKey: ['order-stat', start, end],
@@ -106,7 +116,17 @@ export function IncomeTrendChart() {
             </CardDescription>
           </div>
           <div className='flex items-center gap-2'>
-            <TimeRangeSelect {...timeRange} />
+            <Select value={rangeDays} onValueChange={setRangeDays}>
+              <SelectTrigger className='h-8 w-28'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='30'>近30天</SelectItem>
+                <SelectItem value='90'>近90天</SelectItem>
+                <SelectItem value='180'>近180天</SelectItem>
+                <SelectItem value='365'>近1年</SelectItem>
+              </SelectContent>
+            </Select>
             <Tabs
               value={mode}
               onValueChange={(v) => setMode(v as 'amount' | 'count')}
@@ -263,10 +283,4 @@ export function IncomeTrendChart() {
       </CardContent>
     </Card>
   )
-}
-
-function tsToYmd(ts: number) {
-  const d = new Date(ts * 1000)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
