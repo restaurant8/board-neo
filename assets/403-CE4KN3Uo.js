@@ -1,0 +1,1 @@
+import{t as e}from"./forbidden-Db_F6DTi.js";var t=e;export{t as component};
