@@ -1,0 +1,1 @@
+import{M as e}from"./index-CZRMpi1i.js";var t=e;export{t as component};
