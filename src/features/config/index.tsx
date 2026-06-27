@@ -37,6 +37,7 @@ import {
   TextField,
 } from './components/config-field'
 import { SectionNav, type SectionNavItem } from './components/section-nav'
+import { SubscribeTemplateEditor } from './components/subscribe-template-editor'
 
 /** Flatten the grouped config into a single key→value map for editing. */
 function flatten(data: ConfigData): Record<string, unknown> {
@@ -367,16 +368,12 @@ export function ConfigPage() {
                   </div>
                 )}
 
-                {/* 订阅模板 */}
+                {/* 订阅模板：客户端页签 + Monaco 代码编辑器（对齐原版） */}
                 {section === 'subscribe_template' && (
-                  <div className='space-y-4'>
-                    <TextareaField label='Clash 订阅模板' description='配置 Clash 的订阅模板格式' rows={10} value={v('subscribe_template_clash') as string} onChange={(x) => set('subscribe_template_clash', x)} placeholder='留空使用默认模板' />
-                    <TextareaField label='Clash Meta 订阅模板' description='配置 Clash Meta 的订阅模板格式' rows={10} value={v('subscribe_template_clashmeta') as string} onChange={(x) => set('subscribe_template_clashmeta', x)} placeholder='留空使用默认模板' />
-                    <TextareaField label='Stash 订阅模板' description='配置 Stash 的订阅模板格式' rows={10} value={v('subscribe_template_stash') as string} onChange={(x) => set('subscribe_template_stash', x)} placeholder='留空使用默认模板' />
-                    <TextareaField label='Sing-box 订阅模板' description='配置 Sing-box 的订阅模板格式' rows={10} value={v('subscribe_template_singbox') as string} onChange={(x) => set('subscribe_template_singbox', x)} placeholder='留空使用默认模板' />
-                    <TextareaField label='Surge 配置模板' description='配置 Surge 订阅模板，支持 Surge 配置文件格式' rows={10} value={v('subscribe_template_surge') as string} onChange={(x) => set('subscribe_template_surge', x)} placeholder='留空使用默认模板' />
-                    <TextareaField label='Surfboard 配置模版' description='配额 Surfboard 订阅模版' rows={10} value={v('subscribe_template_surfboard') as string} onChange={(x) => set('subscribe_template_surfboard', x)} placeholder='留空使用默认模板' />
-                  </div>
+                  <SubscribeTemplateEditor
+                    get={(k) => (v(k) as string) ?? ''}
+                    set={(k, x) => set(k, x)}
+                  />
                 )}
 
                 {/* 邀请&佣金设置 */}

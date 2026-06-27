@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   Ban,
-  ChevronsUpDown,
+  Copy,
   Download,
   FileText,
   Filter,
@@ -117,24 +118,30 @@ export function UserPage() {
   }
   const sortHead = (field: string, label: string, className?: string) => {
     const cur = sort[0]
+    const sorted = cur && cur.id === field ? (cur.desc ? 'desc' : 'asc') : false
     const icon =
-      !cur || cur.id !== field ? (
-        <ChevronsUpDown className='size-3.5 opacity-50' />
-      ) : cur.desc ? (
-        <ArrowDown className='size-3.5' />
+      sorted === 'asc' ? (
+        <ArrowUp className='h-4 w-4 text-foreground/70' />
+      ) : sorted === 'desc' ? (
+        <ArrowDown className='h-4 w-4 text-foreground/70' />
       ) : (
-        <ArrowUp className='size-3.5' />
+        <ArrowUpDown className='h-4 w-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
       )
     return (
-      <TableHead className={className}>
-        <button
-          type='button'
-          onClick={() => toggleSort(field)}
-          className='hover:text-foreground -ms-1 inline-flex items-center gap-1 rounded px-1'
-        >
-          {label}
-          {icon}
-        </button>
+      <TableHead className={cn('h-11 bg-card px-4 text-muted-foreground', className)}>
+        <div className='flex items-center gap-1'>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='ghost'
+              size='default'
+              onClick={() => toggleSort(field)}
+              className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
+            >
+              <span>{label}</span>
+              {icon}
+            </Button>
+          </div>
+        </div>
       </TableHead>
     )
   }
@@ -453,11 +460,11 @@ export function UserPage() {
           )}
         </div>
 
-        <div className='overflow-x-auto rounded-md border'>
+        <div className='relative overflow-auto rounded-md border bg-card'>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className='w-10'>
+              <TableRow className='hover:bg-transparent'>
+                <TableHead className='h-11 w-10 bg-card px-4 text-muted-foreground'>
                   <Checkbox
                     checked={allOnPageSelected}
                     onCheckedChange={toggleAllOnPage}
@@ -465,20 +472,32 @@ export function UserPage() {
                   />
                 </TableHead>
                 {sortHead('id', 'ID', 'w-16')}
-                <TableHead>用户 / 邮箱</TableHead>
-                <TableHead>订阅</TableHead>
-                <TableHead>权限组</TableHead>
+                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                  邮箱
+                </TableHead>
+                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                  订阅
+                </TableHead>
+                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                  权限组
+                </TableHead>
                 {sortHead('expired_at', '到期时间')}
                 {sortHead('total_used', '已用流量')}
                 {sortHead('transfer_enable', '总流量')}
                 {sortHead('balance', '余额')}
                 {sortHead('commission_balance', '佣金')}
                 {sortHead('online_count', '在线设备')}
-                <TableHead className='whitespace-nowrap'>订阅异地</TableHead>
-                <TableHead className='whitespace-nowrap'>连接异地</TableHead>
+                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
+                  订阅异地
+                </TableHead>
+                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
+                  连接异地
+                </TableHead>
                 {sortHead('banned', '状态')}
                 {sortHead('created_at', '注册时间')}
-                <TableHead className='w-12 text-end'>操作</TableHead>
+                <TableHead className='h-11 bg-card px-4 text-end text-muted-foreground'>
+                  操作
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -493,18 +512,22 @@ export function UserPage() {
                   const exp = formatExpireStatus(u.expired_at)
                   const on = formatOnlineStatus(u.t)
                   return (
-                    <TableRow key={u.id} data-state={selected.includes(u.id) ? 'selected' : undefined}>
-                      <TableCell>
+                    <TableRow
+                      key={u.id}
+                      className='animate-fade-in hover:bg-muted/50'
+                      data-state={selected.includes(u.id) ? 'selected' : undefined}
+                    >
+                      <TableCell className='bg-card'>
                         <Checkbox
                           checked={selected.includes(u.id)}
                           onCheckedChange={() => toggleOne(u.id)}
                           aria-label={`选择 ${u.email}`}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className='bg-card'>
                         <Badge variant='outline'>{u.id}</Badge>
                       </TableCell>
-                      <TableCell className='font-medium'>
+                      <TableCell className='bg-card font-medium'>
                         <div
                           className='group flex items-center gap-2.5'
                           title={on.text}
@@ -517,7 +540,7 @@ export function UserPage() {
                                 : 'bg-gray-300 ring-gray-300/20'
                             )}
                           />
-                          <span className='inline-flex flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
+                          <span className='inline-flex cursor-pointer flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
                             <span className='break-all'>{u.email}</span>
                           </span>
                           {!!u.is_admin && (
@@ -526,26 +549,42 @@ export function UserPage() {
                           {!!u.is_staff && (
                             <Badge variant='outline'>员工</Badge>
                           )}
+                          <button
+                            type='button'
+                            tabIndex={-1}
+                            aria-label='复制邮箱'
+                            style={{ lineHeight: 0 }}
+                            className='ml-1 rounded bg-transparent p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard
+                                .writeText(u.email)
+                                .then(() => toast.success('复制成功'))
+                                .catch(() => toast.error('复制失败'))
+                            }}
+                          >
+                            <Copy className='h-4 w-4 text-muted-foreground' />
+                          </button>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className='bg-card'>
                         <div className='min-w-[10em] break-all'>
                           {u.plan?.name ?? (
-                            <span className='text-muted-foreground'>无</span>
+                            <span className='text-muted-foreground'>-</span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className='bg-card'>
                         <div className='flex flex-wrap gap-1'>
                           <Badge
                             variant='outline'
-                            className='border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium hover:bg-secondary/70 flex cursor-default items-center gap-1.5 whitespace-nowrap transition-all duration-200 select-none'
+                            className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
                           >
                             {u.group?.name || '-'}
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className='whitespace-nowrap'>
+                      <TableCell className='bg-card whitespace-nowrap'>
                         <Badge
                           variant='outline'
                           className={cn(
@@ -576,7 +615,7 @@ export function UserPage() {
                         const pct = total > 0 ? (used / total) * 100 : 0
                         return (
                           <>
-                            <TableCell className='min-w-[7rem]'>
+                            <TableCell className='bg-card min-w-[7rem]'>
                               <div className='w-full space-y-1'>
                                 <div className='flex justify-between text-sm'>
                                   <span className='text-muted-foreground'>
@@ -597,13 +636,13 @@ export function UserPage() {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className='text-muted-foreground font-medium whitespace-nowrap'>
+                            <TableCell className='bg-card font-medium whitespace-nowrap text-muted-foreground'>
                               {formatBytes(total)}
                             </TableCell>
                           </>
                         )
                       })()}
-                      <TableCell className='whitespace-nowrap'>
+                      <TableCell className='bg-card whitespace-nowrap'>
                         <div className='flex items-center gap-1 font-medium'>
                           <span className='text-sm text-muted-foreground'>
                             ¥
@@ -613,7 +652,7 @@ export function UserPage() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className='whitespace-nowrap'>
+                      <TableCell className='bg-card whitespace-nowrap'>
                         <div className='flex items-center gap-1 font-medium'>
                           <span className='text-sm text-muted-foreground'>
                             ¥
@@ -623,7 +662,10 @@ export function UserPage() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell title={formatDeviceLimit(u.device_limit)}>
+                      <TableCell
+                        className='bg-card'
+                        title={formatDeviceLimit(u.device_limit)}
+                      >
                         <div className='flex items-center gap-1.5'>
                           <Badge
                             variant='outline'
@@ -640,9 +682,13 @@ export function UserPage() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell>{remoteCell(u.subscribe_locations)}</TableCell>
-                      <TableCell>{remoteCell(u.connect_locations)}</TableCell>
-                      <TableCell>
+                      <TableCell className='bg-card'>
+                        {remoteCell(u.subscribe_locations)}
+                      </TableCell>
+                      <TableCell className='bg-card'>
+                        {remoteCell(u.connect_locations)}
+                      </TableCell>
+                      <TableCell className='bg-card'>
                         <div className='flex justify-center'>
                           <Badge
                             className={cn(
@@ -656,19 +702,23 @@ export function UserPage() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className='whitespace-nowrap text-sm text-muted-foreground'>
-                        {new Date(u.created_at * 1000).toLocaleDateString()}
+                      <TableCell className='bg-card whitespace-nowrap text-sm text-muted-foreground'>
+                        <div className='truncate'>
+                          {new Date(u.created_at * 1000).toLocaleDateString()}
+                        </div>
                       </TableCell>
-                      <TableCell className='text-end'>
-                        <DropdownMenu>
+                      <TableCell className='bg-card'>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
-                            <Button
-                              variant='ghost'
-                              className='h-8 w-8 p-0 hover:bg-muted'
-                              aria-label='操作'
-                            >
-                              <MoreHorizontal className='size-4' />
-                            </Button>
+                            <div className='text-center'>
+                              <Button
+                                variant='ghost'
+                                className='h-8 w-8 p-0 hover:bg-muted'
+                                aria-label='操作'
+                              >
+                                <MoreHorizontal className='size-4' />
+                              </Button>
+                            </div>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align='end'>
                             <DropdownMenuItem

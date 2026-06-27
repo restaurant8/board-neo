@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Plus, Settings2, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
 import { fetchConfig } from '@/features/config/api'
 import { fetchMachines } from '@/features/server-machine/api'
@@ -12,12 +13,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -27,7 +22,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -511,7 +505,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className='sm:max-w-3xl'
+        className='max-w-xl gap-0 overflow-hidden p-0 sm:rounded-2xl'
         onInteractOutside={(e) => {
           // 嵌套弹窗（高级设置 / ECH）打开时，关闭它们不应连带关闭主弹窗
           if (advancedOpen || echOpen) e.preventDefault()
@@ -520,464 +514,562 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
           if (advancedOpen || echOpen) e.preventDefault()
         }}
       >
-        <DialogHeader>
-          <div className='flex items-center justify-between gap-4'>
-            <div className='flex items-center gap-2'>
-              <DialogTitle>{isEdit ? '编辑节点' : '新建节点'}</DialogTitle>
-              <Badge variant='secondary'>{SERVER_TYPE_LABEL[base.type]}</Badge>
+        <DialogHeader className='border-b bg-muted/20 px-6 pb-4 pt-6'>
+          <div className='flex items-center justify-between pr-8'>
+            <div className='flex items-center gap-3'>
+              <DialogTitle className='font-mono text-lg tracking-tight'>
+                {isEdit ? '编辑节点' : '新建节点'}
+              </DialogTitle>
+              <span
+                className='rounded px-2 py-0.5 font-mono text-xs text-white'
+                style={{ background: SERVER_TYPE_COLOR[base.type] }}
+              >
+                {SERVER_TYPE_LABEL[base.type]}
+              </span>
             </div>
             {/* 右上角协议类型下拉（新建/编辑均可改） */}
             <Select
               value={base.type}
               onValueChange={(v) => onTypeChange(v as ServerType)}
             >
-              <SelectTrigger className='w-40'>
-                <SelectValue />
+              <SelectTrigger className='h-8 w-[150px] border-2 font-mono text-xs'>
+                <SelectValue placeholder='选择协议类型' />
               </SelectTrigger>
               <SelectContent>
                 {SERVER_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    <span className='flex items-center gap-2'>
+                  <SelectItem
+                    key={t}
+                    value={t}
+                    className='cursor-pointer font-mono text-xs'
+                  >
+                    <div className='flex items-center gap-2'>
                       <span
-                        className='inline-block size-2 shrink-0 rounded-full'
-                        style={{ backgroundColor: SERVER_TYPE_COLOR[t] }}
+                        className='h-2.5 w-2.5 rounded-full'
+                        style={{ background: SERVER_TYPE_COLOR[t] }}
                       />
                       {SERVER_TYPE_LABEL[t]}
-                    </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <DialogDescription>
-            按所选协议填写结构化字段；证书 / Outbounds / Routes 在「高级设置」中维护。
+          <DialogDescription className='font-mono text-xs opacity-70'>
+            管理所有节点，包括添加、删除、编辑等操作。
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className='max-h-[70vh] pe-3'>
-          <div className='grid gap-4'>
+        <div className='flex h-[75vh] min-h-[500px] flex-col'>
+          <div className='flex-1 space-y-8 overflow-y-auto px-6 py-6'>
             {/* ----------------------------- 基础信息 ----------------------------- */}
-            <Card>
-              <CardHeader>
-                <CardTitle className='text-base'>基础信息</CardTitle>
-              </CardHeader>
-              <CardContent className='grid gap-4'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                  <Field label='节点名称'>
+            <div className='space-y-4'>
+              <div className='flex gap-4'>
+                <Field label='节点名称' className='flex-[2]'>
+                  <Input
+                    value={base.name}
+                    onChange={(e) =>
+                      setBase((b) => ({ ...b, name: e.target.value }))
+                    }
+                    placeholder='请输入节点名称'
+                    className='h-9 font-mono text-xs'
+                  />
+                </Field>
+                <Field label='基础倍率' className='flex-[1]'>
+                  <div className='relative'>
                     <Input
-                      value={base.name}
-                      onChange={(e) =>
-                        setBase((b) => ({ ...b, name: e.target.value }))
-                      }
-                      placeholder='如 香港节点01'
-                    />
-                  </Field>
-                  <Field label='基础倍率'>
-                    <Input
+                      type='number'
+                      min='0'
+                      step='0.1'
                       value={base.rate}
                       onChange={(e) =>
                         setBase((b) => ({ ...b, rate: e.target.value }))
                       }
-                      placeholder='如 1'
+                      className='h-9 pr-8 font-mono text-xs'
                     />
-                  </Field>
-                </div>
-
-                {/* 动态倍率 */}
-                <div className='grid gap-3 rounded-md border p-3'>
-                  <div className='flex items-center gap-2'>
-                    <Switch
-                      checked={base.rate_time_enable}
-                      onCheckedChange={(c) =>
-                        setBase((b) => ({ ...b, rate_time_enable: c }))
-                      }
-                    />
-                    <Label>启用动态倍率</Label>
+                    <span className='absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-muted-foreground'>
+                      x
+                    </span>
                   </div>
-                  {base.rate_time_enable && (
-                    <div className='grid gap-2'>
-                      {base.rate_time_ranges.map((r, i) => (
-                        <div key={i} className='flex items-center gap-2'>
-                          <Input
-                            type='time'
-                            value={r.start}
-                            onChange={(e) =>
-                              updateRange(i, 'start', e.target.value)
-                            }
-                          />
-                          <span className='text-muted-foreground'>~</span>
-                          <Input
-                            type='time'
-                            value={r.end}
-                            onChange={(e) =>
-                              updateRange(i, 'end', e.target.value)
-                            }
-                          />
-                          <Input
-                            className='w-24'
-                            value={r.rate}
-                            onChange={(e) =>
-                              updateRange(i, 'rate', e.target.value)
-                            }
-                            placeholder='倍率'
-                          />
-                          <Button
-                            type='button'
-                            variant='ghost'
-                            size='icon'
-                            onClick={() => removeRange(i)}
-                          >
-                            <X className='size-4' />
-                          </Button>
-                        </div>
-                      ))}
+                </Field>
+              </div>
+
+              {/* 动态倍率 */}
+              <div className='grid gap-2'>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <Label className='font-mono text-[12px] text-foreground/80'>
+                      启用动态倍率
+                    </Label>
+                    <div className='font-mono text-[11px] opacity-70'>
+                      根据时间段设置不同的倍率乘数
+                    </div>
+                  </div>
+                  <Switch
+                    checked={base.rate_time_enable}
+                    onCheckedChange={(c) =>
+                      setBase((b) => ({ ...b, rate_time_enable: c }))
+                    }
+                    className='scale-90'
+                  />
+                </div>
+                {base.rate_time_enable && (
+                  <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+                    <div className='flex items-center justify-between'>
+                      <Label className='font-mono text-[12px] text-foreground/80'>
+                        时间段规则
+                      </Label>
                       <Button
                         type='button'
                         variant='outline'
                         size='sm'
-                        className='w-fit'
+                        className='h-7 px-2 font-mono text-[10px]'
                         onClick={addRange}
                       >
-                        <Plus className='size-4' /> 添加时间段
+                        <Plus className='mr-1 size-3' /> 添加规则
                       </Button>
                     </div>
-                  )}
-                </div>
-
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                  <Field label='流量限制 (GB)' hint='0 或留空 = 不限制'>
-                    <Input
-                      value={base.transfer_enable_gb}
-                      onChange={(e) =>
-                        setBase((b) => ({
-                          ...b,
-                          transfer_enable_gb: e.target.value,
-                        }))
-                      }
-                      placeholder='如 100'
-                    />
-                  </Field>
-                  <Field label='自定义节点ID (code)' hint='选填'>
-                    <Input
-                      value={base.code}
-                      onChange={(e) =>
-                        setBase((b) => ({ ...b, code: e.target.value }))
-                      }
-                    />
-                  </Field>
-                </div>
-
-                {/* 标签 chip */}
-                <Field label='节点标签'>
-                  <div className='flex flex-wrap items-center gap-2 rounded-md border p-2'>
-                    {base.tags.map((t) => (
-                      <Badge key={t} variant='secondary' className='gap-1'>
-                        {t}
-                        <button type='button' onClick={() => removeTag(t)}>
-                          <X className='size-3' />
-                        </button>
-                      </Badge>
+                    {base.rate_time_ranges.map((r, i) => (
+                      <div
+                        key={i}
+                        className='space-y-3 rounded-lg border bg-background p-3'
+                      >
+                        <div className='flex items-center justify-between'>
+                          <span className='font-mono text-[11px] font-bold'>
+                            规则 {i + 1}
+                          </span>
+                          <Button
+                            type='button'
+                            variant='ghost'
+                            size='icon'
+                            className='size-7 text-muted-foreground hover:text-destructive'
+                            onClick={() => removeRange(i)}
+                          >
+                            <X className='size-3.5' />
+                          </Button>
+                        </div>
+                        <div className='grid grid-cols-3 gap-3'>
+                          <Field label='开始时间' labelClassName='text-[11px]'>
+                            <Input
+                              type='time'
+                              value={r.start}
+                              onChange={(e) =>
+                                updateRange(i, 'start', e.target.value)
+                              }
+                              className='h-8 px-2 font-mono text-xs'
+                            />
+                          </Field>
+                          <Field label='结束时间' labelClassName='text-[11px]'>
+                            <Input
+                              type='time'
+                              value={r.end}
+                              onChange={(e) =>
+                                updateRange(i, 'end', e.target.value)
+                              }
+                              className='h-8 px-2 font-mono text-xs'
+                            />
+                          </Field>
+                          <Field label='倍率乘数' labelClassName='text-[11px]'>
+                            <Input
+                              type='number'
+                              min='0'
+                              step='0.1'
+                              value={r.rate}
+                              onChange={(e) =>
+                                updateRange(i, 'rate', e.target.value)
+                              }
+                              className='h-8 px-2 font-mono text-xs'
+                              placeholder='1.0'
+                            />
+                          </Field>
+                        </div>
+                      </div>
                     ))}
-                    <input
-                      className='min-w-32 flex-1 bg-transparent text-sm outline-none'
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          addTag()
-                        }
-                      }}
-                      placeholder='输入后回车添加'
-                    />
+                    {base.rate_time_ranges.length === 0 && (
+                      <div className='py-4 text-center font-mono text-[10px] italic text-muted-foreground'>
+                        暂无规则，点击上方按钮添加
+                      </div>
+                    )}
                   </div>
-                </Field>
+                )}
+              </div>
 
-                <Field label='权限组'>
-                  <MultiCheck
-                    options={groupOptions}
-                    selected={base.group_ids.map(String)}
-                    onChange={(next) =>
-                      setBase((b) => ({ ...b, group_ids: next.map(Number) }))
+              <div className='flex gap-3'>
+                <Field
+                  label='流量限制'
+                  className='flex-1'
+                  labelClassName='text-[11px] text-muted-foreground'
+                  suffix='(GB)'
+                >
+                  <Input
+                    type='number'
+                    min='0'
+                    step='1'
+                    value={base.transfer_enable_gb}
+                    onChange={(e) =>
+                      setBase((b) => ({
+                        ...b,
+                        transfer_enable_gb: e.target.value,
+                      }))
                     }
-                    empty='暂无权限组'
+                    placeholder='0 表示不限制'
+                    className='h-8 font-mono text-xs'
                   />
                 </Field>
-              </CardContent>
-            </Card>
+                <Field
+                  label='自定义节点ID'
+                  className='flex-1'
+                  labelClassName='text-[11px] text-muted-foreground'
+                  suffix='(选填)'
+                >
+                  <Input
+                    value={base.code}
+                    onChange={(e) =>
+                      setBase((b) => ({ ...b, code: e.target.value }))
+                    }
+                    placeholder='请输入自定义节点ID'
+                    className='h-8 font-mono text-xs'
+                  />
+                </Field>
+              </div>
+
+              {/* 标签 chip */}
+              <Field label='节点标签'>
+                <div className='flex min-h-9 flex-wrap items-center gap-2 rounded-md border px-2 py-1 font-mono text-xs'>
+                  {base.tags.map((t) => (
+                    <Badge key={t} variant='secondary' className='gap-1'>
+                      {t}
+                      <button type='button' onClick={() => removeTag(t)}>
+                        <X className='size-3' />
+                      </button>
+                    </Badge>
+                  ))}
+                  <input
+                    className='min-w-32 flex-1 bg-transparent outline-none'
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addTag()
+                      }
+                    }}
+                    placeholder='输入后回车添加标签'
+                  />
+                </div>
+              </Field>
+
+              <Field label='权限组'>
+                <MultiCheck
+                  options={groupOptions}
+                  selected={base.group_ids.map(String)}
+                  onChange={(next) =>
+                    setBase((b) => ({ ...b, group_ids: next.map(Number) }))
+                  }
+                  empty='暂无权限组'
+                />
+              </Field>
+            </div>
 
             {/* ----------------------------- 网络 / DNS ----------------------------- */}
-            <Card>
-              <CardHeader>
-                <CardTitle className='text-base'>网络与地址</CardTitle>
-              </CardHeader>
-              <CardContent className='grid gap-4'>
-                <Field label='节点地址 (host)'>
-                  <Input
-                    value={base.host}
-                    onChange={(e) =>
-                      setBase((b) => ({ ...b, host: e.target.value }))
+            <div className='space-y-4'>
+              <Field label='节点地址'>
+                <Input
+                  value={base.host}
+                  onChange={(e) =>
+                    setBase((b) => ({ ...b, host: e.target.value }))
+                  }
+                  placeholder='请输入节点域名或者IP'
+                  className='h-9 font-mono text-xs'
+                />
+              </Field>
+
+              <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+                <div className='flex items-center gap-2'>
+                  <Checkbox
+                    checked={base.dns_auto_sync}
+                    onCheckedChange={(c) =>
+                      setBase((b) => ({ ...b, dns_auto_sync: !!c }))
                     }
-                    placeholder='如 1.2.3.4 或 node.example.com'
+                  />
+                  <Label className='font-mono text-[12px] text-foreground/80'>
+                    Cloudflare DNS 自动同步
+                  </Label>
+                </div>
+                <Field label='Cloudflare Zone'>
+                  {cfZones.length > 0 ? (
+                    <Select
+                      value={base.dns_cloudflare_zone_id || undefined}
+                      onValueChange={(v) =>
+                        setBase((b) => ({ ...b, dns_cloudflare_zone_id: v }))
+                      }
+                    >
+                      <SelectTrigger className='h-9 font-mono text-xs'>
+                        <SelectValue placeholder='选择 Zone' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cfZones.map((z) => (
+                          <SelectItem key={z.zone_id} value={z.zone_id}>
+                            {z.remark || z.zone_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      value={base.dns_cloudflare_zone_id}
+                      onChange={(e) =>
+                        setBase((b) => ({
+                          ...b,
+                          dns_cloudflare_zone_id: e.target.value,
+                        }))
+                      }
+                      placeholder='请先在系统配置添加 Zone'
+                      className='h-9 font-mono text-xs'
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div className='flex gap-4'>
+                <Field label='连接端口' className='flex-1'>
+                  <Input
+                    value={base.port}
+                    onChange={(e) =>
+                      setBase((b) => ({ ...b, port: e.target.value }))
+                    }
+                    placeholder='用户连接端口'
+                    className='h-9 font-mono text-xs'
                   />
                 </Field>
+                <Field label='服务端口' className='flex-1'>
+                  <Input
+                    value={base.server_port}
+                    onChange={(e) =>
+                      setBase((b) => ({ ...b, server_port: e.target.value }))
+                    }
+                    placeholder='请输入服务端口'
+                    className='h-9 font-mono text-xs'
+                  />
+                </Field>
+              </div>
 
-                <div className='grid gap-3 rounded-md border p-3'>
-                  <div className='flex items-center gap-2'>
-                    <Checkbox
-                      checked={base.dns_auto_sync}
-                      onCheckedChange={(c) =>
-                        setBase((b) => ({ ...b, dns_auto_sync: !!c }))
-                      }
-                    />
-                    <Label>Cloudflare DNS 自动同步</Label>
-                  </div>
-                  <Field label='Cloudflare Zone'>
-                    {cfZones.length > 0 ? (
-                      <Select
-                        value={base.dns_cloudflare_zone_id || undefined}
-                        onValueChange={(v) =>
-                          setBase((b) => ({ ...b, dns_cloudflare_zone_id: v }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder='选择 Zone' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cfZones.map((z) => (
-                            <SelectItem key={z.zone_id} value={z.zone_id}>
-                              {z.remark || z.zone_id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
+              {/* SNI / allow_insecure / ECH — 仅普通 TLS 模式（Reality 用自有字段） */}
+              {showTlsSettings && (
+                <>
+                  <div className='flex gap-4'>
+                    <Field label='服务器名称指示(SNI)' className='flex-1'>
                       <Input
-                        value={base.dns_cloudflare_zone_id}
+                        value={str(`${tlsPrefix}.server_name`)}
                         onChange={(e) =>
-                          setBase((b) => ({
-                            ...b,
-                            dns_cloudflare_zone_id: e.target.value,
-                          }))
+                          set(`${tlsPrefix}.server_name`, e.target.value)
                         }
-                        placeholder='请先在系统配置添加 Zone'
+                        placeholder='当节点地址与证书不一致时用于证书验证'
+                        className='h-9 font-mono text-xs'
                       />
-                    )}
-                  </Field>
-                </div>
-
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                  <Field label='连接端口 (port)' hint='支持端口跳跃，如 1000-2000'>
-                    <Input
-                      value={base.port}
-                      onChange={(e) =>
-                        setBase((b) => ({ ...b, port: e.target.value }))
-                      }
-                      placeholder='如 443'
-                    />
-                  </Field>
-                  <Field label='服务端口 (server_port)'>
-                    <Input
-                      value={base.server_port}
-                      onChange={(e) =>
-                        setBase((b) => ({ ...b, server_port: e.target.value }))
-                      }
-                      placeholder='如 443'
-                    />
-                  </Field>
-                </div>
-
-                {/* SNI / allow_insecure / ECH — 仅普通 TLS 模式（Reality 用自有字段） */}
-                {showTlsSettings && (
-                  <>
-                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                      <Field label='服务器名称指示 (SNI)'>
-                        <Input
-                          value={str(`${tlsPrefix}.server_name`)}
-                          onChange={(e) =>
-                            set(`${tlsPrefix}.server_name`, e.target.value)
-                          }
-                          placeholder='如 node.example.com'
-                        />
-                      </Field>
-                      <div className='flex items-end gap-2 pb-2'>
-                        <Switch
-                          checked={bool(`${tlsPrefix}.allow_insecure`)}
-                          onCheckedChange={(c) =>
-                            set(`${tlsPrefix}.allow_insecure`, c)
-                          }
-                        />
-                        <Label>允许不安全连接</Label>
-                      </div>
+                    </Field>
+                    <div className='flex items-end gap-2 pb-2'>
+                      <Switch
+                        checked={bool(`${tlsPrefix}.allow_insecure`)}
+                        onCheckedChange={(c) =>
+                          set(`${tlsPrefix}.allow_insecure`, c)
+                        }
+                        className='scale-90'
+                      />
+                      <Label className='font-mono text-[12px] text-foreground/80'>
+                        允许不安全连接
+                      </Label>
                     </div>
+                  </div>
 
-                    <div className='grid gap-3 rounded-md border p-3'>
-                      <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-2'>
-                          <Switch
-                            checked={echEnabled}
-                            onCheckedChange={(c) =>
-                              set(`${tlsPrefix}.ech.enabled`, c)
+                  <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-2'>
+                        <Switch
+                          checked={echEnabled}
+                          onCheckedChange={(c) =>
+                            set(`${tlsPrefix}.ech.enabled`, c)
+                          }
+                          className='scale-90'
+                        />
+                        <Label className='font-mono text-[12px] text-foreground/80'>
+                          ECH（Encrypted Client Hello）
+                        </Label>
+                      </div>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='h-7 px-2 font-mono text-[10px]'
+                        onClick={() => setEchOpen(true)}
+                      >
+                        <KeyRound className='mr-1 size-3' /> 自动生成 ECH 密钥对
+                      </Button>
+                    </div>
+                    {echEnabled && (
+                      <div className='space-y-3'>
+                        <Field label='ECH 配置 (PEM)'>
+                          <Textarea
+                            rows={3}
+                            className='border-border/50 bg-muted/30 font-mono text-[11px]'
+                            value={str(`${tlsPrefix}.ech.config`)}
+                            onChange={(e) =>
+                              set(`${tlsPrefix}.ech.config`, e.target.value)
                             }
                           />
-                          <Label>ECH（Encrypted Client Hello）</Label>
-                        </div>
-                        <Button
-                          type='button'
-                          variant='outline'
-                          size='sm'
-                          onClick={() => setEchOpen(true)}
-                        >
-                          <KeyRound className='size-4' /> 生成 ECH
-                        </Button>
+                        </Field>
+                        <Field label='ECH Key'>
+                          <Textarea
+                            rows={3}
+                            className='border-border/50 bg-muted/30 font-mono text-[11px]'
+                            value={str(`${tlsPrefix}.ech.key`)}
+                            onChange={(e) =>
+                              set(`${tlsPrefix}.ech.key`, e.target.value)
+                            }
+                          />
+                        </Field>
+                        <Field label='ECH 查询域名'>
+                          <Input
+                            value={str(`${tlsPrefix}.ech.query_server_name`)}
+                            onChange={(e) =>
+                              set(
+                                `${tlsPrefix}.ech.query_server_name`,
+                                e.target.value
+                              )
+                            }
+                            placeholder='可选，用于覆盖 HTTPS 记录查询域名'
+                            className='h-9 font-mono text-xs'
+                          />
+                        </Field>
                       </div>
-                      {echEnabled && (
-                        <div className='grid gap-3'>
-                          <Field label='ECH config'>
-                            <Textarea
-                              rows={3}
-                              className='font-mono text-xs'
-                              value={str(`${tlsPrefix}.ech.config`)}
-                              onChange={(e) =>
-                                set(`${tlsPrefix}.ech.config`, e.target.value)
-                              }
-                            />
-                          </Field>
-                          <Field label='ECH key'>
-                            <Textarea
-                              rows={3}
-                              className='font-mono text-xs'
-                              value={str(`${tlsPrefix}.ech.key`)}
-                              onChange={(e) =>
-                                set(`${tlsPrefix}.ech.key`, e.target.value)
-                              }
-                            />
-                          </Field>
-                          <Field label='ECH query_server_name'>
-                            <Input
-                              value={str(`${tlsPrefix}.ech.query_server_name`)}
-                              onChange={(e) =>
-                                set(
-                                  `${tlsPrefix}.ech.query_server_name`,
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </Field>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* ----------------------------- 协议专属配置 ----------------------------- */}
-            <Card>
-              <CardHeader>
-                <CardTitle className='text-base'>
+            <div className='space-y-4'>
+              <div className='flex items-center gap-2'>
+                <span className='h-2 w-2 rounded-full' style={{ background: SERVER_TYPE_COLOR[base.type] }} />
+                <Label className='font-mono text-[12px] font-bold tracking-wide text-foreground/80'>
                   协议配置 · {SERVER_TYPE_LABEL[base.type]}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className='grid gap-4'>
-                <ProtocolFields
-                  type={base.type}
-                  str={str}
-                  num={num}
-                  bool={bool}
-                  arr={arr}
-                  lines={lines}
-                  set={set}
-                  setPs={setPs}
-                />
-              </CardContent>
-            </Card>
+                </Label>
+              </div>
+              <ProtocolFields
+                type={base.type}
+                str={str}
+                num={num}
+                bool={bool}
+                arr={arr}
+                lines={lines}
+                set={set}
+                setPs={setPs}
+              />
+            </div>
 
             {/* ----------------------------- 关联 ----------------------------- */}
-            <Card>
-              <CardHeader>
-                <CardTitle className='text-base'>关联设置</CardTitle>
-              </CardHeader>
-              <CardContent className='grid gap-4'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                  <Field label='父级节点'>
-                    <Select
-                      value={base.parent_id || 'none'}
-                      onValueChange={(v) =>
-                        setBase((b) => ({
-                          ...b,
-                          parent_id: v === 'none' ? '' : v,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value='none'>无</SelectItem>
-                        {parentOptions.map((n) => (
-                          <SelectItem key={n.id} value={String(n.id)}>
-                            {n.name}（#{n.id}）
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label='绑定服务器 (machine)'>
-                    <Select
-                      value={base.machine_id || 'none'}
-                      onValueChange={(v) =>
-                        setBase((b) => ({
-                          ...b,
-                          machine_id: v === 'none' ? '' : v,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value='none'>独立部署</SelectItem>
-                        {(machines ?? []).map((m) => (
-                          <SelectItem key={m.id} value={String(m.id)}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </div>
-                <Field label='路由组'>
-                  <MultiCheck
-                    options={routeOptions}
-                    selected={base.route_ids.map(String)}
-                    onChange={(next) =>
-                      setBase((b) => ({ ...b, route_ids: next.map(Number) }))
-                    }
-                    empty='暂无路由规则'
-                  />
-                </Field>
-                {/* 显示/启用 不在编辑表单维护，与官方一致：由节点列表的「显隐」开关 + 批量启用/禁用控制 */}
-              </CardContent>
-            </Card>
+            <div className='space-y-4'>
+              <Field label='父级节点'>
+                <Select
+                  value={base.parent_id || 'none'}
+                  onValueChange={(v) =>
+                    setBase((b) => ({
+                      ...b,
+                      parent_id: v === 'none' ? '' : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger className='h-9 font-mono text-xs'>
+                    <SelectValue placeholder='选择父节点' />
+                  </SelectTrigger>
+                  <SelectContent className='font-mono text-xs'>
+                    <SelectItem value='none' className='text-xs'>
+                      无
+                    </SelectItem>
+                    {parentOptions.map((n) => (
+                      <SelectItem
+                        key={n.id}
+                        value={String(n.id)}
+                        className='cursor-pointer text-xs'
+                      >
+                        {n.name}（#{n.id}）
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label='路由组'>
+                <MultiCheck
+                  options={routeOptions}
+                  selected={base.route_ids.map(String)}
+                  onChange={(next) =>
+                    setBase((b) => ({ ...b, route_ids: next.map(Number) }))
+                  }
+                  empty='暂无路由规则'
+                />
+              </Field>
+              <Field label='绑定服务器'>
+                <Select
+                  value={base.machine_id || 'none'}
+                  onValueChange={(v) =>
+                    setBase((b) => ({
+                      ...b,
+                      machine_id: v === 'none' ? '' : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger className='h-9 font-mono text-xs'>
+                    <SelectValue placeholder='选择服务器（可选）' />
+                  </SelectTrigger>
+                  <SelectContent className='font-mono text-xs'>
+                    <SelectItem value='none' className='text-xs'>
+                      独立部署
+                    </SelectItem>
+                    {(machines ?? []).map((m) => (
+                      <SelectItem
+                        key={m.id}
+                        value={String(m.id)}
+                        className='cursor-pointer text-xs'
+                      >
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {/* 显示/启用 不在编辑表单维护，与官方一致：由节点列表的「显隐」开关 + 批量启用/禁用控制 */}
+            </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className='sm:justify-between'>
-          <Button variant='outline' onClick={() => setAdvancedOpen(true)}>
-            <Settings2 className='size-4' /> 高级设置
-          </Button>
-          <div className='flex gap-2'>
+        <DialogFooter className='flex flex-row items-center justify-between border-t bg-muted/20 px-6 py-4 sm:space-x-0'>
+          <div className='flex items-center gap-2'>
             <Button
-              variant='outline'
+              type='button'
+              variant='secondary'
+              size='sm'
+              onClick={() => setAdvancedOpen(true)}
+              className='flex h-7 items-center gap-2 rounded-md border border-border/50 bg-muted/50 px-2.5 font-mono text-[11px] hover:bg-muted'
+            >
+              <Settings2 className='size-3 text-muted-foreground' />
+              <span className='opacity-80'>高级设置</span>
+            </Button>
+          </div>
+          <div className='flex items-center gap-3'>
+            <Button
+              type='button'
+              variant='ghost'
               onClick={() => onOpenChange(false)}
               disabled={mutation.isPending}
+              className='h-8 px-4 font-mono text-xs font-bold'
             >
               取消
             </Button>
             <Button
+              type='button'
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
+              className='h-8 bg-primary px-8 font-mono text-xs font-bold text-primary-foreground hover:bg-primary/90'
             >
               提交
             </Button>
@@ -1008,16 +1100,34 @@ function Field({
   label,
   children,
   hint,
+  className,
+  labelClassName,
+  suffix,
 }: {
   label: string
   children: React.ReactNode
   hint?: string
+  className?: string
+  labelClassName?: string
+  suffix?: string
 }) {
   return (
-    <div className='grid gap-2'>
-      <Label>{label}</Label>
+    <div className={cn('space-y-2', className)}>
+      <Label
+        className={cn(
+          'font-mono text-[12px] text-foreground/80',
+          labelClassName
+        )}
+      >
+        {label}
+        {suffix && (
+          <span className='ml-1 text-[9px] text-muted-foreground'>{suffix}</span>
+        )}
+      </Label>
       {children}
-      {hint && <p className='text-muted-foreground text-xs'>{hint}</p>}
+      {hint && (
+        <p className='font-mono text-[11px] text-muted-foreground'>{hint}</p>
+      )}
     </div>
   )
 }
@@ -1037,12 +1147,12 @@ function TlsSelect({
       value={value === '' ? '0' : value}
       onValueChange={(v) => onChange(Number(v))}
     >
-      <SelectTrigger>
+      <SelectTrigger className='h-9 font-mono text-xs'>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className='font-mono text-xs'>
         {opts.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
+          <SelectItem key={o.value} value={o.value} className='text-xs'>
             {o.label}
           </SelectItem>
         ))}
@@ -1060,12 +1170,12 @@ function NetworkSelect({
 }) {
   return (
     <Select value={value || 'tcp'} onValueChange={onChange}>
-      <SelectTrigger>
+      <SelectTrigger className='h-9 font-mono text-xs'>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className='font-mono text-xs'>
         {NETWORKS.map((n) => (
-          <SelectItem key={n} value={n}>
+          <SelectItem key={n} value={n} className='text-xs'>
             {n}
           </SelectItem>
         ))}
@@ -1077,12 +1187,13 @@ function NetworkSelect({
 /** network_settings 结构化字段（随 network：path/host/serviceName）。 */
 function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
   return (
-    <div className='grid grid-cols-1 gap-4 rounded-md border p-3 sm:grid-cols-3'>
+    <div className='grid grid-cols-1 gap-4 rounded-xl border bg-muted/5 p-4 sm:grid-cols-3'>
       <Field label='path（ws/http 路径）'>
         <Input
           value={str('network_settings.path')}
           onChange={(e) => set('network_settings.path', e.target.value)}
           placeholder='如 /ws'
+          className='h-9 font-mono text-xs'
         />
       </Field>
       <Field label='host（Host 头）'>
@@ -1090,6 +1201,7 @@ function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
           value={str('network_settings.host')}
           onChange={(e) => set('network_settings.host', e.target.value)}
           placeholder='如 cdn.example.com'
+          className='h-9 font-mono text-xs'
         />
       </Field>
       <Field label='serviceName（gRPC）'>
@@ -1097,6 +1209,7 @@ function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
           value={str('network_settings.serviceName')}
           onChange={(e) => set('network_settings.serviceName', e.target.value)}
           placeholder='如 grpc-service'
+          className='h-9 font-mono text-xs'
         />
       </Field>
     </div>
@@ -1106,39 +1219,47 @@ function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
 /** Reality 配置块（vless tls=2 / trojan）。 */
 function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'set'>) {
   return (
-    <div className='grid gap-3 rounded-md border p-3'>
-      <Label className='text-sm font-semibold'>Reality 配置</Label>
-      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-        <Field label='server_name'>
+    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+      <Label className='font-mono text-[12px] font-bold tracking-wide text-foreground/80'>
+        Reality 配置
+      </Label>
+      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+        <Field label='伪装站点(dest)'>
           <Input
             value={str('reality_settings.server_name')}
             onChange={(e) => set('reality_settings.server_name', e.target.value)}
-            placeholder='如 www.microsoft.com'
+            placeholder='例如：example.com'
+            className='h-9 font-mono text-xs'
           />
         </Field>
-        <Field label='server_port'>
+        <Field label='端口(port)'>
           <Input
             value={str('reality_settings.server_port')}
             onChange={(e) => set('reality_settings.server_port', e.target.value)}
-            placeholder='如 443'
+            placeholder='例如：443'
+            className='h-9 font-mono text-xs'
           />
         </Field>
-        <Field label='public_key'>
+        <Field label='公钥(Public key)'>
           <Input
             value={str('reality_settings.public_key')}
             onChange={(e) => set('reality_settings.public_key', e.target.value)}
+            className='h-9 font-mono text-xs'
           />
         </Field>
-        <Field label='private_key'>
+        <Field label='私钥(Private key)'>
           <Input
             value={str('reality_settings.private_key')}
             onChange={(e) => set('reality_settings.private_key', e.target.value)}
+            className='h-9 font-mono text-xs'
           />
         </Field>
-        <Field label='short_id'>
+        <Field label='Short ID'>
           <Input
             value={str('reality_settings.short_id')}
             onChange={(e) => set('reality_settings.short_id', e.target.value)}
+            placeholder='可留空，长度为2的倍数，最长16位'
+            className='h-9 font-mono text-xs'
           />
         </Field>
       </div>
@@ -1146,8 +1267,11 @@ function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'se
         <Switch
           checked={bool('reality_settings.allow_insecure')}
           onCheckedChange={(c) => set('reality_settings.allow_insecure', c)}
+          className='scale-90'
         />
-        <Label>allow_insecure（允许不安全）</Label>
+        <Label className='font-mono text-[12px] text-foreground/80'>
+          允许不安全?
+        </Label>
       </div>
     </div>
   )
@@ -1157,33 +1281,47 @@ function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'se
 function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num' | 'str' | 'set'>) {
   const enabled = bool('multiplex.enabled')
   return (
-    <div className='grid gap-3 rounded-md border p-3'>
-      <div className='flex items-center gap-2'>
+    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+      <div className='flex items-center justify-between'>
+        <div>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            多路复用 (Multiplex)
+          </Label>
+          <div className='font-mono text-[11px] opacity-70'>
+            通过单条 TCP 连接传输多个流，降低握手延迟
+          </div>
+        </div>
         <Switch
           checked={enabled}
           onCheckedChange={(c) => set('multiplex.enabled', c)}
+          className='scale-90'
         />
-        <Label>多路复用 (multiplex)</Label>
       </div>
       {enabled && (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='protocol'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='复用协议'>
               <Select
                 value={str('multiplex.protocol') || 'yamux'}
                 onValueChange={(v) => set('multiplex.protocol', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='smux'>smux</SelectItem>
-                  <SelectItem value='yamux'>yamux</SelectItem>
-                  <SelectItem value='h2mux'>h2mux</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='smux' className='text-xs'>
+                    smux
+                  </SelectItem>
+                  <SelectItem value='yamux' className='text-xs'>
+                    yamux
+                  </SelectItem>
+                  <SelectItem value='h2mux' className='text-xs'>
+                    h2mux
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label='max_connections'>
+            <Field label='最大连接数'>
               <Input
                 value={num('multiplex.max_connections')}
                 onChange={(e) =>
@@ -1192,6 +1330,7 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
                     e.target.value === '' ? null : Number(e.target.value)
                   )
                 }
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
@@ -1199,19 +1338,25 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
             <Switch
               checked={bool('multiplex.padding')}
               onCheckedChange={(c) => set('multiplex.padding', c)}
+              className='scale-90'
             />
-            <Label>padding（填充）</Label>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              启用填充
+            </Label>
           </div>
           <div className='flex items-center gap-2'>
             <Switch
               checked={bool('multiplex.brutal.enabled')}
               onCheckedChange={(c) => set('multiplex.brutal.enabled', c)}
+              className='scale-90'
             />
-            <Label>Brutal 加速</Label>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              TCP Brutal (激进拥塞控制)
+            </Label>
           </div>
           {bool('multiplex.brutal.enabled') && (
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              <Field label='brutal up_mbps'>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+              <Field label='上行带宽'>
                 <Input
                   value={num('multiplex.brutal.up_mbps')}
                   onChange={(e) =>
@@ -1220,9 +1365,10 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
                       e.target.value === '' ? null : Number(e.target.value)
                     )
                   }
+                  className='h-9 font-mono text-xs'
                 />
               </Field>
-              <Field label='brutal down_mbps'>
+              <Field label='下行带宽'>
                 <Input
                   value={num('multiplex.brutal.down_mbps')}
                   onChange={(e) =>
@@ -1231,6 +1377,7 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
                       e.target.value === '' ? null : Number(e.target.value)
                     )
                   }
+                  className='h-9 font-mono text-xs'
                 />
               </Field>
             </div>
@@ -1245,13 +1392,16 @@ function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num
 function UtlsFields({ bool, str, set }: Pick<FieldProps, 'bool' | 'str' | 'set'>) {
   const enabled = bool('utls.enabled')
   return (
-    <div className='grid gap-3 rounded-md border p-3'>
+    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
       <div className='flex items-center gap-2'>
         <Switch
           checked={enabled}
           onCheckedChange={(c) => set('utls.enabled', c)}
+          className='scale-90'
         />
-        <Label>uTLS（指纹伪装）</Label>
+        <Label className='font-mono text-[12px] text-foreground/80'>
+          uTLS（指纹伪装）
+        </Label>
       </div>
       {enabled && (
         <Field label='fingerprint'>
@@ -1259,6 +1409,7 @@ function UtlsFields({ bool, str, set }: Pick<FieldProps, 'bool' | 'str' | 'set'>
             value={str('utls.fingerprint') || ''}
             onChange={(e) => set('utls.fingerprint', e.target.value)}
             placeholder='如 chrome'
+            className='h-9 font-mono text-xs'
           />
         </Field>
       )}
@@ -1287,56 +1438,61 @@ function ProtocolFields(props: FieldProps) {
     case 'shadowsocks':
       return (
         <>
-          <Field label='加密方式 (cipher)'>
+          <Field label='加密算法'>
             <Select
               value={str('cipher') || 'aes-128-gcm'}
               onValueChange={(v) => set('cipher', v)}
             >
-              <SelectTrigger>
+              <SelectTrigger className='h-9 font-mono text-xs'>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className='font-mono text-xs'>
                 {SS_CIPHERS.map((c) => (
-                  <SelectItem key={c} value={c}>
+                  <SelectItem key={c} value={c} className='text-xs'>
                     {c}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label='混淆 (obfs)' hint='如 http；留空表示不混淆'>
+          <Field label='混淆' hint='如 http；留空表示不混淆'>
             <Input
               value={str('obfs')}
               onChange={(e) => set('obfs', e.target.value)}
+              className='h-9 font-mono text-xs'
             />
           </Field>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='obfs path'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='路径'>
               <Input
                 value={str('obfs_settings.path')}
                 onChange={(e) => set('obfs_settings.path', e.target.value)}
                 placeholder='如 /'
+                className='h-9 font-mono text-xs'
               />
             </Field>
-            <Field label='obfs host'>
+            <Field label='Host'>
               <Input
                 value={str('obfs_settings.host')}
                 onChange={(e) => set('obfs_settings.host', e.target.value)}
                 placeholder='如 www.bing.com'
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='plugin'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='插件'>
               <Input
                 value={str('plugin')}
                 onChange={(e) => set('plugin', e.target.value)}
+                className='h-9 font-mono text-xs'
               />
             </Field>
-            <Field label='plugin_opts'>
+            <Field label='插件选项'>
               <Input
                 value={str('plugin_opts')}
                 onChange={(e) => set('plugin_opts', e.target.value)}
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
@@ -1346,11 +1502,11 @@ function ProtocolFields(props: FieldProps) {
     case 'vmess':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <Field label='TLS'>
               <TlsSelect value={num('tls')} onChange={(v) => set('tls', v)} />
             </Field>
-            <Field label='传输协议 (network)'>
+            <Field label='传输协议'>
               <NetworkSelect
                 value={str('network')}
                 onChange={(v) => set('network', v)}
@@ -1366,48 +1522,65 @@ function ProtocolFields(props: FieldProps) {
     case 'vless':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='TLS'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='安全性'>
               <TlsSelect
                 value={num('tls')}
                 reality
                 onChange={(v) => set('tls', v)}
               />
             </Field>
-            <Field label='传输协议 (network)'>
+            <Field label='传输协议'>
               <NetworkSelect
                 value={str('network')}
                 onChange={(v) => set('network', v)}
               />
             </Field>
           </div>
-          <Field label='flow' hint='如 xtls-rprx-vision；留空表示不启用'>
+          <Field label='流控' hint='如 xtls-rprx-vision；留空表示不启用'>
             <Input
               value={str('flow')}
               onChange={(e) => set('flow', e.target.value)}
+              className='h-9 font-mono text-xs'
             />
           </Field>
           <NetworkSettings str={str} set={set} />
-          <div className='grid gap-3 rounded-md border p-3'>
-            <div className='flex items-center gap-2'>
+          <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <Label className='font-mono text-[12px] text-foreground/80'>
+                  VLESS Encryption
+                </Label>
+                <div className='font-mono text-[11px] opacity-70'>
+                  启用 VLESS 加密
+                </div>
+              </div>
               <Switch
                 checked={bool('encryption.enabled')}
                 onCheckedChange={(c) => set('encryption.enabled', c)}
+                className='scale-90'
               />
-              <Label>启用 encryption（VLESS 加密）</Label>
             </div>
             {bool('encryption.enabled') && (
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                <Field label='encryption（客户端公钥）'>
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <Field label='encryption'>
                   <Input
                     value={str('encryption.encryption')}
-                    onChange={(e) => set('encryption.encryption', e.target.value)}
+                    onChange={(e) =>
+                      set('encryption.encryption', e.target.value)
+                    }
+                    placeholder='./xray vlessenc 生成'
+                    className='h-9 font-mono text-xs'
                   />
                 </Field>
-                <Field label='decryption（服务端私钥）'>
+                <Field label='decryption'>
                   <Input
                     value={str('encryption.decryption')}
-                    onChange={(e) => set('encryption.decryption', e.target.value)}
+                    onChange={(e) =>
+                      set('encryption.decryption', e.target.value)
+                    }
+                    placeholder='./xray vlessenc 生成'
+                    className='h-9 font-mono text-xs'
                   />
                 </Field>
               </div>
@@ -1424,15 +1597,15 @@ function ProtocolFields(props: FieldProps) {
     case 'trojan':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='TLS'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='安全性'>
               <TlsSelect
                 value={num('tls')}
                 reality
                 onChange={(v) => set('tls', v)}
               />
             </Field>
-            <Field label='传输协议 (network)'>
+            <Field label='传输协议'>
               <NetworkSelect
                 value={str('network')}
                 onChange={(v) => set('network', v)}
@@ -1451,18 +1624,22 @@ function ProtocolFields(props: FieldProps) {
     case 'hysteria':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='版本 (version)'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='协议版本'>
               <Select
                 value={num('version') || '2'}
                 onValueChange={(v) => set('version', Number(v))}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='1'>1</SelectItem>
-                  <SelectItem value='2'>2</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='1' className='text-xs'>
+                    1
+                  </SelectItem>
+                  <SelectItem value='2' className='text-xs'>
+                    2
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -1476,11 +1653,12 @@ function ProtocolFields(props: FieldProps) {
                   )
                 }
                 placeholder='如 30'
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='上行带宽 bandwidth.up（Mbps）'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='上行宽带' suffix='Mbps'>
               <Input
                 value={num('bandwidth.up')}
                 onChange={(e) =>
@@ -1489,9 +1667,10 @@ function ProtocolFields(props: FieldProps) {
                     e.target.value === '' ? null : Number(e.target.value)
                   )
                 }
+                className='h-9 font-mono text-xs'
               />
             </Field>
-            <Field label='下行带宽 bandwidth.down（Mbps）'>
+            <Field label='下行宽带' suffix='Mbps'>
               <Input
                 value={num('bandwidth.down')}
                 onChange={(e) =>
@@ -1500,36 +1679,44 @@ function ProtocolFields(props: FieldProps) {
                     e.target.value === '' ? null : Number(e.target.value)
                   )
                 }
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
-          <Field label='alpn' hint='如 h3'>
+          <Field label='ALPN' hint='如 h3'>
             <Input
               value={str('alpn')}
               onChange={(e) => set('alpn', e.target.value)}
+              className='h-9 font-mono text-xs'
             />
           </Field>
-          <div className='grid gap-3 rounded-md border p-3'>
+          <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
             <div className='flex items-center gap-2'>
               <Switch
                 checked={bool('obfs.open')}
                 onCheckedChange={(c) => set('obfs.open', c)}
+                className='scale-90'
               />
-              <Label>启用混淆 (obfs.open)</Label>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                混淆
+              </Label>
             </div>
             {bool('obfs.open') && (
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-                <Field label='obfs.type'>
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <Field label='混淆实现'>
                   <Input
                     value={str('obfs.type')}
                     onChange={(e) => set('obfs.type', e.target.value)}
                     placeholder='如 salamander'
+                    className='h-9 font-mono text-xs'
                   />
                 </Field>
-                <Field label='obfs.password'>
+                <Field label='混淆密码'>
                   <Input
                     value={str('obfs.password')}
                     onChange={(e) => set('obfs.password', e.target.value)}
+                    placeholder='请输入混淆密码'
+                    className='h-9 font-mono text-xs'
                   />
                 </Field>
               </div>
@@ -1541,53 +1728,67 @@ function ProtocolFields(props: FieldProps) {
     case 'tuic':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='版本 (version)'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='协议版本'>
               <Select
                 value={num('version') || '5'}
                 onValueChange={(v) => set('version', Number(v))}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='4'>4</SelectItem>
-                  <SelectItem value='5'>5</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='4' className='text-xs'>
+                    4
+                  </SelectItem>
+                  <SelectItem value='5' className='text-xs'>
+                    5
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label='拥塞控制 (congestion_control)'>
+            <Field label='拥塞控制'>
               <Select
                 value={str('congestion_control') || 'cubic'}
                 onValueChange={(v) => set('congestion_control', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='cubic'>cubic</SelectItem>
-                  <SelectItem value='bbr'>bbr</SelectItem>
-                  <SelectItem value='new_reno'>new_reno</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='cubic' className='text-xs'>
+                    cubic
+                  </SelectItem>
+                  <SelectItem value='bbr' className='text-xs'>
+                    bbr
+                  </SelectItem>
+                  <SelectItem value='new_reno' className='text-xs'>
+                    new_reno
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='udp_relay_mode'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='UDP中继模式'>
               <Select
                 value={str('udp_relay_mode') || 'native'}
                 onValueChange={(v) => set('udp_relay_mode', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='native'>native</SelectItem>
-                  <SelectItem value='quic'>quic</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='native' className='text-xs'>
+                    native
+                  </SelectItem>
+                  <SelectItem value='quic' className='text-xs'>
+                    quic
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label='alpn（逗号分隔）' hint='如 h3'>
+            <Field label='ALPN（逗号分隔）' hint='如 h3'>
               <Input
                 value={arr('alpn')}
                 onChange={(e) =>
@@ -1601,6 +1802,7 @@ function ProtocolFields(props: FieldProps) {
                       : []
                   )
                 }
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
@@ -1610,25 +1812,31 @@ function ProtocolFields(props: FieldProps) {
     case 'mieru':
       return (
         <>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            <Field label='传输方式 (transport)'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+            <Field label='传输协议'>
               <Select
                 value={str('transport') || 'TCP'}
                 onValueChange={(v) => set('transport', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className='h-9 font-mono text-xs'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='TCP'>TCP</SelectItem>
-                  <SelectItem value='UDP'>UDP</SelectItem>
+                <SelectContent className='font-mono text-xs'>
+                  <SelectItem value='TCP' className='text-xs'>
+                    TCP
+                  </SelectItem>
+                  <SelectItem value='UDP' className='text-xs'>
+                    UDP
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
-            <Field label='traffic_pattern'>
+            <Field label='流量 (Base64)'>
               <Input
                 value={str('traffic_pattern')}
                 onChange={(e) => set('traffic_pattern', e.target.value)}
+                placeholder='请输入 Base64 字符串用于微调网络行为'
+                className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
@@ -1639,19 +1847,23 @@ function ProtocolFields(props: FieldProps) {
     case 'anytls':
       return (
         <>
-          <Field label='alpn' hint='如 h2,http/1.1'>
+          <Field label='ALPN' hint='如 h2,http/1.1'>
             <Input
               value={str('alpn')}
               onChange={(e) => set('alpn', e.target.value)}
+              className='h-9 font-mono text-xs'
             />
           </Field>
-          <div className='grid gap-2'>
+          <div className='space-y-2'>
             <div className='flex items-center justify-between'>
-              <Label>填充方案 (padding_scheme)</Label>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                填充方案
+              </Label>
               <Button
                 type='button'
                 variant='outline'
                 size='sm'
+                className='h-7 px-2 font-mono text-[10px]'
                 onClick={() =>
                   setPs((prev) =>
                     setPath(prev, 'padding_scheme', [...ANYTLS_DEFAULT_PADDING])
@@ -1663,7 +1875,7 @@ function ProtocolFields(props: FieldProps) {
             </div>
             <Textarea
               rows={10}
-              className='font-mono text-xs'
+              className='border-border/50 bg-muted/30 font-mono text-[11px]'
               value={lines('padding_scheme')}
               onChange={(e) =>
                 set(

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -112,29 +113,49 @@ export function AdvancedConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex max-h-[90vh] flex-col sm:max-w-2xl'>
-        <DialogHeader>
-          <DialogTitle>高级协议配置</DialogTitle>
-        </DialogHeader>
-
-        <Tabs defaultValue='tls' className='flex min-h-0 w-full flex-1 flex-col'>
-          <TabsList className='grid w-full grid-cols-3'>
-            <TabsTrigger value='tls'>TLS</TabsTrigger>
-            <TabsTrigger value='outbounds'>自定义 Outbounds</TabsTrigger>
-            <TabsTrigger value='routes'>自定义 Routes</TabsTrigger>
-          </TabsList>
+      <DialogContent className='max-w-2xl gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+        <Tabs defaultValue='tls' className='w-full'>
+          <DialogHeader className='px-6 pb-2 pt-6'>
+            <div className='mb-2 flex items-center justify-between'>
+              <DialogTitle className='font-mono text-sm tracking-wide'>
+                高级协议配置
+              </DialogTitle>
+            </div>
+            <TabsList className='grid w-full grid-cols-3 rounded-lg bg-muted/50 p-1'>
+              <TabsTrigger
+                value='tls'
+                className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
+              >
+                TLS
+              </TabsTrigger>
+              <TabsTrigger
+                value='outbounds'
+                className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
+              >
+                自定义 Outbounds
+              </TabsTrigger>
+              <TabsTrigger
+                value='routes'
+                className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
+              >
+                自定义 Routes
+              </TabsTrigger>
+            </TabsList>
+          </DialogHeader>
 
           {/* 中间内容区可滚动，避免证书内容过长把底部 Save 顶出视口 */}
-          <div className='min-h-0 flex-1 overflow-y-auto pe-1'>
-          <TabsContent value='tls' className='grid gap-4 pt-2'>
+          <div className='max-h-[60vh] min-h-[350px] overflow-y-auto px-6 py-4'>
+          <TabsContent value='tls' className='mt-0 grid gap-4 duration-200 animate-in fade-in-50'>
             <div className='grid gap-2'>
-              <Label>证书模式</Label>
+              <Label className='font-mono text-[11px] text-muted-foreground'>
+                证书模式
+              </Label>
               <Select
                 value={certMode}
                 onValueChange={(v) => setCertField('cert_mode', v)}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className='font-mono text-xs'>
+                  <SelectValue placeholder='none' />
                 </SelectTrigger>
                 <SelectContent>
                   {CERT_MODES.map((m) => (
@@ -144,31 +165,42 @@ export function AdvancedConfigDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <p className='font-mono text-[11px] text-muted-foreground'>
+                选择证书申请方式，仅部分后端节点支持
+              </p>
             </div>
+
+            {(certMode === 'http' ||
+              certMode === 'dns' ||
+              certMode === 'self' ||
+              certMode === 'content') && (
+              <Separator className='opacity-40' />
+            )}
 
             {certMode === 'http' && (
               <>
-                <p className='text-muted-foreground text-xs'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
                   HTTP-01 模式：需要 80 端口可正常访问以完成认证
                 </p>
-                <div className='grid gap-2'>
-                  <Label>证书域名</Label>
-                  <Input
-                    value={str(cert, 'domain')}
-                    onChange={(e) => setCertField('domain', e.target.value)}
-                    placeholder='example.com'
-                  />
+                <div className='grid grid-cols-2 gap-4'>
+                  <CertField label='证书域名'>
+                    <Input
+                      value={str(cert, 'domain')}
+                      onChange={(e) => setCertField('domain', e.target.value)}
+                      placeholder='example.com'
+                      className='font-mono text-xs'
+                    />
+                  </CertField>
+                  <CertField label='通知邮箱'>
+                    <Input
+                      value={str(cert, 'email')}
+                      onChange={(e) => setCertField('email', e.target.value)}
+                      placeholder='admin@example.com'
+                      className='font-mono text-xs'
+                    />
+                  </CertField>
                 </div>
-                <div className='grid gap-2'>
-                  <Label>通知邮箱</Label>
-                  <Input
-                    value={str(cert, 'email')}
-                    onChange={(e) => setCertField('email', e.target.value)}
-                    placeholder='admin@example.com'
-                  />
-                </div>
-                <div className='grid gap-2'>
-                  <Label>认证端口</Label>
+                <CertField label='认证端口'>
                   <Input
                     type='number'
                     value={str(cert, 'http_port')}
@@ -179,154 +211,198 @@ export function AdvancedConfigDialog({
                       )
                     }
                     placeholder='80'
+                    className='font-mono text-xs'
                   />
-                  <p className='text-muted-foreground text-xs'>
-                    ACME 认证端口（默认 80）
+                  <p className='font-mono text-[11px] text-muted-foreground'>
+                    ACME 认证端口 (默认 80)
                   </p>
-                </div>
+                </CertField>
               </>
             )}
 
             {certMode === 'dns' && (
               <>
-                <p className='text-muted-foreground text-xs'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
                   DNS-01 模式：通过 DNS 解析记录认证，支持申请泛域名证书
                 </p>
-                <div className='grid gap-2'>
-                  <Label>证书域名</Label>
-                  <Input
-                    value={str(cert, 'domain')}
-                    onChange={(e) => setCertField('domain', e.target.value)}
-                    placeholder='example.com'
-                  />
+                <div className='grid grid-cols-2 gap-4'>
+                  <CertField label='证书域名'>
+                    <Input
+                      value={str(cert, 'domain')}
+                      onChange={(e) => setCertField('domain', e.target.value)}
+                      placeholder='example.com'
+                      className='font-mono text-xs'
+                    />
+                  </CertField>
+                  <CertField label='通知邮箱'>
+                    <Input
+                      value={str(cert, 'email')}
+                      onChange={(e) => setCertField('email', e.target.value)}
+                      placeholder='admin@example.com'
+                      className='font-mono text-xs'
+                    />
+                  </CertField>
                 </div>
-                <div className='grid gap-2'>
-                  <Label>通知邮箱</Label>
-                  <Input
-                    value={str(cert, 'email')}
-                    onChange={(e) => setCertField('email', e.target.value)}
-                    placeholder='admin@example.com'
-                  />
-                </div>
-                <div className='grid gap-2'>
-                  <Label>DNS 提供商</Label>
+                <CertField label='DNS 提供商'>
                   <Input
                     value={str(cert, 'dns_provider')}
                     onChange={(e) =>
                       setCertField('dns_provider', e.target.value)
                     }
                     placeholder='cloudflare / alidns / dnspod'
+                    className='font-mono text-xs'
                   />
-                </div>
-                <div className='grid gap-2'>
-                  <Label>环境变量 (API 密钥)</Label>
+                  <a
+                    href='https://go-acme.github.io/lego/dns/'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:underline'
+                  >
+                    查看 DNS 提供商配置指南
+                    <ExternalLink className='size-3' />
+                  </a>
+                </CertField>
+                <CertField label='环境变量 (API 密钥)'>
                   <Textarea
                     rows={4}
-                    className='font-mono text-xs'
+                    className='border-border/50 bg-muted/30 font-mono text-[11px]'
                     value={str(cert, 'dns_env')}
                     onChange={(e) => setCertField('dns_env', e.target.value)}
-                    placeholder={
-                      'CF_API_TOKEN=xxxxxx\nALIDNS_ACCESS_KEY_ID=xxxx'
-                    }
+                    placeholder={'CF_API_TOKEN=xxxxxx\nALIDNS_ACCESS_KEY_ID=xxxx'}
                   />
-                  <p className='text-muted-foreground text-xs'>
+                  <p className='font-mono text-[11px] text-muted-foreground'>
                     每行一个 KEY=VALUE 配置
                   </p>
-                </div>
-                <a
-                  href='#'
-                  className='text-primary inline-flex items-center gap-1 text-xs hover:underline'
-                >
-                  查看 DNS 提供商配置指南
-                  <ExternalLink className='size-3' />
-                </a>
+                </CertField>
               </>
             )}
 
             {certMode === 'self' && (
               <>
-                <p className='text-muted-foreground text-xs'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
                   自签名模式：仅需填写域名，证书由节点后端自动生成（10年有效期）
                 </p>
-                <div className='grid gap-2'>
-                  <Label>证书域名</Label>
+                <CertField label='证书域名'>
                   <Input
                     value={str(cert, 'domain')}
                     onChange={(e) => setCertField('domain', e.target.value)}
                     placeholder='example.com'
+                    className='font-mono text-xs'
                   />
-                </div>
+                </CertField>
               </>
             )}
 
             {certMode === 'content' && (
               <>
-                <p className='text-muted-foreground text-xs'>
+                <p className='font-mono text-[11px] text-muted-foreground'>
                   内容推送模式：直接将证书内容下发至节点
                 </p>
-                <div className='grid gap-2'>
-                  <Label>证书域名</Label>
+                <CertField label='证书域名'>
                   <Input
                     value={str(cert, 'domain')}
                     onChange={(e) => setCertField('domain', e.target.value)}
                     placeholder='example.com'
+                    className='font-mono text-xs'
                   />
-                </div>
-                <div className='grid gap-2'>
-                  <Label>证书内容 (Public Key)</Label>
+                </CertField>
+                <CertField label='证书内容 (Public Key)'>
                   <Textarea
                     rows={6}
-                    className='font-mono text-xs'
+                    className='border-border/50 bg-muted/30 font-mono text-[11px]'
                     value={str(cert, 'cert_content')}
                     onChange={(e) => setCertField('cert_content', e.target.value)}
                     placeholder='-----BEGIN CERTIFICATE-----'
                   />
-                </div>
-                <div className='grid gap-2'>
-                  <Label>密钥内容 (Private Key)</Label>
+                </CertField>
+                <CertField label='密钥内容 (Private Key)'>
                   <Textarea
                     rows={6}
-                    className='font-mono text-xs'
+                    className='border-border/50 bg-muted/30 font-mono text-[11px]'
                     value={str(cert, 'key_content')}
                     onChange={(e) => setCertField('key_content', e.target.value)}
                     placeholder='-----BEGIN RSA PRIVATE KEY-----'
                   />
-                </div>
+                </CertField>
               </>
             )}
           </TabsContent>
 
-          <TabsContent value='outbounds' className='grid gap-2 pt-2'>
-            <Label>custom_outbounds（JSON 数组）</Label>
-            <Textarea
-              rows={14}
-              className='font-mono text-xs'
-              value={outbounds}
-              onChange={(e) => setOutbounds(e.target.value)}
-              placeholder='[]'
-            />
+          <TabsContent
+            value='outbounds'
+            className='mt-0 duration-200 animate-in fade-in-50'
+          >
+            <div className='space-y-3'>
+              <Label className='font-mono text-[11px] italic text-muted-foreground'>
+                自定义Outbounds (JSON)
+              </Label>
+              <Textarea
+                rows={14}
+                className='min-h-[300px] border-border/50 bg-muted/30 font-mono text-[11px] focus-visible:border-border focus-visible:ring-0'
+                value={outbounds}
+                onChange={(e) => setOutbounds(e.target.value)}
+                placeholder='[{"tag": "proxy", "protocol": "shadowsocks", ...}]'
+                spellCheck={false}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value='routes' className='grid gap-2 pt-2'>
-            <Label>custom_routes（JSON 数组）</Label>
-            <Textarea
-              rows={14}
-              className='font-mono text-xs'
-              value={routes}
-              onChange={(e) => setRoutes(e.target.value)}
-              placeholder='[]'
-            />
+          <TabsContent
+            value='routes'
+            className='mt-0 duration-200 animate-in fade-in-50'
+          >
+            <div className='space-y-3'>
+              <Label className='font-mono text-[11px] italic text-muted-foreground'>
+                自定义Routes (JSON)
+              </Label>
+              <Textarea
+                rows={14}
+                className='min-h-[300px] border-border/50 bg-muted/30 font-mono text-[11px] focus-visible:border-border focus-visible:ring-0'
+                value={routes}
+                onChange={(e) => setRoutes(e.target.value)}
+                placeholder='[{"tag": "direct", "outbound": "direct", ...}]'
+                spellCheck={false}
+              />
+            </div>
           </TabsContent>
           </div>
         </Tabs>
 
-        <DialogFooter>
-          <Button variant='outline' onClick={() => onOpenChange(false)}>
+        <DialogFooter className='flex flex-row items-center justify-end gap-3 border-t bg-muted/20 px-6 py-4 sm:space-x-0'>
+          <Button
+            type='button'
+            variant='ghost'
+            onClick={() => onOpenChange(false)}
+            className='h-8 px-4 font-mono text-xs font-bold'
+          >
             取消
           </Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button
+            type='button'
+            onClick={handleSave}
+            className='h-8 bg-primary px-8 font-mono text-xs font-bold text-primary-foreground hover:bg-primary/90'
+          >
+            保存
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function CertField({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className='grid gap-2'>
+      <Label className='font-mono text-[11px] text-muted-foreground'>
+        {label}
+      </Label>
+      {children}
+    </div>
   )
 }
