@@ -110,7 +110,7 @@ export function TemplatesTab() {
               <TableHead className='w-20'>状态</TableHead>
               <TableHead className='w-24 text-end'>兑换码数</TableHead>
               <TableHead className='w-24 text-end'>已使用</TableHead>
-              <TableHead className='text-end'>操作</TableHead>
+              <TableHead className='w-72 text-end'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

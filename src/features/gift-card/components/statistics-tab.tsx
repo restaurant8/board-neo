@@ -60,8 +60,8 @@ export function StatisticsTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>模板</TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead className='text-end'>次数</TableHead>
+                  <TableHead className='w-32'>类型</TableHead>
+                  <TableHead className='w-24 text-end'>次数</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -92,7 +92,7 @@ export function StatisticsTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>日期</TableHead>
-                  <TableHead className='text-end'>次数</TableHead>
+                  <TableHead className='w-24 text-end'>次数</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

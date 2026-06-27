@@ -45,12 +45,12 @@ export function UsagesTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>兑换码</TableHead>
-              <TableHead>模板</TableHead>
-              <TableHead>使用者</TableHead>
-              <TableHead>邀请人</TableHead>
+              <TableHead className='w-48'>兑换码</TableHead>
+              <TableHead className='w-40'>模板</TableHead>
+              <TableHead className='w-48'>使用者</TableHead>
+              <TableHead className='w-48'>邀请人</TableHead>
               <TableHead>发放奖励</TableHead>
-              <TableHead className='w-40'>使用时间</TableHead>
+              <TableHead className='w-44'>使用时间</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -244,13 +244,13 @@ export function BackendManager() {
                 />
               </TableHead>
               <TableHead>后端</TableHead>
-              <TableHead>地址/IP</TableHead>
+              <TableHead className='w-40'>地址/IP</TableHead>
               <TableHead className='w-20'>状态</TableHead>
-              <TableHead>版本</TableHead>
-              <TableHead>内核/架构</TableHead>
-              <TableHead>最后心跳</TableHead>
-              <TableHead>升级状态</TableHead>
-              <TableHead className='text-end'>操作</TableHead>
+              <TableHead className='w-36'>版本</TableHead>
+              <TableHead className='w-32'>内核/架构</TableHead>
+              <TableHead className='w-44'>最后心跳</TableHead>
+              <TableHead className='w-28'>升级状态</TableHead>
+              <TableHead className='w-32 text-end'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

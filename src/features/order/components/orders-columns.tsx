@@ -67,6 +67,7 @@ export function getOrdersColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { className: 'w-10' },
     },
     {
       accessorKey: 'trade_no',
@@ -74,6 +75,7 @@ export function getOrdersColumns(
         <DataTableColumnHeader column={column} title='订单号' />
       ),
       enableSorting: false,
+      meta: { className: 'w-32' },
       cell: ({ row }) => {
         const order = row.original
         const t = order.trade_no
@@ -100,6 +102,7 @@ export function getOrdersColumns(
         <DataTableColumnHeader column={column} title='类型' />
       ),
       enableSorting: false,
+      meta: { className: 'w-24' },
       cell: ({ row }) => (
         <Badge
           variant='secondary'
@@ -132,6 +135,7 @@ export function getOrdersColumns(
         <DataTableColumnHeader column={column} title='周期' />
       ),
       enableSorting: false,
+      meta: { className: 'w-24' },
       cell: ({ row }) => {
         const period = row.original.period
         return (
@@ -149,6 +153,7 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='支付金额' />
       ),
+      meta: { className: 'w-28' },
       cell: ({ row }) => {
         const v = row.original.total_amount
         const n = typeof v === 'number' ? (v / 100).toFixed(2) : 'N/A'
@@ -164,6 +169,7 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='订单状态' />
       ),
+      meta: { className: 'w-28' },
       cell: ({ row }) => {
         const status = row.original.status
         const Icon = ORDER_STATUS_ICON[status]
@@ -185,6 +191,7 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='佣金金额' />
       ),
+      meta: { className: 'w-28' },
       cell: ({ row }) => {
         const v = row.original.commission_balance
         const n = v ? (v / 100).toFixed(2) : '-'
@@ -200,6 +207,7 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='佣金状态' />
       ),
+      meta: { className: 'w-28' },
       cell: ({ row }) => {
         const status = row.original.commission_status
         const balance = row.original.commission_balance
@@ -223,6 +231,7 @@ export function getOrdersColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='创建时间' />
       ),
+      meta: { className: 'w-44' },
       cell: ({ row }) => (
         <div className='text-muted-foreground text-nowrap font-mono text-sm'>
           {time(row.original.created_at)}
@@ -289,7 +298,7 @@ export function getOrdersColumns(
           </div>
         )
       },
-      meta: { className: cn('text-end') },
+      meta: { className: cn('w-16 text-end') },
     },
   ]
 }

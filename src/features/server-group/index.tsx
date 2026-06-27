@@ -263,19 +263,19 @@ export function ServerGroupPage() {
               <Table>
                 <TableHeader>
                   <TableRow className='hover:bg-transparent'>
-                    <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                    <TableHead className='h-11 w-24 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('id', '组ID')}
                     </TableHead>
                     <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('name', '组名称')}
                     </TableHead>
-                    <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                    <TableHead className='h-11 w-32 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('users_count', '用户数量')}
                     </TableHead>
-                    <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                    <TableHead className='h-11 w-32 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('server_count', '节点数量')}
                     </TableHead>
-                    <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
+                    <TableHead className='h-11 w-28 bg-card px-4 text-muted-foreground'>
                       <div className='flex items-center space-x-1 text-nowrap py-2 font-medium text-muted-foreground justify-end'>
                         <span>操作</span>
                       </div>

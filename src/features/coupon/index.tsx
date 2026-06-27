@@ -104,9 +104,9 @@ export function CouponPage() {
               <TableRow>
                 <TableHead className='w-16'>ID</TableHead>
                 <TableHead className='w-20'>启用</TableHead>
-                <TableHead>卷名称</TableHead>
+                <TableHead className='w-44'>卷名称</TableHead>
                 <TableHead className='w-24'>类型</TableHead>
-                <TableHead>卷码</TableHead>
+                <TableHead className='w-40'>卷码</TableHead>
                 <TableHead className='w-24 text-end'>面值</TableHead>
                 <TableHead className='w-24 text-end'>剩余次数</TableHead>
                 <TableHead className='w-28 text-end'>可用次数/用户</TableHead>

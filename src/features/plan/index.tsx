@@ -241,9 +241,9 @@ export function PlanPage() {
                 <TableHead className='w-16'>显示</TableHead>
                 <TableHead className='w-16'>新购</TableHead>
                 <TableHead className='w-16'>续费</TableHead>
-                <TableHead>名称</TableHead>
+                <TableHead className='w-48'>名称</TableHead>
                 <TableHead className='w-28'>统计</TableHead>
-                <TableHead>权限组</TableHead>
+                <TableHead className='w-40'>权限组</TableHead>
                 <TableHead>价格</TableHead>
                 <TableHead className='w-28 text-end'>
                   {sortMode ? '排序' : '操作'}

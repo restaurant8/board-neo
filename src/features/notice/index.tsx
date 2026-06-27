@@ -180,7 +180,7 @@ export function NoticePage() {
                     <TableHead className='w-[60px]'>ID</TableHead>
                     <TableHead className='w-[100px]'>显示状态</TableHead>
                     <TableHead>标题</TableHead>
-                    {!isSortMode && <TableHead>标签</TableHead>}
+                    {!isSortMode && <TableHead className='w-48'>标签</TableHead>}
                     {!isSortMode && (
                       <TableHead className='w-20'>弹窗</TableHead>
                     )}

@@ -212,7 +212,7 @@ export function KnowledgePage() {
                     <TableHead className='w-[70px]'>ID</TableHead>
                     <TableHead className='w-[100px]'>状态</TableHead>
                     <TableHead>标题</TableHead>
-                    <TableHead>分类</TableHead>
+                    <TableHead className='w-48'>分类</TableHead>
                     {!isSortMode && (
                       <TableHead className='w-[100px] text-end'>操作</TableHead>
                     )}

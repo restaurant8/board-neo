@@ -100,9 +100,9 @@ export function PaymentPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className='w-16'>ID</TableHead>
-                <TableHead>显示名称</TableHead>
-                <TableHead>支付接口</TableHead>
-                <TableHead>手续费</TableHead>
+                <TableHead className='w-44'>显示名称</TableHead>
+                <TableHead className='w-48'>支付接口</TableHead>
+                <TableHead className='w-32'>手续费</TableHead>
                 <TableHead>
                   <div className='flex items-center'>
                     <span>通知地址</span>
