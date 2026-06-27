@@ -1,0 +1,1 @@
+import{t as e}from"./authenticated-layout-BytcCb8g.js";var t=e;export{t as component};
