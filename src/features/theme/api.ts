@@ -45,11 +45,11 @@ export function deleteTheme(name: string) {
 }
 
 /**
- * GET /theme/switchTheme — set the given theme as the active frontend theme.
- * 后端该路由仅注册为 GET（POST 会 405），name 走 query 参数。
+ * 激活主题 = 保存 `frontend_theme` 配置（对齐原版：后端无 theme/switchTheme 路由，
+ * 原版通过 /config/save 写 frontend_theme 来切换当前前端主题）。
  */
 export function switchTheme(name: string) {
-  return get<boolean>('/theme/switchTheme', { name })
+  return post<boolean>('/config/save', { frontend_theme: name })
 }
 
 /** POST /theme/getThemeConfig — current saved values for a theme. */
