@@ -5,6 +5,7 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { IncomeTrendChart } from './components/income-trend-chart'
 import { JobDetailCard } from './components/job-detail-card'
+import { QueueStatusCard } from './components/queue-status-card'
 import { OverviewCards } from './components/overview-cards'
 import { ServerRank } from './components/server-rank'
 import { UserRank } from './components/user-rank'
@@ -35,6 +36,7 @@ export function Dashboard() {
               <UserRank />
             </div>
             <div className='grid gap-4 md:grid-cols-2'>
+              <QueueStatusCard />
               <JobDetailCard />
             </div>
           </div>
