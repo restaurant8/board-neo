@@ -23,6 +23,11 @@ import {
   BarChart3,
   Mail,
   Command,
+  Store,
+  UserPlus,
+  Tag,
+  Wallet,
+  TrendingUp,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -98,6 +103,20 @@ export const sidebarData: SidebarData = {
             { title: '用户管理', url: '/user', icon: Users },
             { title: '工单管理', url: '/ticket', icon: LifeBuoy },
             { title: '流量统计', url: '/traffic-stat', icon: BarChart3 },
+          ],
+        },
+
+        // 大菜单 5：分销管理（本期新增功能独立成菜单）
+        {
+          title: '分销管理',
+          icon: Store,
+          items: [
+            { title: '分销看板', url: '/reseller/dashboard', icon: BarChart3 },
+            { title: '分站管理', url: '/reseller', icon: Store },
+            { title: '站长申请', url: '/reseller/applications', icon: UserPlus },
+            { title: '分站定价', url: '/reseller/pricing', icon: Tag },
+            { title: '销量阶梯', url: '/reseller/tiers', icon: TrendingUp },
+            { title: '结算总览', url: '/reseller/settlements', icon: Wallet },
           ],
         },
       ],

@@ -35,6 +35,7 @@ import { Route as AuthenticatedThemeIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedSystemIndexRouteImport } from './routes/_authenticated/system/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedResellerIndexRouteImport } from './routes/_authenticated/reseller/index'
 import { Route as AuthenticatedPluginIndexRouteImport } from './routes/_authenticated/plugin/index'
 import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan/index'
 import { Route as AuthenticatedPaymentIndexRouteImport } from './routes/_authenticated/payment/index'
@@ -55,6 +56,11 @@ import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
+import { Route as AuthenticatedResellerTiersRouteImport } from './routes/_authenticated/reseller/tiers'
+import { Route as AuthenticatedResellerSettlementsRouteImport } from './routes/_authenticated/reseller/settlements'
+import { Route as AuthenticatedResellerPricingRouteImport } from './routes/_authenticated/reseller/pricing'
+import { Route as AuthenticatedResellerDashboardRouteImport } from './routes/_authenticated/reseller/dashboard'
+import { Route as AuthenticatedResellerApplicationsRouteImport } from './routes/_authenticated/reseller/applications'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedServerRouteIndexRouteImport } from './routes/_authenticated/server/route/index'
 import { Route as AuthenticatedServerManageIndexRouteImport } from './routes/_authenticated/server/manage/index'
@@ -197,6 +203,12 @@ const AuthenticatedSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedResellerIndexRoute =
+  AuthenticatedResellerIndexRouteImport.update({
+    id: '/reseller/',
+    path: '/reseller/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPluginIndexRoute =
   AuthenticatedPluginIndexRouteImport.update({
     id: '/plugin/',
@@ -311,6 +323,36 @@ const AuthenticatedSettingsAccountRoute =
     path: '/account',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedResellerTiersRoute =
+  AuthenticatedResellerTiersRouteImport.update({
+    id: '/reseller/tiers',
+    path: '/reseller/tiers',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResellerSettlementsRoute =
+  AuthenticatedResellerSettlementsRouteImport.update({
+    id: '/reseller/settlements',
+    path: '/reseller/settlements',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResellerPricingRoute =
+  AuthenticatedResellerPricingRouteImport.update({
+    id: '/reseller/pricing',
+    path: '/reseller/pricing',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResellerDashboardRoute =
+  AuthenticatedResellerDashboardRouteImport.update({
+    id: '/reseller/dashboard',
+    path: '/reseller/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResellerApplicationsRoute =
+  AuthenticatedResellerApplicationsRouteImport.update({
+    id: '/reseller/applications',
+    path: '/reseller/applications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedErrorsErrorRoute =
   AuthenticatedErrorsErrorRouteImport.update({
     id: '/errors/$error',
@@ -369,6 +411,11 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/reseller/applications': typeof AuthenticatedResellerApplicationsRoute
+  '/reseller/dashboard': typeof AuthenticatedResellerDashboardRoute
+  '/reseller/pricing': typeof AuthenticatedResellerPricingRoute
+  '/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
+  '/reseller/tiers': typeof AuthenticatedResellerTiersRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -389,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/payment/': typeof AuthenticatedPaymentIndexRoute
   '/plan/': typeof AuthenticatedPlanIndexRoute
   '/plugin/': typeof AuthenticatedPluginIndexRoute
+  '/reseller/': typeof AuthenticatedResellerIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/system/': typeof AuthenticatedSystemIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -420,6 +468,11 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/reseller/applications': typeof AuthenticatedResellerApplicationsRoute
+  '/reseller/dashboard': typeof AuthenticatedResellerDashboardRoute
+  '/reseller/pricing': typeof AuthenticatedResellerPricingRoute
+  '/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
+  '/reseller/tiers': typeof AuthenticatedResellerTiersRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -440,6 +493,7 @@ export interface FileRoutesByTo {
   '/payment': typeof AuthenticatedPaymentIndexRoute
   '/plan': typeof AuthenticatedPlanIndexRoute
   '/plugin': typeof AuthenticatedPluginIndexRoute
+  '/reseller': typeof AuthenticatedResellerIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/system': typeof AuthenticatedSystemIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
@@ -476,6 +530,11 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/_authenticated/reseller/applications': typeof AuthenticatedResellerApplicationsRoute
+  '/_authenticated/reseller/dashboard': typeof AuthenticatedResellerDashboardRoute
+  '/_authenticated/reseller/pricing': typeof AuthenticatedResellerPricingRoute
+  '/_authenticated/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
+  '/_authenticated/reseller/tiers': typeof AuthenticatedResellerTiersRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -496,6 +555,7 @@ export interface FileRoutesById {
   '/_authenticated/payment/': typeof AuthenticatedPaymentIndexRoute
   '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
   '/_authenticated/plugin/': typeof AuthenticatedPluginIndexRoute
+  '/_authenticated/reseller/': typeof AuthenticatedResellerIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/system/': typeof AuthenticatedSystemIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -530,6 +590,11 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/errors/$error'
+    | '/reseller/applications'
+    | '/reseller/dashboard'
+    | '/reseller/pricing'
+    | '/reseller/settlements'
+    | '/reseller/tiers'
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
@@ -550,6 +615,7 @@ export interface FileRouteTypes {
     | '/payment/'
     | '/plan/'
     | '/plugin/'
+    | '/reseller/'
     | '/settings/'
     | '/system/'
     | '/tasks/'
@@ -581,6 +647,11 @@ export interface FileRouteTypes {
     | '/503'
     | '/'
     | '/errors/$error'
+    | '/reseller/applications'
+    | '/reseller/dashboard'
+    | '/reseller/pricing'
+    | '/reseller/settlements'
+    | '/reseller/tiers'
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
@@ -601,6 +672,7 @@ export interface FileRouteTypes {
     | '/payment'
     | '/plan'
     | '/plugin'
+    | '/reseller'
     | '/settings'
     | '/system'
     | '/tasks'
@@ -636,6 +708,11 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
+    | '/_authenticated/reseller/applications'
+    | '/_authenticated/reseller/dashboard'
+    | '/_authenticated/reseller/pricing'
+    | '/_authenticated/reseller/settlements'
+    | '/_authenticated/reseller/tiers'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/display'
@@ -656,6 +733,7 @@ export interface FileRouteTypes {
     | '/_authenticated/payment/'
     | '/_authenticated/plan/'
     | '/_authenticated/plugin/'
+    | '/_authenticated/reseller/'
     | '/_authenticated/settings/'
     | '/_authenticated/system/'
     | '/_authenticated/tasks/'
@@ -873,6 +951,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/reseller/': {
+      id: '/_authenticated/reseller/'
+      path: '/reseller'
+      fullPath: '/reseller/'
+      preLoaderRoute: typeof AuthenticatedResellerIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plugin/': {
       id: '/_authenticated/plugin/'
       path: '/plugin'
@@ -1013,6 +1098,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/reseller/tiers': {
+      id: '/_authenticated/reseller/tiers'
+      path: '/reseller/tiers'
+      fullPath: '/reseller/tiers'
+      preLoaderRoute: typeof AuthenticatedResellerTiersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reseller/settlements': {
+      id: '/_authenticated/reseller/settlements'
+      path: '/reseller/settlements'
+      fullPath: '/reseller/settlements'
+      preLoaderRoute: typeof AuthenticatedResellerSettlementsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reseller/pricing': {
+      id: '/_authenticated/reseller/pricing'
+      path: '/reseller/pricing'
+      fullPath: '/reseller/pricing'
+      preLoaderRoute: typeof AuthenticatedResellerPricingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reseller/dashboard': {
+      id: '/_authenticated/reseller/dashboard'
+      path: '/reseller/dashboard'
+      fullPath: '/reseller/dashboard'
+      preLoaderRoute: typeof AuthenticatedResellerDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reseller/applications': {
+      id: '/_authenticated/reseller/applications'
+      path: '/reseller/applications'
+      fullPath: '/reseller/applications'
+      preLoaderRoute: typeof AuthenticatedResellerApplicationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/errors/$error': {
       id: '/_authenticated/errors/$error'
       path: '/errors/$error'
@@ -1092,6 +1212,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedResellerApplicationsRoute: typeof AuthenticatedResellerApplicationsRoute
+  AuthenticatedResellerDashboardRoute: typeof AuthenticatedResellerDashboardRoute
+  AuthenticatedResellerPricingRoute: typeof AuthenticatedResellerPricingRoute
+  AuthenticatedResellerSettlementsRoute: typeof AuthenticatedResellerSettlementsRoute
+  AuthenticatedResellerTiersRoute: typeof AuthenticatedResellerTiersRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
@@ -1105,6 +1230,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPaymentIndexRoute: typeof AuthenticatedPaymentIndexRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
   AuthenticatedPluginIndexRoute: typeof AuthenticatedPluginIndexRoute
+  AuthenticatedResellerIndexRoute: typeof AuthenticatedResellerIndexRoute
   AuthenticatedSystemIndexRoute: typeof AuthenticatedSystemIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedThemeIndexRoute: typeof AuthenticatedThemeIndexRoute
@@ -1126,6 +1252,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedResellerApplicationsRoute:
+    AuthenticatedResellerApplicationsRoute,
+  AuthenticatedResellerDashboardRoute: AuthenticatedResellerDashboardRoute,
+  AuthenticatedResellerPricingRoute: AuthenticatedResellerPricingRoute,
+  AuthenticatedResellerSettlementsRoute: AuthenticatedResellerSettlementsRoute,
+  AuthenticatedResellerTiersRoute: AuthenticatedResellerTiersRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
@@ -1139,6 +1271,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPaymentIndexRoute: AuthenticatedPaymentIndexRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
   AuthenticatedPluginIndexRoute: AuthenticatedPluginIndexRoute,
+  AuthenticatedResellerIndexRoute: AuthenticatedResellerIndexRoute,
   AuthenticatedSystemIndexRoute: AuthenticatedSystemIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedThemeIndexRoute: AuthenticatedThemeIndexRoute,

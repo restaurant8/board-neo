@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { fetchServerGroups } from '@/features/server-group/api'
+import { fetchResellerSites } from '@/features/reseller/api'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -57,6 +58,7 @@ const priceShape = Object.fromEntries(
 const formSchema = z.object({
   name: z.string().min(1, '请输入套餐名称'),
   group_id: z.string().optional(),
+  site_id: z.string().optional(),
   transfer_enable: z.coerce.number().int().min(1, '流量配额必须大于 0'),
   speed_limit: z.string().optional(),
   device_limit: z.string().optional(),
@@ -129,11 +131,18 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     enabled: open,
   })
 
+  const { data: resellerSites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
     defaultValues: {
       name: '',
       group_id: '',
+      site_id: '',
       transfer_enable: 0,
       speed_limit: '',
       device_limit: '',
@@ -184,6 +193,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     form.reset({
       name: current?.name ?? '',
       group_id: current?.group_id != null ? String(current.group_id) : '',
+      site_id: current?.site_id != null ? String(current.site_id) : '',
       transfer_enable: current?.transfer_enable ?? 0,
       speed_limit: current?.speed_limit != null ? String(current.speed_limit) : '',
       device_limit: current?.device_limit != null ? String(current.device_limit) : '',
@@ -215,6 +225,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
         id: current?.id,
         name: values.name,
         group_id: toNum(values.group_id),
+        site_id: toNum(values.site_id),
         transfer_enable: values.transfer_enable,
         speed_limit: toNum(values.speed_limit),
         device_limit: toNum(values.device_limit),
@@ -334,6 +345,39 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             {(groups ?? []).map((g) => (
                               <SelectItem key={g.id} value={String(g.id)}>
                                 {g.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className={fieldMsgCls} />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='site_id'
+                    render={({ field }) => (
+                      <FormItem className='space-y-1.5'>
+                        <FormLabel className={fieldLabelCls}>归属分站</FormLabel>
+                        <Select
+                          value={field.value || 'none'}
+                          onValueChange={(v) =>
+                            field.onChange(v === 'none' ? '' : v)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className='h-9 font-mono text-xs'>
+                              <SelectValue placeholder='主站套餐' />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value='none'>
+                              主站套餐（处处可见）
+                            </SelectItem>
+                            {(resellerSites ?? []).map((s) => (
+                              <SelectItem key={s.id} value={String(s.id)}>
+                                {s.name}
+                                {s.domain ? ` (${s.domain})` : ''}
                               </SelectItem>
                             ))}
                           </SelectContent>
