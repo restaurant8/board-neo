@@ -1,0 +1,1 @@
+import{t as e}from"./forbidden-OHTp4WMO.js";var t=e;export{t as component};
