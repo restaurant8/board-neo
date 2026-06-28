@@ -157,6 +157,7 @@ export function TicketPage() {
               <TableRow>
                 <TableHead className='w-20'>工单号</TableHead>
                 <TableHead>主题</TableHead>
+                <TableHead className='w-28'>来源</TableHead>
                 <TableHead className='w-24'>优先级</TableHead>
                 <TableHead className='w-24'>状态</TableHead>
                 <TableHead className='w-40'>最后更新</TableHead>
@@ -167,7 +168,7 @@ export function TicketPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className='h-24 text-center'>
+                  <TableCell colSpan={8} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -184,6 +185,13 @@ export function TicketPage() {
                           {t.subject}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {t.site_name ? (
+                        <Badge variant='secondary'>{t.site_name}</Badge>
+                      ) : (
+                        <Badge variant='outline'>主站</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <LevelBadge level={t.level} />
@@ -227,7 +235,7 @@ export function TicketPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className='h-24 text-center'>
+                  <TableCell colSpan={8} className='h-24 text-center'>
                     暂无工单
                   </TableCell>
                 </TableRow>

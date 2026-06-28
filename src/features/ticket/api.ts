@@ -45,6 +45,8 @@ export type Ticket = {
   created_at: number
   updated_at: number
   user?: TicketUser | null
+  /** 工单来源：null=主站，否则为分站名 */
+  site_name?: string | null
 }
 
 /** v2_ticket_message 表。is_from_admin/is_from_user 为后端 append 属性。 */
