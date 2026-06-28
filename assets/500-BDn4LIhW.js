@@ -1,0 +1,1 @@
+import{P as e}from"./index-zJPPNzd-.js";var t=e;export{t as component};
