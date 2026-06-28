@@ -1,0 +1,68 @@
+name: Build standalone dist (dev)
+
+# 改 board-neo 源码并推 dev → 云端自动 build:standalone → 推到本仓库
+# dist-standalone-dev 分支（测试环境用）。
+#
+# 与 deploy-admin.yml 的 build-standalone 作业同模式，区别仅在：
+#   触发分支 dev（而非 main），发布分支 dist-standalone-dev（而非 dist-standalone）。
+# 生产流程（main → dist-standalone）不受影响。
+#
+# 后端地址不写死进产物：由 dist-standalone-dev 分支上的 settings.js 运行时提供，
+# 故本作业【保留】分支已有的 settings.js，仅替换构建产物。用 GITHUB_TOKEN 推同仓库分支。
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch: {}
+
+jobs:
+  build-standalone-dev:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout board-neo (dev)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build standalone (base=/，后端由 settings.js 运行时配置)
+        env:
+          VITE_DEPLOY_MODE: standalone
+        run: |
+          npm ci
+          npm run build:standalone
+
+      - name: Checkout dist-standalone-dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dist-standalone-dev
+          path: standalone-out
+
+      - name: Sync build into dist-standalone-dev (保留分支上的 settings.js)
+        run: |
+          D=standalone-out
+          # 备份分支现有 settings.js（运行时后端配置，不能被构建默认模板覆盖）
+          cp "$D/settings.js" /tmp/keep-settings-dev.js 2>/dev/null || true
+          # 整目录替换旧产物（保留 .git），避免 hash 资源堆积
+          find "$D" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r dist/. "$D/"
+          # 还原分支的 settings.js（分支原本没有时则沿用构建产物里的默认模板）
+          if [ -f /tmp/keep-settings-dev.js ]; then cp /tmp/keep-settings-dev.js "$D/settings.js"; fi
+
+      - name: Commit & push dist-standalone-dev
+        run: |
+          cd standalone-out
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "build: standalone dist (dev) from board-neo@${GITHUB_SHA::7}"
+            git push
+          fi
