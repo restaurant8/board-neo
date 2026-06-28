@@ -12,8 +12,7 @@
 // 注意：apiBase 不要默认写成 ''——空串会用 ?? 短路掉构建期的 VITE_API_BASE。
 // 需要指定后端时再取消下面注释并填真实值（真实 secure_path 不要提交到公开仓库）。
 window.XBOARD_CONFIG = {
-  // apiBase 留空 = 同源（前端与 Xboard 后端同域）。跨域时填后端 origin。
-  // apiBase: 'https://your-backend-domain.com',
-  securePath: '6abf31ce', // 管理路由前缀（与后端 secure_path 一致）
+  // apiBase: 'https://your-backend-domain.com', // 独立部署：后端 origin
+  // securePath: 'your-secure-path',             // 独立部署：管理路由前缀
   title: 'Xboard',
 }
