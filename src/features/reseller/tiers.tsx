@@ -28,6 +28,7 @@ export function ResellerTiersPage() {
   const queryClient = useQueryClient()
   const [tiers, setTiers] = useState<ResellerTier[]>([])
   const [cooldown, setCooldown] = useState('2')
+  const [baseDomain, setBaseDomain] = useState('')
 
   const { data } = useQuery({
     queryKey: ['reseller-tiers'],
@@ -37,10 +38,12 @@ export function ResellerTiersPage() {
   useEffect(() => {
     if (data?.tiers) setTiers(data.tiers)
     if (data?.cooldown_days != null) setCooldown(String(data.cooldown_days))
+    if (data?.base_domain != null) setBaseDomain(data.base_domain)
   }, [data])
 
   const saveMutation = useMutation({
-    mutationFn: (t: ResellerTier[]) => saveResellerTiers(t, Number(cooldown)),
+    mutationFn: (t: ResellerTier[]) =>
+      saveResellerTiers(t, Number(cooldown), baseDomain.trim()),
     onSuccess: () => {
       toast.success('已保存')
       queryClient.invalidateQueries({ queryKey: ['reseller-tiers'] })
@@ -77,6 +80,21 @@ export function ResellerTiersPage() {
         </div>
 
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1'>
+          <div className='mb-4 rounded-lg border p-4'>
+            <div className='mb-1 text-sm font-medium'>泛域名根域（自助开站）</div>
+            <p className='mb-2 text-xs text-muted-foreground'>
+              填写后，用户申请分站时只需填<strong>前缀</strong>（如 <code>abc</code>），系统自动生成
+              <code>abc.根域</code> 作为分站域名。需在 DNS 配好该根域的<strong>泛解析</strong>（<code>*.根域 → 服务器IP</code>）和<strong>泛域名证书</strong>。留空 = 关闭，申请时改为自由填写完整域名。
+            </p>
+            <Input
+              type='text'
+              placeholder='例如：example.com'
+              value={baseDomain}
+              onChange={(e) => setBaseDomain(e.target.value)}
+              className='h-8 w-64 font-mono'
+            />
+          </div>
+
           <div className='mb-4 rounded-lg border p-4'>
             <div className='mb-1 text-sm font-medium'>提现冷静期（天）</div>
             <p className='mb-2 text-xs text-muted-foreground'>

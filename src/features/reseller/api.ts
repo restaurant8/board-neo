@@ -214,17 +214,24 @@ export type ResellerTier = {
   discount: number // 成本折扣百分比（100=原价，90=9折）
 }
 
-/** GET /reseller/tiers — 销量阶梯（成本折扣）配置 + 提现冷静期天数。 */
+/** GET /reseller/tiers — 销量阶梯（成本折扣）配置 + 提现冷静期天数 + 泛域名根域。 */
 export function fetchResellerTiers() {
-  return get<{ tiers: ResellerTier[]; cooldown_days: number }>(
-    '/reseller/tiers'
-  )
+  return get<{
+    tiers: ResellerTier[]
+    cooldown_days: number
+    base_domain: string
+  }>('/reseller/tiers')
 }
 
-/** POST /reseller/tiers/save — 保存销量阶梯配置 + 提现冷静期。 */
-export function saveResellerTiers(tiers: ResellerTier[], cooldownDays: number) {
+/** POST /reseller/tiers/save — 保存销量阶梯配置 + 提现冷静期 + 泛域名根域。 */
+export function saveResellerTiers(
+  tiers: ResellerTier[],
+  cooldownDays: number,
+  baseDomain: string
+) {
   return post<boolean>('/reseller/tiers/save', {
     tiers,
     cooldown_days: cooldownDays,
+    base_domain: baseDomain,
   })
 }
