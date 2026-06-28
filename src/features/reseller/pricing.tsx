@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ConfigDrawer } from '@/components/config-drawer'
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  type ResellerPricePlan,
   fetchResellerPrices,
   fetchResellerSites,
   saveResellerPrice,
@@ -49,6 +51,8 @@ const yuan = (cents: number | null | undefined) =>
 export function ResellerPricingPage() {
   const queryClient = useQueryClient()
   const [siteId, setSiteId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   // 本地编辑缓冲：key = `${planId}:${period}` → { floor(元字符串), enabled }
   const [edits, setEdits] = useState<
     Record<string, { floor: string; enabled: boolean }>
@@ -93,12 +97,19 @@ export function ResellerPricingPage() {
     onError: handleServerError,
   })
 
-  const rows = useMemo(() => {
-    if (!pricing) return []
-    return pricing.plans.flatMap((p) =>
-      p.periods.map((pe) => ({ plan: p, period: pe }))
-    )
-  }, [pricing])
+  const plans = useMemo(() => {
+    if (!pricing) return [] as ResellerPricePlan[]
+    const kw = search.trim().toLowerCase()
+    return kw
+      ? pricing.plans.filter((p) => p.name.toLowerCase().includes(kw))
+      : pricing.plans
+  }, [pricing, search])
+
+  const toggle = (id: number) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
+
+  const enabledCount = (p: ResellerPricePlan) =>
+    p.periods.filter((pe) => edits[`${p.id}:${pe.period}`]?.enabled).length
 
   return (
     <>
@@ -114,17 +125,18 @@ export function ResellerPricingPage() {
         <div className='mb-2'>
           <h2 className='mb-2 text-2xl font-bold tracking-tight'>分站定价</h2>
           <p className='text-muted-foreground'>
-            为分站设置每个套餐每个周期的<strong>底价</strong>并决定是否上架。站长在底价之上自定零售价，差价即站长利润。
+            为分站设置每个套餐每个周期的<strong>底价</strong>
+            并决定是否上架。站长在底价之上自定零售价，差价即站长利润。
           </p>
         </div>
 
-        <div className='mb-4 flex items-center gap-2'>
+        <div className='mb-4 flex flex-wrap items-center gap-2'>
           <span className='text-sm text-muted-foreground'>选择分站：</span>
           <Select
             value={siteId == null ? '' : String(siteId)}
             onValueChange={(v) => setSiteId(Number(v))}
           >
-            <SelectTrigger className='w-[260px]'>
+            <SelectTrigger className='w-[240px]'>
               <SelectValue placeholder='选择分站' />
             </SelectTrigger>
             <SelectContent>
@@ -136,106 +148,173 @@ export function ResellerPricingPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className='relative'>
+            <Search className='absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+            <Input
+              placeholder='搜索套餐名...'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className='h-9 w-[200px] pl-8'
+            />
+          </div>
+          {plans.length > 0 && (
+            <div className='ms-auto flex gap-2'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() =>
+                  setExpanded(
+                    Object.fromEntries(plans.map((p) => [p.id, true]))
+                  )
+                }
+              >
+                全部展开
+              </Button>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => setExpanded({})}
+              >
+                全部折叠
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1'>
-          <div className='overflow-hidden rounded-md border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>套餐</TableHead>
-                  <TableHead className='w-[90px]'>周期</TableHead>
-                  <TableHead className='w-[100px]'>主站价</TableHead>
-                  <TableHead className='w-[140px]'>底价（元）</TableHead>
-                  <TableHead className='w-[100px]'>零售价</TableHead>
-                  <TableHead className='w-[80px]'>上架</TableHead>
-                  <TableHead className='w-[90px] text-end'>操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length > 0 ? (
-                  rows.map(({ plan, period }) => {
-                    const key = `${plan.id}:${period.period}`
-                    const edit = edits[key] ?? { floor: '', enabled: false }
-                    return (
-                      <TableRow key={key}>
-                        <TableCell>
-                          <span className='font-medium'>{plan.name}</span>
-                          {plan.exclusive && (
-                            <Badge variant='secondary' className='ml-2'>
-                              专属
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {PERIOD_LABELS[period.period] ?? period.period}
-                        </TableCell>
-                        <TableCell className='font-mono text-xs text-muted-foreground'>
-                          ¥{yuan(period.main_price)}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type='number'
-                            min='0'
-                            step='0.01'
-                            value={edit.floor}
-                            onChange={(e) =>
-                              setEdits((prev) => ({
-                                ...prev,
-                                [key]: { ...edit, floor: e.target.value },
-                              }))
+          {plans.length > 0 ? (
+            <div className='space-y-2'>
+              {plans.map((plan) => {
+                const open = !!expanded[plan.id]
+                return (
+                  <div key={plan.id} className='overflow-hidden rounded-md border'>
+                    <button
+                      type='button'
+                      onClick={() => toggle(plan.id)}
+                      className='flex w-full items-center justify-between bg-muted/30 px-4 py-3 hover:bg-muted/50'
+                    >
+                      <span className='flex items-center gap-2'>
+                        {open ? (
+                          <ChevronDown className='h-4 w-4' />
+                        ) : (
+                          <ChevronRight className='h-4 w-4' />
+                        )}
+                        <span className='font-medium'>{plan.name}</span>
+                        {plan.exclusive && (
+                          <Badge variant='secondary'>专属</Badge>
+                        )}
+                      </span>
+                      <span className='text-xs text-muted-foreground'>
+                        {enabledCount(plan)}/{plan.periods.length} 上架 ·{' '}
+                        {plan.periods.length} 个周期
+                      </span>
+                    </button>
+
+                    {open && (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className='w-[110px]'>周期</TableHead>
+                            <TableHead className='w-[110px]'>主站价</TableHead>
+                            <TableHead className='w-[150px]'>底价（元）</TableHead>
+                            <TableHead className='w-[110px]'>零售价</TableHead>
+                            <TableHead className='w-[80px]'>上架</TableHead>
+                            <TableHead className='w-[90px] text-end'>
+                              操作
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {plan.periods.map((period) => {
+                            const key = `${plan.id}:${period.period}`
+                            const edit = edits[key] ?? {
+                              floor: '',
+                              enabled: false,
                             }
-                            className='h-8 w-28 font-mono'
-                            placeholder='底价'
-                          />
-                        </TableCell>
-                        <TableCell className='font-mono text-xs'>
-                          ¥{yuan(period.retail_price)}
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={edit.enabled}
-                            onCheckedChange={(v) =>
-                              setEdits((prev) => ({
-                                ...prev,
-                                [key]: { ...edit, enabled: v },
-                              }))
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className='text-end'>
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            disabled={saveMutation.isPending || edit.floor === ''}
-                            onClick={() =>
-                              saveMutation.mutate({
-                                site_id: siteId as number,
-                                plan_id: plan.id,
-                                period: period.period,
-                                floor_price: Math.round(
-                                  Number(edit.floor) * 100
-                                ),
-                                enabled: edit.enabled,
-                              })
-                            }
-                          >
-                            保存
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className='h-24 text-center'>
-                      {siteId == null ? '请先选择分站' : '该分站暂无可定价套餐'}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                            return (
+                              <TableRow key={key}>
+                                <TableCell>
+                                  {PERIOD_LABELS[period.period] ??
+                                    period.period}
+                                </TableCell>
+                                <TableCell className='font-mono text-xs text-muted-foreground'>
+                                  ¥{yuan(period.main_price)}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type='number'
+                                    min='0'
+                                    step='0.01'
+                                    value={edit.floor}
+                                    onChange={(e) =>
+                                      setEdits((prev) => ({
+                                        ...prev,
+                                        [key]: {
+                                          ...edit,
+                                          floor: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    className='h-8 w-28 font-mono'
+                                    placeholder='底价'
+                                  />
+                                </TableCell>
+                                <TableCell className='font-mono text-xs'>
+                                  ¥{yuan(period.retail_price)}
+                                </TableCell>
+                                <TableCell>
+                                  <Switch
+                                    checked={edit.enabled}
+                                    onCheckedChange={(v) =>
+                                      setEdits((prev) => ({
+                                        ...prev,
+                                        [key]: { ...edit, enabled: v },
+                                      }))
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className='text-end'>
+                                  <Button
+                                    size='sm'
+                                    variant='outline'
+                                    disabled={
+                                      saveMutation.isPending ||
+                                      edit.floor === ''
+                                    }
+                                    onClick={() =>
+                                      saveMutation.mutate({
+                                        site_id: siteId as number,
+                                        plan_id: plan.id,
+                                        period: period.period,
+                                        floor_price: Math.round(
+                                          Number(edit.floor) * 100
+                                        ),
+                                        enabled: edit.enabled,
+                                      })
+                                    }
+                                  >
+                                    保存
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className='rounded-md border py-16 text-center text-muted-foreground'>
+              {siteId == null
+                ? '请先选择分站'
+                : search
+                  ? '没有匹配的套餐'
+                  : '该分站暂无可定价套餐'}
+            </div>
+          )}
         </div>
       </Main>
     </>
