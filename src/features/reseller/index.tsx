@@ -27,12 +27,14 @@ import {
   fetchResellerSites,
   toggleResellerSite,
 } from './api'
+import { DomainManageDialog } from './components/domain-manage-dialog'
 import { ResellerMutateDialog } from './components/reseller-mutate-dialog'
 
 export function ResellerPage() {
   const queryClient = useQueryClient()
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<ResellerSite | null>(null)
+  const [domainSite, setDomainSite] = useState<ResellerSite | null>(null)
   const [deleting, setDeleting] = useState<ResellerSite | null>(null)
   const [search, setSearch] = useState('')
 
@@ -135,7 +137,7 @@ export function ResellerPage() {
                     <TableHead>站长</TableHead>
                     <TableHead className='w-[80px] text-center'>用户</TableHead>
                     <TableHead className='w-[80px] text-center'>订单</TableHead>
-                    <TableHead className='w-[100px] text-end'>操作</TableHead>
+                    <TableHead className='w-[130px] text-end'>操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -161,6 +163,14 @@ export function ResellerPage() {
                             <span className='flex items-center gap-1 font-mono text-xs'>
                               <Globe className='h-3 w-3 text-muted-foreground' />
                               {s.domain}
+                              {s.aliases?.length > 0 && (
+                                <Badge
+                                  variant='secondary'
+                                  className='ml-1 h-4 px-1 font-mono text-[10px]'
+                                >
+                                  +{s.aliases.length}
+                                </Badge>
+                              )}
                             </span>
                           ) : (
                             <span className='text-xs text-muted-foreground'>
@@ -181,6 +191,15 @@ export function ResellerPage() {
                         </TableCell>
                         <TableCell className='text-end'>
                           <div className='flex items-center justify-end space-x-2'>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              className='h-8 w-8 hover:bg-muted'
+                              onClick={() => setDomainSite(s)}
+                            >
+                              <Globe className='h-4 w-4 text-muted-foreground hover:text-foreground' />
+                              <span className='sr-only'>域名管理</span>
+                            </Button>
                             <Button
                               variant='ghost'
                               size='icon'
@@ -224,6 +243,12 @@ export function ResellerPage() {
         open={mutateOpen}
         onOpenChange={setMutateOpen}
         current={current}
+      />
+
+      <DomainManageDialog
+        open={!!domainSite}
+        onOpenChange={(o) => !o && setDomainSite(null)}
+        site={domainSite}
       />
 
       <ConfirmDialog

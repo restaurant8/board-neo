@@ -10,6 +10,12 @@ export type ResellerBrand = {
   docs_url?: string
 }
 
+export type ResellerAlias = {
+  id: number
+  domain: string
+  created_at?: number
+}
+
 export type ResellerSite = {
   id: number
   name: string
@@ -18,6 +24,7 @@ export type ResellerSite = {
   owner_user_id: number
   owner_email: string | null
   brand: ResellerBrand | null
+  aliases: ResellerAlias[]
   user_count: number
   order_count: number
   created_at: number
@@ -52,6 +59,24 @@ export function toggleResellerSite(id: number) {
 /** POST /reseller/drop — delete site. */
 export function dropResellerSite(id: number) {
   return post<boolean>('/reseller/drop', { id })
+}
+
+/** GET /reseller/domains?site_id= — 某分站的额外域名别名列表。 */
+export function fetchResellerDomains(siteId: number) {
+  return get<ResellerAlias[]>('/reseller/domains', { site_id: siteId })
+}
+
+/** POST /reseller/domains/add — 给分站新增一个域名别名。 */
+export function addResellerDomain(siteId: number, domain: string) {
+  return post<ResellerAlias>('/reseller/domains/add', {
+    site_id: siteId,
+    domain,
+  })
+}
+
+/** POST /reseller/domains/drop — 删除一个域名别名。 */
+export function dropResellerDomain(id: number) {
+  return post<boolean>('/reseller/domains/drop', { id })
 }
 
 export type ResellerApplication = {
