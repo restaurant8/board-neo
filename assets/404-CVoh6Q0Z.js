@@ -1,0 +1,1 @@
+import{N as e}from"./index-CcVorl_d.js";var t=e;export{t as component};

@@ -1,1 +1,0 @@
-import{P as e}from"./index-8_-NUSxl.js";var t=e;export{t as component};
