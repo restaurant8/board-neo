@@ -130,6 +130,21 @@ export function getOrdersColumns(
       },
     },
     {
+      id: 'site',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title='来源' />
+      ),
+      enableSorting: false,
+      cell: ({ row }) => {
+        const name = row.original.site_name
+        return name ? (
+          <Badge variant='secondary'>{name}</Badge>
+        ) : (
+          <Badge variant='outline'>主站</Badge>
+        )
+      },
+    },
+    {
       accessorKey: 'period',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='周期' />

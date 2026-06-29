@@ -90,6 +90,8 @@ export type Order = {
   created_at: number
   updated_at: number
   plan?: PlanBrief | null
+  /** 订单来源：null=主站，否则为分站名 */
+  site_name?: string | null
 }
 
 export type OrderUser = {
