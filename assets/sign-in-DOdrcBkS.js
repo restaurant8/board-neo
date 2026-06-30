@@ -1,1 +1,0 @@
-import{r as e}from"./chunk-QTnfLwEv.js";import{t}from"./dist-qP-FjcbV.js";import{t as n}from"./jsx-runtime-DsKLSDJq.js";import{t as r}from"./skeleton-D9YWSmXs.js";var i=e(n()),a=()=>(0,i.jsx)(t,{initialValues:{emailAddress:`your_mail+shadcn_admin@gmail.com`},fallback:(0,i.jsx)(r,{className:`h-120 w-100`})});export{a as component};
