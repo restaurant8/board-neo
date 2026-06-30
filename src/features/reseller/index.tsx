@@ -255,7 +255,7 @@ export function ResellerPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title='删除确认'
-        desc='确定要删除该分站吗？已归属用户/订单的归属记录将保留，但该分站的域名绑定与品牌将失效。此操作无法撤销。'
+        desc='确定要删除该分站吗？该分站下的用户将转为主站用户（套餐/订阅/账号不受影响），域名绑定与品牌将失效；历史订单/结算记录保留。此操作无法撤销。'
         confirmText='删除'
         destructive
         isLoading={dropMutation.isPending}
