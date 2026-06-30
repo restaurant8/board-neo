@@ -29,6 +29,8 @@ export function ResellerTiersPage() {
   const [tiers, setTiers] = useState<ResellerTier[]>([])
   const [cooldown, setCooldown] = useState('2')
   const [baseDomain, setBaseDomain] = useState('')
+  const [deposit, setDeposit] = useState('0')
+  const [requirePlan, setRequirePlan] = useState(false)
 
   const { data } = useQuery({
     queryKey: ['reseller-tiers'],
@@ -39,11 +41,19 @@ export function ResellerTiersPage() {
     if (data?.tiers) setTiers(data.tiers)
     if (data?.cooldown_days != null) setCooldown(String(data.cooldown_days))
     if (data?.base_domain != null) setBaseDomain(data.base_domain)
+    if (data?.apply_deposit != null) setDeposit(String(data.apply_deposit / 100))
+    if (data?.require_active_plan != null) setRequirePlan(data.require_active_plan)
   }, [data])
 
   const saveMutation = useMutation({
     mutationFn: (t: ResellerTier[]) =>
-      saveResellerTiers(t, Number(cooldown), baseDomain.trim()),
+      saveResellerTiers(
+        t,
+        Number(cooldown),
+        baseDomain.trim(),
+        Number(deposit) || 0,
+        requirePlan
+      ),
     onSuccess: () => {
       toast.success('已保存')
       queryClient.invalidateQueries({ queryKey: ['reseller-tiers'] })
@@ -80,6 +90,35 @@ export function ResellerTiersPage() {
         </div>
 
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1'>
+          <div className='mb-4 rounded-lg border p-4'>
+            <div className='mb-2 text-sm font-medium'>申请门槛</div>
+            <div className='mb-3'>
+              <div className='mb-1 text-xs text-muted-foreground'>
+                押金（元，0 = 不收）：审批<strong>通过时</strong>从申请人余额扣除并由平台暂存；余额不足无法通过。
+              </div>
+              <Input
+                type='number'
+                min='0'
+                step='0.01'
+                value={deposit}
+                onChange={(e) => setDeposit(e.target.value)}
+                className='h-8 w-40 font-mono'
+                placeholder='0'
+              />
+            </div>
+            <label className='flex items-center gap-2 text-sm'>
+              <input
+                type='checkbox'
+                checked={requirePlan}
+                onChange={(e) => setRequirePlan(e.target.checked)}
+                className='h-4 w-4'
+              />
+              <span>
+                需有<strong>未过期套餐</strong>才能看到/申请分站功能（用户当前有套餐且未到期）
+              </span>
+            </label>
+          </div>
+
           <div className='mb-4 rounded-lg border p-4'>
             <div className='mb-1 text-sm font-medium'>泛域名根域（自助开站）</div>
             <p className='mb-2 text-xs text-muted-foreground'>
