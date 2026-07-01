@@ -73,19 +73,30 @@ export function ResellerPricingPage() {
     enabled: siteId != null,
   })
 
-  // 拉到新数据时重置编辑缓冲
+  // 切换分站时清空编辑缓冲（换站点才整体重置）
+  useEffect(() => {
+    setEdits({})
+  }, [siteId])
+
+  // 拉到数据时，只为「尚未编辑过」的行填充服务器值；已在编辑/刚保存的行保持本地值，
+  // 避免保存一行后 refetch 把其它未保存行的开关/底价刷回去。
   useEffect(() => {
     if (!pricing) return
-    const next: Record<string, { floor: string; enabled: boolean }> = {}
-    pricing.plans.forEach((p) =>
-      p.periods.forEach((pe) => {
-        next[`${p.id}:${pe.period}`] = {
-          floor: pe.floor_price == null ? '' : String(pe.floor_price / 100),
-          enabled: pe.enabled,
-        }
-      })
-    )
-    setEdits(next)
+    setEdits((prev) => {
+      const next = { ...prev }
+      pricing.plans.forEach((p) =>
+        p.periods.forEach((pe) => {
+          const key = `${p.id}:${pe.period}`
+          if (!(key in next)) {
+            next[key] = {
+              floor: pe.floor_price == null ? '' : String(pe.floor_price / 100),
+              enabled: pe.enabled,
+            }
+          }
+        })
+      )
+      return next
+    })
   }, [pricing])
 
   const saveMutation = useMutation({
@@ -250,7 +261,7 @@ export function ResellerPricingPage() {
                                       setEdits((prev) => ({
                                         ...prev,
                                         [key]: {
-                                          ...edit,
+                                          ...(prev[key] ?? edit),
                                           floor: e.target.value,
                                         },
                                       }))
@@ -268,7 +279,7 @@ export function ResellerPricingPage() {
                                     onCheckedChange={(v) =>
                                       setEdits((prev) => ({
                                         ...prev,
-                                        [key]: { ...edit, enabled: v },
+                                        [key]: { ...(prev[key] ?? edit), enabled: v },
                                       }))
                                     }
                                   />
