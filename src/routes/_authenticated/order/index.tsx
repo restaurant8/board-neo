@@ -9,6 +9,8 @@ const searchSchema = z.object({
   pageSize: z.number().optional(),
   /** 订单号搜索（trade_no like）。 */
   trade_no: z.string().optional(),
+  /** 「TA的订单」跳转：按用户过滤，值形如 "eq:123"。 */
+  user_id: z.string().optional(),
   /** 类型多选（值为 type 数字字符串）。 */
   type: z.array(z.string()).optional(),
   /** 周期多选（值为旧版周期键，如 month_price）。 */

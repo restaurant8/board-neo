@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
@@ -67,8 +67,6 @@ import { UserGenerateDialog } from './components/user-generate-dialog'
 import { UserSendMailDialog } from './components/user-send-mail-dialog'
 import { UsageRecordsDialog } from './components/usage-records-dialog'
 import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
-import { UserOrdersSheet } from './components/user-orders-sheet'
-import { UserInvitesSheet } from './components/user-invites-sheet'
 import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   UserAdvancedFilter,
@@ -86,8 +84,11 @@ const route = getRouteApi('/_authenticated/user/')
 export function UserPage() {
   const queryClient = useQueryClient()
 
+  const navigate = useNavigate()
+
   // 从其他页面（如订单详情）跳转时携带的邮箱，作为快速搜索的初始值
-  const { email: emailFromUrl } = route.useSearch()
+  const { email: emailFromUrl, invite_user_id: inviteUserId } =
+    route.useSearch()
 
   // 快速搜索（邮箱）
   const [emailInput, setEmailInput] = useState(emailFromUrl ?? '')
@@ -167,8 +168,6 @@ export function UserPage() {
   const [deleting, setDeleting] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
-  const [ordersTarget, setOrdersTarget] = useState<User | null>(null)
-  const [invitesTarget, setInvitesTarget] = useState<User | null>(null)
   const [trafficTarget, setTrafficTarget] = useState<User | null>(null)
   const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(null)
   // 批量封禁范围：'selected' | 'filtered' | 'all'
@@ -181,9 +180,11 @@ export function UserPage() {
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
     if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
+    if (inviteUserId != null)
+      f.push({ id: 'invite_user_id', value: `eq:${inviteUserId}` })
     f.push(...advancedFilter)
     return f
-  }, [appliedEmail, advancedFilter])
+  }, [appliedEmail, inviteUserId, advancedFilter])
 
   const hasFilter = filter.length > 0
 
@@ -391,6 +392,29 @@ export function UserPage() {
             </Button>
           )}
         </div>
+
+        {/* 「TA的邀请」跳转筛选提示（invite_user_id） */}
+        {inviteUserId != null && (
+          <div className='flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm'>
+            <Users className='size-4 text-muted-foreground' />
+            <span>
+              仅显示 邀请人 #{inviteUserId} 邀请的用户
+            </span>
+            <Button
+              variant='ghost'
+              size='sm'
+              className='ms-auto h-7'
+              onClick={() =>
+                navigate({
+                  to: '/user',
+                  search: (prev) => ({ ...prev, invite_user_id: undefined }),
+                })
+              }
+            >
+              <X className='size-4' /> 清除
+            </Button>
+          </div>
+        )}
 
         {/* 批量操作栏 */}
         <div className='flex flex-wrap items-center gap-2'>
@@ -726,12 +750,22 @@ export function UserPage() {
                               <RotateCw className='size-4' /> 重置UUID及订阅URL
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setOrdersTarget(u)}
+                              onClick={() =>
+                                navigate({
+                                  to: '/order',
+                                  search: { user_id: `eq:${u.id}` },
+                                })
+                              }
                             >
                               <FileText className='size-4' /> TA的订单
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setInvitesTarget(u)}
+                              onClick={() =>
+                                navigate({
+                                  to: '/user',
+                                  search: { invite_user_id: u.id },
+                                })
+                              }
                             >
                               <Users className='size-4' /> TA的邀请
                             </DropdownMenuItem>
@@ -814,16 +848,6 @@ export function UserPage() {
         open={!!assignTarget}
         onOpenChange={(o) => !o && setAssignTarget(null)}
         email={assignTarget?.email}
-      />
-      <UserOrdersSheet
-        open={!!ordersTarget}
-        onOpenChange={(o) => !o && setOrdersTarget(null)}
-        user={ordersTarget}
-      />
-      <UserInvitesSheet
-        open={!!invitesTarget}
-        onOpenChange={(o) => !o && setInvitesTarget(null)}
-        user={invitesTarget}
       />
       <UserTrafficDialog
         open={!!trafficTarget}

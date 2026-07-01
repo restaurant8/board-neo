@@ -180,6 +180,8 @@ export type OrderSearch = {
   page?: number
   pageSize?: number
   trade_no?: string
+  /** 「TA的订单」跳转过滤，值形如 "eq:123"。 */
+  user_id?: string
   type?: string[]
   period?: string[]
   status?: string[]
@@ -259,6 +261,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
   }
 
   const hasFilter =
+    !!search.user_id ||
     tradeNo !== '' ||
     typeSel.length > 0 ||
     periodSel.length > 0 ||
@@ -271,6 +274,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
     navigate({
       search: (prev) => {
         const next = { ...(prev as OrderSearch) }
+        delete next.user_id
         delete next.trade_no
         delete next.type
         delete next.period
@@ -287,6 +291,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
 
   const filter = useMemo(() => {
     const f: Array<{ id: string; value: unknown }> = []
+    if (search.user_id) f.push({ id: 'user_id', value: search.user_id })
     if (tradeNo) f.push({ id: 'trade_no', value: tradeNo })
     if (typeSel.length) f.push({ id: 'type', value: typeSel.map(Number) })
     if (periodSel.length)
@@ -298,7 +303,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
     if (commissionSel.length)
       f.push({ id: 'commission_status', value: commissionSel.map(Number) })
     return f.length ? f : undefined
-  }, [tradeNo, typeSel, periodSel, statusSel, commissionSel])
+  }, [search.user_id, tradeNo, typeSel, periodSel, statusSel, commissionSel])
 
   const sort = useMemo(
     () => (sorting.length ? sorting.map((s) => ({ id: s.id, desc: s.desc })) : undefined),
@@ -310,6 +315,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
       'orders',
       page,
       pageSize,
+      search.user_id,
       tradeNo,
       typeSel,
       periodSel,
