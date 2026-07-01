@@ -1,1 +1,0 @@
-import{t as e}from"./forbidden-d8e-dcf8.js";var t=e;export{t as component};
