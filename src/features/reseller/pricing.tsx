@@ -99,10 +99,53 @@ export function ResellerPricingPage() {
     })
   }, [pricing])
 
-  const saveMutation = useMutation({
-    mutationFn: saveResellerPrice,
+  // 服务器原值，用于判断哪些行改动过（脏）
+  const originalMap = useMemo(() => {
+    const m: Record<string, { floor: string; enabled: boolean }> = {}
+    pricing?.plans.forEach((p) =>
+      p.periods.forEach((pe) => {
+        m[`${p.id}:${pe.period}`] = {
+          floor: pe.floor_price == null ? '' : String(pe.floor_price / 100),
+          enabled: pe.enabled,
+        }
+      })
+    )
+    return m
+  }, [pricing])
+
+  const dirtyKeys = useMemo(
+    () =>
+      Object.keys(edits).filter((key) => {
+        const e = edits[key]
+        if (!e || e.floor === '') return false // 无底价不可保存
+        const o = originalMap[key]
+        if (!o) return true
+        return e.floor !== o.floor || e.enabled !== o.enabled
+      }),
+    [edits, originalMap]
+  )
+
+  // 整页一次性保存所有改动过的行（批量）
+  const saveAllMutation = useMutation({
+    mutationFn: async () => {
+      await Promise.all(
+        dirtyKeys.map((key) => {
+          const i = key.indexOf(':')
+          const planId = Number(key.slice(0, i))
+          const period = key.slice(i + 1)
+          const e = edits[key]
+          return saveResellerPrice({
+            site_id: siteId as number,
+            plan_id: planId,
+            period,
+            floor_price: Math.round(Number(e.floor) * 100),
+            enabled: e.enabled,
+          })
+        })
+      )
+    },
     onSuccess: () => {
-      toast.success('已保存')
+      toast.success(`已保存 ${dirtyKeys.length} 项`)
       queryClient.invalidateQueries({ queryKey: ['reseller-prices', siteId] })
     },
     onError: handleServerError,
@@ -169,7 +212,7 @@ export function ResellerPricingPage() {
             />
           </div>
           {plans.length > 0 && (
-            <div className='ms-auto flex gap-2'>
+            <div className='ms-auto flex items-center gap-2'>
               <Button
                 variant='ghost'
                 size='sm'
@@ -187,6 +230,14 @@ export function ResellerPricingPage() {
                 onClick={() => setExpanded({})}
               >
                 全部折叠
+              </Button>
+              <Button
+                size='sm'
+                disabled={dirtyKeys.length === 0 || saveAllMutation.isPending}
+                onClick={() => saveAllMutation.mutate()}
+              >
+                保存
+                {dirtyKeys.length > 0 ? ` (${dirtyKeys.length})` : ''}
               </Button>
             </div>
           )}
@@ -230,9 +281,6 @@ export function ResellerPricingPage() {
                             <TableHead className='w-[150px]'>底价（元）</TableHead>
                             <TableHead className='w-[110px]'>零售价</TableHead>
                             <TableHead className='w-[80px]'>上架</TableHead>
-                            <TableHead className='w-[90px] text-end'>
-                              操作
-                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -283,29 +331,6 @@ export function ResellerPricingPage() {
                                       }))
                                     }
                                   />
-                                </TableCell>
-                                <TableCell className='text-end'>
-                                  <Button
-                                    size='sm'
-                                    variant='outline'
-                                    disabled={
-                                      saveMutation.isPending ||
-                                      edit.floor === ''
-                                    }
-                                    onClick={() =>
-                                      saveMutation.mutate({
-                                        site_id: siteId as number,
-                                        plan_id: plan.id,
-                                        period: period.period,
-                                        floor_price: Math.round(
-                                          Number(edit.floor) * 100
-                                        ),
-                                        enabled: edit.enabled,
-                                      })
-                                    }
-                                  >
-                                    保存
-                                  </Button>
                                 </TableCell>
                               </TableRow>
                             )
