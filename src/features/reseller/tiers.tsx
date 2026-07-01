@@ -32,6 +32,7 @@ export function ResellerTiersPage() {
   const [deposit, setDeposit] = useState('0')
   const [requirePlan, setRequirePlan] = useState(false)
   const [refundThreshold, setRefundThreshold] = useState('2000')
+  const [enabled, setEnabled] = useState(true)
 
   const { data } = useQuery({
     queryKey: ['reseller-tiers'],
@@ -46,6 +47,7 @@ export function ResellerTiersPage() {
     if (data?.require_active_plan != null) setRequirePlan(data.require_active_plan)
     if (data?.deposit_refund_threshold != null)
       setRefundThreshold(String(data.deposit_refund_threshold / 100))
+    if (data?.reseller_enabled != null) setEnabled(data.reseller_enabled)
   }, [data])
 
   const saveMutation = useMutation({
@@ -56,7 +58,8 @@ export function ResellerTiersPage() {
         baseDomain.trim(),
         Number(deposit) || 0,
         requirePlan,
-        Number(refundThreshold) || 0
+        Number(refundThreshold) || 0,
+        enabled
       ),
     onSuccess: () => {
       toast.success('已保存')
@@ -94,6 +97,21 @@ export function ResellerTiersPage() {
         </div>
 
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1'>
+          <div className='mb-4 rounded-lg border p-4'>
+            <label className='flex items-center gap-2 text-sm font-medium'>
+              <input
+                type='checkbox'
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className='h-4 w-4'
+              />
+              <span>开启分站功能（总开关）</span>
+            </label>
+            <p className='mt-1 text-xs text-muted-foreground'>
+              关闭后：普通用户<strong>看不到、不能申请</strong>分站；<strong>已是站长的用户不受影响</strong>，仍可管理其分站。
+            </p>
+          </div>
+
           <div className='mb-4 rounded-lg border p-4'>
             <div className='mb-2 text-sm font-medium'>申请门槛</div>
             <div className='mb-3'>

@@ -223,6 +223,7 @@ export function fetchResellerTiers() {
     apply_deposit: number
     require_active_plan: boolean
     deposit_refund_threshold: number
+    reseller_enabled: boolean
   }>('/reseller/tiers')
 }
 
@@ -233,7 +234,8 @@ export function saveResellerTiers(
   baseDomain: string,
   applyDepositYuan: number,
   requireActivePlan: boolean,
-  depositRefundThresholdYuan: number
+  depositRefundThresholdYuan: number,
+  resellerEnabled: boolean
 ) {
   return post<boolean>('/reseller/tiers/save', {
     tiers,
@@ -242,5 +244,6 @@ export function saveResellerTiers(
     apply_deposit: applyDepositYuan,
     require_active_plan: requireActivePlan,
     deposit_refund_threshold: depositRefundThresholdYuan,
+    reseller_enabled: resellerEnabled,
   })
 }
