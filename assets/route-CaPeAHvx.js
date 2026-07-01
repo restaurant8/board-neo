@@ -1,1 +1,0 @@
-import{t as e}from"./authenticated-layout-MwnsfmLj.js";var t=e;export{t as component};
