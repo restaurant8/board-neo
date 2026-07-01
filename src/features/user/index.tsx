@@ -311,6 +311,11 @@ export function UserPage() {
     }
   }
 
+  const openUsageForUser = (u: User) => {
+    setUsagePrefill(u.email)
+    setUsageOpen(true)
+  }
+
   const copyUrl = (u: User) => {
     if (!u.subscribe_url) {
       toast.error('暂无订阅地址')
@@ -773,6 +778,11 @@ export function UserPage() {
                               onClick={() => setTrafficTarget(u)}
                             >
                               <Clock className='size-4' /> TA的流量记录
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openUsageForUser(u)}
+                            >
+                              <ScrollText className='size-4' /> 使用记录
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setResetTrafficTarget(u)}
