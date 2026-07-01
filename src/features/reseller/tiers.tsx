@@ -31,6 +31,7 @@ export function ResellerTiersPage() {
   const [baseDomain, setBaseDomain] = useState('')
   const [deposit, setDeposit] = useState('0')
   const [requirePlan, setRequirePlan] = useState(false)
+  const [refundThreshold, setRefundThreshold] = useState('2000')
 
   const { data } = useQuery({
     queryKey: ['reseller-tiers'],
@@ -43,6 +44,8 @@ export function ResellerTiersPage() {
     if (data?.base_domain != null) setBaseDomain(data.base_domain)
     if (data?.apply_deposit != null) setDeposit(String(data.apply_deposit / 100))
     if (data?.require_active_plan != null) setRequirePlan(data.require_active_plan)
+    if (data?.deposit_refund_threshold != null)
+      setRefundThreshold(String(data.deposit_refund_threshold / 100))
   }, [data])
 
   const saveMutation = useMutation({
@@ -52,7 +55,8 @@ export function ResellerTiersPage() {
         Number(cooldown),
         baseDomain.trim(),
         Number(deposit) || 0,
-        requirePlan
+        requirePlan,
+        Number(refundThreshold) || 0
       ),
     onSuccess: () => {
       toast.success('已保存')
@@ -104,6 +108,20 @@ export function ResellerTiersPage() {
                 onChange={(e) => setDeposit(e.target.value)}
                 className='h-8 w-40 font-mono'
                 placeholder='0'
+              />
+            </div>
+            <div className='mb-3'>
+              <div className='mb-1 text-xs text-muted-foreground'>
+                押金退还门槛（元，规则展示用）：分站<strong>营业额 ≥ 此值</strong>才可退押金，未达标<strong>不退（没收）</strong>。此值会展示给申请人；<strong>退款由管理员手动操作</strong>（不自动退）。
+              </div>
+              <Input
+                type='number'
+                min='0'
+                step='0.01'
+                value={refundThreshold}
+                onChange={(e) => setRefundThreshold(e.target.value)}
+                className='h-8 w-40 font-mono'
+                placeholder='2000'
               />
             </div>
             <label className='flex items-center gap-2 text-sm'>

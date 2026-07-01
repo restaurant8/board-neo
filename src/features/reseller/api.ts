@@ -222,16 +222,18 @@ export function fetchResellerTiers() {
     base_domain: string
     apply_deposit: number
     require_active_plan: boolean
+    deposit_refund_threshold: number
   }>('/reseller/tiers')
 }
 
-/** POST /reseller/tiers/save — 保存上述全部设置。apply_deposit 单位为元。 */
+/** POST /reseller/tiers/save — 保存上述全部设置。金额单位为元。 */
 export function saveResellerTiers(
   tiers: ResellerTier[],
   cooldownDays: number,
   baseDomain: string,
   applyDepositYuan: number,
-  requireActivePlan: boolean
+  requireActivePlan: boolean,
+  depositRefundThresholdYuan: number
 ) {
   return post<boolean>('/reseller/tiers/save', {
     tiers,
@@ -239,5 +241,6 @@ export function saveResellerTiers(
     base_domain: baseDomain,
     apply_deposit: applyDepositYuan,
     require_active_plan: requireActivePlan,
+    deposit_refund_threshold: depositRefundThresholdYuan,
   })
 }
