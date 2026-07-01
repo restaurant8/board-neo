@@ -162,6 +162,27 @@ export function ResellerPricingPage() {
   const toggle = (id: number) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }))
 
+  // 一键把该套餐所有周期的底价填成主站价（保留上架开关，等整页保存）
+  const fillFloorFromMain = (plan: ResellerPricePlan) => {
+    let filled = 0
+    setEdits((prev) => {
+      const next = { ...prev }
+      plan.periods.forEach((pe) => {
+        if (pe.main_price == null) return
+        const key = `${plan.id}:${pe.period}`
+        next[key] = {
+          ...(next[key] ?? { floor: '', enabled: false }),
+          floor: String(pe.main_price / 100),
+        }
+        filled++
+      })
+      return next
+    })
+    toast.success(
+      filled > 0 ? `已填入 ${filled} 个周期的主站价，记得保存` : '该套餐无主站价可填'
+    )
+  }
+
   const enabledCount = (p: ResellerPricePlan) =>
     p.periods.filter((pe) => edits[`${p.id}:${pe.period}`]?.enabled).length
 
@@ -250,27 +271,35 @@ export function ResellerPricingPage() {
                 const open = !!expanded[plan.id]
                 return (
                   <div key={plan.id} className='overflow-hidden rounded-md border'>
-                    <button
-                      type='button'
-                      onClick={() => toggle(plan.id)}
-                      className='flex w-full items-center justify-between bg-muted/30 px-4 py-3 hover:bg-muted/50'
-                    >
-                      <span className='flex items-center gap-2'>
+                    <div className='flex w-full items-center justify-between gap-2 bg-muted/30 px-4 py-3'>
+                      <button
+                        type='button'
+                        onClick={() => toggle(plan.id)}
+                        className='flex flex-1 items-center gap-2 text-left hover:opacity-80'
+                      >
                         {open ? (
-                          <ChevronDown className='h-4 w-4' />
+                          <ChevronDown className='h-4 w-4 shrink-0' />
                         ) : (
-                          <ChevronRight className='h-4 w-4' />
+                          <ChevronRight className='h-4 w-4 shrink-0' />
                         )}
                         <span className='font-medium'>{plan.name}</span>
                         {plan.exclusive && (
                           <Badge variant='secondary'>专属</Badge>
                         )}
-                      </span>
-                      <span className='text-xs text-muted-foreground'>
+                      </button>
+                      <span className='hidden text-xs text-muted-foreground sm:inline'>
                         {enabledCount(plan)}/{plan.periods.length} 上架 ·{' '}
                         {plan.periods.length} 个周期
                       </span>
-                    </button>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='shrink-0'
+                        onClick={() => fillFloorFromMain(plan)}
+                      >
+                        底价填主站价
+                      </Button>
+                    </div>
 
                     {open && (
                       <Table>
