@@ -1,1 +1,0 @@
-import{r as e}from"./chunk-QTnfLwEv.js";import{t}from"./jsx-runtime-DsKLSDJq.js";import{t as n}from"./utils-DcvWiZNG.js";var r=e(t(),1);function i({fixed:e,className:t,fluid:i,...a}){return(0,r.jsx)(`main`,{"data-layout":e?`fixed`:`auto`,className:n(`px-4 py-6`,e&&`flex grow flex-col overflow-hidden`,!i&&`mx-auto w-full`,t),...a})}export{i as t};

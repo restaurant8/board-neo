@@ -1,0 +1,1 @@
+import{P as e}from"./index-D1MXxLEn.js";var t=e;export{t as component};
