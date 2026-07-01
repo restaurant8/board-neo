@@ -1,0 +1,1 @@
+import{P as e}from"./index-DXaK-NDv.js";var t=e;export{t as component};

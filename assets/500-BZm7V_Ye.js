@@ -1,1 +1,0 @@
-import{P as e}from"./index-CXYco1Cx.js";var t=e;export{t as component};
