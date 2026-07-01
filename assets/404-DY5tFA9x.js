@@ -1,0 +1,1 @@
+import{N as e}from"./index-D6R_hkwj.js";var t=e;export{t as component};
