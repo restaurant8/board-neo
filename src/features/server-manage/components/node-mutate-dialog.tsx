@@ -483,10 +483,10 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
       const loadedPs = (current.protocol_settings ?? {}) as Dict
       setPs(loadedPs)
       setAdvanced({
-        // cert_config 实际嵌套在 protocol_settings 内（对齐原版/后端存储位置），
-        // 顶层 current.cert_config 仅作历史数据兜底。
-        cert_config: ((loadedPs.cert_config as Dict) ??
-          (current.cert_config as Dict) ??
+        // cert_config 是顶层字段（后端 Server.cert_config 列）；
+        // loadedPs.cert_config 仅兜底历史上误嵌进 protocol_settings 的数据。
+        cert_config: ((current.cert_config as Dict) ??
+          (loadedPs.cert_config as Dict) ??
           {}) as Dict,
         custom_outbounds: current.custom_outbounds ?? [],
         custom_routes: current.custom_routes ?? [],
@@ -558,8 +558,10 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         machine_id: base.machine_id ? Number(base.machine_id) : null,
         show: base.show ? 1 : 0,
         enabled: base.enabled,
-        // cert_config 嵌入 protocol_settings（对齐原版/后端存储位置）
-        protocol_settings: { ...ps, cert_config: advanced.cert_config },
+        // cert_config 是顶层字段（后端 ServerSave 只校验顶层 cert_config；
+        // 若嵌进 protocol_settings 会被 validated() 丢弃 → 保存无效）。
+        protocol_settings: ps,
+        cert_config: advanced.cert_config,
         custom_outbounds: advanced.custom_outbounds,
         custom_routes: advanced.custom_routes,
       })

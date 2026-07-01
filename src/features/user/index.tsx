@@ -6,20 +6,18 @@ import {
   ArrowUp,
   ArrowUpDown,
   Ban,
+  Clock,
   Copy,
   Download,
   FileText,
   Filter,
-  KeyRound,
   Mail,
   MoreHorizontal,
   Pencil,
   Plus,
-  RefreshCcw,
+  RotateCw,
   ScrollText,
   Search,
-  Share2,
-  ShoppingCart,
   Trash2,
   X,
   Users,
@@ -42,7 +40,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -64,7 +61,6 @@ import {
   fetchUsers,
   resetSecret,
   resetUserTraffic,
-  updateUser,
 } from './api'
 import { UserEditDialog } from './components/user-edit-dialog'
 import { UserGenerateDialog } from './components/user-generate-dialog'
@@ -73,7 +69,7 @@ import { UsageRecordsDialog } from './components/usage-records-dialog'
 import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
 import { UserOrdersSheet } from './components/user-orders-sheet'
 import { UserInvitesSheet } from './components/user-invites-sheet'
-import { UserTrafficSheet } from './components/user-traffic-sheet'
+import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   UserAdvancedFilter,
   type FilterCondition,
@@ -169,7 +165,6 @@ export function UserPage() {
   const [usageOpen, setUsageOpen] = useState(false)
   const [usagePrefill, setUsagePrefill] = useState<string | undefined>(undefined)
   const [deleting, setDeleting] = useState<User | null>(null)
-  const [banning, setBanning] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
   const [ordersTarget, setOrdersTarget] = useState<User | null>(null)
@@ -254,25 +249,6 @@ export function UserPage() {
     onError: handleServerError,
   })
 
-  const banMutation = useMutation({
-    mutationFn: (id: number) => banUsers({ scope: 'selected', user_ids: [id] }),
-    onSuccess: () => {
-      toast.success('已封禁')
-      setBanning(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
-    onError: handleServerError,
-  })
-
-  const unbanMutation = useMutation({
-    mutationFn: (id: number) => updateUser({ id, banned: false }),
-    onSuccess: () => {
-      toast.success('已解封')
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
-    onError: handleServerError,
-  })
-
   const batchBanMutation = useMutation({
     mutationFn: (scope: 'selected' | 'filtered' | 'all') =>
       banUsers({
@@ -332,11 +308,6 @@ export function UserPage() {
     } catch (e) {
       handleServerError(e)
     }
-  }
-
-  const openUsageForUser = (u: User) => {
-    setUsagePrefill(u.email)
-    setUsageOpen(true)
   }
 
   const copyUrl = (u: User) => {
@@ -744,17 +715,16 @@ export function UserPage() {
                             <DropdownMenuItem
                               onClick={() => setAssignTarget(u)}
                             >
-                              <ShoppingCart className='size-4' /> 分配订单
+                              <Plus className='size-4' /> 分配订单
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => copyUrl(u)}>
-                              <Share2 className='size-4' /> 复制订阅URL
+                              <Copy className='size-4' /> 复制订阅URL
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => resetMutation.mutate(u.id)}
                             >
-                              <KeyRound className='size-4' /> 重置UUID及订阅URL
+                              <RotateCw className='size-4' /> 重置UUID及订阅URL
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => setOrdersTarget(u)}
                             >
@@ -768,30 +738,13 @@ export function UserPage() {
                             <DropdownMenuItem
                               onClick={() => setTrafficTarget(u)}
                             >
-                              <ScrollText className='size-4' /> TA的流量记录
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openUsageForUser(u)}
-                            >
-                              <ScrollText className='size-4' /> 使用记录
+                              <Clock className='size-4' /> TA的流量记录
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setResetTrafficTarget(u)}
                             >
-                              <RefreshCcw className='size-4' /> 重置流量
+                              <RotateCw className='size-4' /> 重置流量
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {u.banned ? (
-                              <DropdownMenuItem
-                                onClick={() => unbanMutation.mutate(u.id)}
-                              >
-                                <Ban className='size-4' /> 解封
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => setBanning(u)}>
-                                <Ban className='size-4' /> 封禁
-                              </DropdownMenuItem>
-                            )}
                             <DropdownMenuItem
                               className='text-destructive'
                               onClick={() => setDeleting(u)}
@@ -872,7 +825,7 @@ export function UserPage() {
         onOpenChange={(o) => !o && setInvitesTarget(null)}
         user={invitesTarget}
       />
-      <UserTrafficSheet
+      <UserTrafficDialog
         open={!!trafficTarget}
         onOpenChange={(o) => !o && setTrafficTarget(null)}
         user={trafficTarget}
@@ -890,17 +843,6 @@ export function UserPage() {
           resetTrafficTarget &&
           resetTrafficMutation.mutate(resetTrafficTarget.id)
         }
-      />
-
-      <ConfirmDialog
-        open={!!banning}
-        onOpenChange={(o) => !o && setBanning(null)}
-        title='封禁用户'
-        desc={`确定封禁用户「${banning?.email}」吗？将强制其下线。`}
-        confirmText='封禁'
-        destructive
-        isLoading={banMutation.isPending}
-        handleConfirm={() => banning && banMutation.mutate(banning.id)}
       />
 
       <ConfirmDialog

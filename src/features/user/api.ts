@@ -350,10 +350,12 @@ export function fetchInvitedUsers(userId: number, current = 1, pageSize = 20) {
 export type StatUserRecord = {
   id: number
   user_id: number
-  /** 上行（字节）。 */
+  /** 上行（已按倍率计费的字节）。 */
   u: number
-  /** 下行（字节）。 */
+  /** 下行（已按倍率计费的字节）。 */
   d: number
+  /** 节点倍率（展示时 u/d 需除以它还原实际流量）。 */
+  server_rate: string | number
   /** 记录时间（秒级时间戳）。 */
   record_at: number
 }
@@ -373,6 +375,61 @@ export function fetchUserTraffic(userId: number, page = 1, pageSize = 20) {
     user_id: userId,
     page,
     pageSize,
+  })
+}
+
+// ----- 流量审计（StatController::getUserTrafficAudit）-----
+
+/** 单条聚合审计记录（按 用户+节点+目标 分组）。 */
+export type TrafficAuditRecord = {
+  user_id: number
+  user_email: string
+  server_id: number
+  server_type: string
+  server_name: string
+  mode: string
+  source_ip: string | null
+  category: string | null
+  main_domain: string | null
+  destination_ip: string | null
+  destination: string | null
+  destination_port: number
+  network: string | null
+  first_record_at: number
+  last_record_at: number
+  report_count: number
+  u: number
+  d: number
+  total: number
+}
+
+export type TrafficAuditParams = {
+  user_id?: number
+  start_time?: number
+  end_time?: number
+  destination?: string
+  order_by?: 'total' | 'u' | 'd'
+  order_dir?: 'asc' | 'desc'
+  page?: number
+  page_size?: number
+}
+
+/** getUserTrafficAudit 返回 { data: { list, total, page, page_size, summary, filters } }。 */
+export type TrafficAuditResult = {
+  data: {
+    list: TrafficAuditRecord[]
+    total: number
+    page: number
+    page_size: number
+    summary: { u: number; d: number; total: number }
+  }
+}
+
+/** GET /stat/getUserTrafficAudit — 按用户的连接目标审计（需后端 v2_user_traffic_audit 表）。 */
+export function fetchUserTrafficAudit(params: TrafficAuditParams) {
+  return get<TrafficAuditResult>('/stat/getUserTrafficAudit', {
+    ...params,
+    mode: 'all',
   })
 }
 

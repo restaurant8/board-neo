@@ -55,6 +55,33 @@ function str(obj: Record<string, unknown>, key: string): string {
   return v == null ? '' : String(v)
 }
 
+/**
+ * dns_env 在后端/原版里是对象（z.record(string)），但编辑用逐行 KEY=VALUE 文本。
+ * 载入时对象→文本；保存时文本→对象。避免直接 String(obj) 显示成 [object Object]。
+ */
+function dnsEnvToText(v: unknown): string {
+  if (v == null || v === '') return ''
+  if (typeof v === 'string') return v
+  if (typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>)
+      .map(([k, val]) => `${k}=${val ?? ''}`)
+      .join('\n')
+  }
+  return String(v)
+}
+function dnsEnvToObject(text: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const line of text.split('\n')) {
+    const s = line.trim()
+    if (!s) continue
+    const i = s.indexOf('=')
+    if (i === -1) continue
+    const k = s.slice(0, i).trim()
+    if (k) out[k] = s.slice(i + 1).trim()
+  }
+  return out
+}
+
 export function AdvancedConfigDialog({
   open,
   onOpenChange,
@@ -74,6 +101,8 @@ export function AdvancedConfigDialog({
       delete c.mode
     }
     if (c.cert_mode == null) c.cert_mode = 'none'
+    // dns_env 存储为对象，编辑用逐行文本
+    c.dns_env = dnsEnvToText(c.dns_env)
     setCert(c)
     setOutbounds(JSON.stringify(value.custom_outbounds ?? [], null, 2))
     setRoutes(JSON.stringify(value.custom_routes ?? [], null, 2))
@@ -104,7 +133,8 @@ export function AdvancedConfigDialog({
       return
     }
     onSave({
-      cert_config: cert,
+      // dns_env 回存为对象（后端/原版结构）
+      cert_config: { ...cert, dns_env: dnsEnvToObject(str(cert, 'dns_env')) },
       custom_outbounds: parsedOutbounds,
       custom_routes: parsedRoutes,
     })
