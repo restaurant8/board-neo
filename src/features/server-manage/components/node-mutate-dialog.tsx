@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Plus, Settings2, X } from 'lucide-react'
+import {
+  Check,
+  ChevronsUpDown,
+  KeyRound,
+  Plus,
+  RefreshCw,
+  Settings2,
+  X,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import nacl from 'tweetnacl'
 import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
 import { fetchConfig } from '@/features/config/api'
@@ -13,6 +22,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,6 +39,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -74,10 +96,9 @@ const ANYTLS_DEFAULT_PADDING = [
 const PROTOCOL_DEFAULTS: Record<ServerType, Record<string, unknown>> = {
   shadowsocks: {
     cipher: 'aes-128-gcm',
-    obfs: '',
-    obfs_settings: { path: '', host: '' },
     plugin: '',
     plugin_opts: '',
+    client_fingerprint: '',
   },
   vmess: {
     tls: 0,
@@ -161,13 +182,68 @@ const TLS_SETTINGS_TYPES: ServerType[] = [
 /** 走对象式 tls（SNI / allow_insecure / ech 在 tls.*）。 */
 const TLS_OBJECT_TYPES: ServerType[] = ['hysteria', 'tuic', 'anytls']
 
+/** shadowsocks 预设加密方式（对齐原版 config.ciphers）。 */
 const SS_CIPHERS = [
   'aes-128-gcm',
+  'aes-192-gcm',
   'aes-256-gcm',
   'chacha20-ietf-poly1305',
   '2022-blake3-aes-128-gcm',
   '2022-blake3-aes-256-gcm',
   '2022-blake3-chacha20-poly1305',
+]
+/** shadowsocks 插件（对齐原版 config.plugins）。none 对应「不使用插件」。 */
+const SS_PLUGINS = [
+  { value: 'none', label: 'None' },
+  { value: 'obfs', label: 'Simple Obfs' },
+  { value: 'v2ray-plugin', label: 'V2Ray Plugin' },
+  { value: 'gost-plugin', label: 'Gost Plugin' },
+  { value: 'shadow-tls', label: 'Shadow TLS' },
+  { value: 'restls', label: 'ResTLS' },
+  { value: 'kcptun', label: 'KCPTun' },
+]
+/** 各插件的配置提示（对齐原版 dynamic_form.shadowsocks.plugin.*_hint）。 */
+const SS_PLUGIN_HINTS: Record<string, string> = {
+  obfs: '提示：配置格式如 obfs=http;obfs-host=www.bing.com;path=/',
+  'v2ray-plugin':
+    '提示：WebSocket模式格式为 mode=websocket;host=mydomain.me;path=/;tls=true，QUIC模式格式为 mode=quic;host=mydomain.me',
+  'gost-plugin': '提示：配置格式如 mode=websocket;host=mydomain.me;path=/;tls=true',
+  'shadow-tls':
+    '提示：配置格式如 host=cloud.tencent.com;password=auth_password;version=3',
+  restls:
+    '提示：配置格式如 host=www.microsoft.com;password=auth_password;version-hint=tls13;restls-script=300?100<1,400~100',
+  kcptun: '提示：配置格式如 key=psk;crypt=aes-128-gcm;mode=fast;mtu=1350',
+}
+/** 客户端指纹（对齐原版 config.clientFingerprints，用于 ss / uTLS）。 */
+const CLIENT_FINGERPRINTS = [
+  { value: 'chrome', label: 'Chrome' },
+  { value: 'firefox', label: 'Firefox' },
+  { value: 'safari', label: 'Safari' },
+  { value: 'ios', label: 'iOS' },
+]
+/** vless 流控（对齐原版 config.flowOptions）。 */
+const VLESS_FLOWS = [
+  'none',
+  'xtls-rprx-direct',
+  'xtls-rprx-splice',
+  'xtls-rprx-vision',
+]
+/** hysteria ALPN（对齐原版 config.alpnOptions）。 */
+const HYSTERIA_ALPN = ['hysteria', 'http/1.1', 'h2', 'h3']
+/** tuic 版本（对齐原版 config.versions，渲染为 V5/V4）。 */
+const TUIC_VERSIONS = ['5', '4']
+/** tuic 拥塞控制（对齐原版 config.congestionControls，渲染为大写）。 */
+const TUIC_CONGESTION = ['bbr', 'cubic', 'new_reno']
+/** tuic UDP 中继模式（对齐原版 config.udpRelayModes）。 */
+const TUIC_UDP_MODES = [
+  { value: 'native', label: 'Native' },
+  { value: 'quic', label: 'QUIC' },
+]
+/** tuic ALPN 多选（对齐原版 config.alpnOptions）。 */
+const TUIC_ALPN = [
+  { value: 'h3', label: 'HTTP/3' },
+  { value: 'h2', label: 'HTTP/2' },
+  { value: 'http/1.1', label: 'HTTP/1.1' },
 ]
 const NETWORKS = [
   'tcp',
@@ -179,12 +255,14 @@ const NETWORKS = [
   'kcp',
   'quic',
 ]
-const TLS_OFF_ON = [
-  { value: '0', label: '关闭' },
-  { value: '1', label: 'TLS' },
+/** TLS 开关（vmess/socks/naive/http：不支持 / 支持，对齐原版 tls.disabled/enabled）。 */
+const TLS_SUPPORT = [
+  { value: '0', label: '不支持' },
+  { value: '1', label: '支持' },
 ]
-const TLS_OFF_ON_REALITY = [
-  { value: '0', label: '关闭' },
+/** 安全性（vless/trojan：无 / TLS / Reality，对齐原版 tls.none/tls/reality）。 */
+const TLS_NONE_TLS_REALITY = [
+  { value: '0', label: '无' },
   { value: '1', label: 'TLS' },
   { value: '2', label: 'Reality' },
 ]
@@ -217,6 +295,48 @@ function setPath(obj: Dict, path: string, value: unknown): Dict {
   }
   cursor[keys[keys.length - 1]] = value
   return next
+}
+
+/* -------------------------------------------------------------------------- */
+/* 客户端生成器（对齐原版：无需后端，纯前端生成）                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Uint8Array → base64url（对齐原版 reality key 编码）。 */
+function toBase64Url(bytes: Uint8Array): string {
+  let bin = ''
+  bytes.forEach((b) => (bin += String.fromCharCode(b)))
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** Reality 密钥对（X25519 = nacl.box.keyPair，对齐原版 O4t）。 */
+function generateRealityKeypair(): { privateKey: string; publicKey: string } {
+  const kp = nacl.box.keyPair()
+  return {
+    privateKey: toBase64Url(kp.secretKey),
+    publicKey: toBase64Url(kp.publicKey),
+  }
+}
+
+/** Short ID：随机 hex，长度为 2 的倍数、2~16 位（对齐原版 M4t）。 */
+function generateShortId(): string {
+  const len = 2 * Math.floor(8 * Math.random()) + 2
+  const bytes = new Uint8Array(Math.ceil(len / 2))
+  window.crypto.getRandomValues(bytes)
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .substring(0, len)
+}
+
+/** 随机密码：A-Za-z0-9 共 62 字符，默认 16 位（对齐原版混淆密码生成）。 */
+function generateRandomPassword(length = 16): string {
+  const cs =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const bytes = new Uint8Array(length)
+  window.crypto.getRandomValues(bytes)
+  return Array.from(bytes)
+    .map((b) => cs[b % 62])
+    .join('')
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1134,14 +1254,14 @@ function Field({
 
 function TlsSelect({
   value,
-  reality,
+  options,
   onChange,
 }: {
   value: string
-  reality?: boolean
+  options: { value: string; label: string }[]
   onChange: (v: number) => void
 }) {
-  const opts = reality ? TLS_OFF_ON_REALITY : TLS_OFF_ON
+  const opts = options
   return (
     <Select
       value={value === '' ? '0' : value}
@@ -1184,6 +1304,107 @@ function NetworkSelect({
   )
 }
 
+/** 加密算法可搜索下拉（预设 + 自定义，对齐原版 shadowsocks cipher 组合框）。 */
+function CipherCombobox({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const isCustom = !!value && !SS_CIPHERS.includes(value)
+  const kw = search.trim().toLowerCase()
+  const filtered = SS_CIPHERS.filter((c) => c.toLowerCase().includes(kw))
+  const showCustomFromSearch =
+    !!search.trim() && !SS_CIPHERS.some((c) => c === search.trim())
+  const pick = (v: string) => {
+    onChange(v)
+    setSearch('')
+    setOpen(false)
+  }
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o) setSearch('')
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type='button'
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='h-9 w-full justify-between font-mono text-xs font-normal'
+        >
+          <span className='truncate'>{value || '选择加密算法'}</span>
+          <ChevronsUpDown className='ml-2 size-3.5 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className='w-[--radix-popover-trigger-width] p-0'
+        align='start'
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder='搜索或输入自定义加密方式...'
+            value={search}
+            onValueChange={setSearch}
+            className='font-mono text-xs'
+          />
+          <CommandList>
+            <CommandEmpty className='py-4 text-center font-mono text-xs text-muted-foreground'>
+              未找到匹配的加密方式
+            </CommandEmpty>
+            {showCustomFromSearch && (
+              <CommandGroup heading='自定义加密方式'>
+                <CommandItem
+                  value={`__custom_${search}`}
+                  onSelect={() => pick(search.trim())}
+                  className='font-mono text-xs'
+                >
+                  使用 “{search.trim()}”
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {isCustom && !showCustomFromSearch && (
+              <CommandGroup heading='当前值'>
+                <CommandItem value={value} className='font-mono text-xs'>
+                  <Check className='mr-2 size-3.5 opacity-100' />
+                  {value}
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {filtered.length > 0 && (
+              <CommandGroup heading='预设加密方式'>
+                {filtered.map((c) => (
+                  <CommandItem
+                    key={c}
+                    value={c}
+                    onSelect={() => pick(c)}
+                    className='font-mono text-xs'
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 size-3.5',
+                        value === c ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    {c}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /** network_settings 结构化字段（随 network：path/host/serviceName）。 */
 function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
   return (
@@ -1218,11 +1439,36 @@ function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
 
 /** Reality 配置块（vless tls=2 / trojan）。 */
 function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'set'>) {
+  const genKeypair = () => {
+    try {
+      const kp = generateRealityKeypair()
+      set('reality_settings.private_key', kp.privateKey)
+      set('reality_settings.public_key', kp.publicKey)
+      toast.success('密钥对生成成功')
+    } catch {
+      toast.error('生成密钥对失败')
+    }
+  }
+  const genShortId = () => {
+    set('reality_settings.short_id', generateShortId())
+    toast.success('Short ID 生成成功')
+  }
   return (
     <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-      <Label className='font-mono text-[12px] font-bold tracking-wide text-foreground/80'>
-        Reality 配置
-      </Label>
+      <div className='flex items-center justify-between'>
+        <Label className='font-mono text-[12px] font-bold tracking-wide text-foreground/80'>
+          Reality 配置
+        </Label>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          className='h-7 px-2 font-mono text-[10px]'
+          onClick={genKeypair}
+        >
+          <KeyRound className='mr-1 size-3' /> 生成密钥对
+        </Button>
+      </div>
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <Field label='伪装站点(dest)'>
           <Input
@@ -1254,13 +1500,27 @@ function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'se
             className='h-9 font-mono text-xs'
           />
         </Field>
-        <Field label='Short ID'>
-          <Input
-            value={str('reality_settings.short_id')}
-            onChange={(e) => set('reality_settings.short_id', e.target.value)}
-            placeholder='可留空，长度为2的倍数，最长16位'
-            className='h-9 font-mono text-xs'
-          />
+        <Field
+          label='Short ID'
+          hint='客户端可用的 shortId 列表，可用于区分不同的客户端，使用0-f的十六进制字符'
+        >
+          <div className='relative'>
+            <Input
+              value={str('reality_settings.short_id')}
+              onChange={(e) => set('reality_settings.short_id', e.target.value)}
+              placeholder='可留空，长度为2的倍数，最长16位'
+              className='h-9 pr-9 font-mono text-xs'
+            />
+            <Button
+              type='button'
+              variant='ghost'
+              size='icon'
+              className='absolute right-0 top-0 h-full px-2 text-muted-foreground hover:text-foreground'
+              onClick={genShortId}
+            >
+              <RefreshCw className='size-3.5' />
+            </Button>
+          </div>
         </Field>
       </div>
       <div className='flex items-center gap-2'>
@@ -1405,12 +1665,28 @@ function UtlsFields({ bool, str, set }: Pick<FieldProps, 'bool' | 'str' | 'set'>
       </div>
       {enabled && (
         <Field label='fingerprint'>
-          <Input
-            value={str('utls.fingerprint') || ''}
-            onChange={(e) => set('utls.fingerprint', e.target.value)}
-            placeholder='如 chrome'
-            className='h-9 font-mono text-xs'
-          />
+          <Select
+            value={str('utls.fingerprint') || 'chrome'}
+            onValueChange={(v) => set('utls.fingerprint', v)}
+          >
+            <SelectTrigger className='h-9 font-mono text-xs'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className='font-mono text-xs'>
+              <SelectItem value='chrome' className='text-xs'>
+                Chrome
+              </SelectItem>
+              <SelectItem value='firefox' className='text-xs'>
+                Firefox
+              </SelectItem>
+              <SelectItem value='safari' className='text-xs'>
+                Safari
+              </SelectItem>
+              <SelectItem value='ios' className='text-xs'>
+                iOS
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
       )}
     </div>
@@ -1435,76 +1711,80 @@ type FieldProps = {
 function ProtocolFields(props: FieldProps) {
   const { type, str, num, bool, arr, lines, set, setPs } = props
   switch (type) {
-    case 'shadowsocks':
+    case 'shadowsocks': {
+      const plugin = str('plugin') || 'none'
       return (
         <>
-          <Field label='加密算法'>
-            <Select
+          <Field label='加密算法' hint='选择预设加密方式或输入自定义加密方式'>
+            <CipherCombobox
               value={str('cipher') || 'aes-128-gcm'}
-              onValueChange={(v) => set('cipher', v)}
-            >
-              <SelectTrigger className='h-9 font-mono text-xs'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className='font-mono text-xs'>
-                {SS_CIPHERS.map((c) => (
-                  <SelectItem key={c} value={c} className='text-xs'>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label='混淆' hint='如 http；留空表示不混淆'>
-            <Input
-              value={str('obfs')}
-              onChange={(e) => set('obfs', e.target.value)}
-              className='h-9 font-mono text-xs'
+              onChange={(v) => set('cipher', v)}
             />
           </Field>
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='路径'>
-              <Input
-                value={str('obfs_settings.path')}
-                onChange={(e) => set('obfs_settings.path', e.target.value)}
-                placeholder='如 /'
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-            <Field label='Host'>
-              <Input
-                value={str('obfs_settings.host')}
-                onChange={(e) => set('obfs_settings.host', e.target.value)}
-                placeholder='如 www.bing.com'
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-          </div>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <Field label='插件'>
-              <Input
-                value={str('plugin')}
-                onChange={(e) => set('plugin', e.target.value)}
-                className='h-9 font-mono text-xs'
-              />
+              <Select
+                value={plugin}
+                onValueChange={(v) => set('plugin', v === 'none' ? '' : v)}
+              >
+                <SelectTrigger className='h-9 font-mono text-xs'>
+                  <SelectValue placeholder='选择插件' />
+                </SelectTrigger>
+                <SelectContent className='font-mono text-xs'>
+                  {SS_PLUGINS.map((p) => (
+                    <SelectItem key={p.value} value={p.value} className='text-xs'>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
-            <Field label='插件选项'>
-              <Input
-                value={str('plugin_opts')}
-                onChange={(e) => set('plugin_opts', e.target.value)}
-                className='h-9 font-mono text-xs'
-              />
+            <Field label='客户端指纹' hint='客户端伪装指纹，用于降低被识别风险'>
+              <Select
+                value={str('client_fingerprint') || undefined}
+                onValueChange={(v) => set('client_fingerprint', v)}
+              >
+                <SelectTrigger className='h-9 font-mono text-xs'>
+                  <SelectValue placeholder='选择客户端指纹' />
+                </SelectTrigger>
+                <SelectContent className='font-mono text-xs'>
+                  {CLIENT_FINGERPRINTS.map((f) => (
+                    <SelectItem key={f.value} value={f.value} className='text-xs'>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           </div>
+          <Field
+            label='插件选项'
+            hint={
+              SS_PLUGIN_HINTS[plugin] ??
+              '按照 key=value;key2=value2 格式输入插件选项'
+            }
+          >
+            <Input
+              value={str('plugin_opts')}
+              onChange={(e) => set('plugin_opts', e.target.value)}
+              placeholder='例如: mode=tls;host=bing.com'
+              className='h-9 font-mono text-xs'
+            />
+          </Field>
         </>
       )
+    }
 
     case 'vmess':
       return (
         <>
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <Field label='TLS'>
-              <TlsSelect value={num('tls')} onChange={(v) => set('tls', v)} />
+              <TlsSelect
+                value={num('tls')}
+                options={TLS_SUPPORT}
+                onChange={(v) => set('tls', v)}
+              />
             </Field>
             <Field label='传输协议'>
               <NetworkSelect
@@ -1526,7 +1806,7 @@ function ProtocolFields(props: FieldProps) {
             <Field label='安全性'>
               <TlsSelect
                 value={num('tls')}
-                reality
+                options={TLS_NONE_TLS_REALITY}
                 onChange={(v) => set('tls', v)}
               />
             </Field>
@@ -1537,12 +1817,22 @@ function ProtocolFields(props: FieldProps) {
               />
             </Field>
           </div>
-          <Field label='流控' hint='如 xtls-rprx-vision；留空表示不启用'>
-            <Input
-              value={str('flow')}
-              onChange={(e) => set('flow', e.target.value)}
-              className='h-9 font-mono text-xs'
-            />
+          <Field label='流控'>
+            <Select
+              value={str('flow') || 'none'}
+              onValueChange={(v) => set('flow', v === 'none' ? '' : v)}
+            >
+              <SelectTrigger className='h-9 font-mono text-xs'>
+                <SelectValue placeholder='选择流控' />
+              </SelectTrigger>
+              <SelectContent className='font-mono text-xs'>
+                {VLESS_FLOWS.map((f) => (
+                  <SelectItem key={f} value={f} className='text-xs'>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <NetworkSettings str={str} set={set} />
           <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
@@ -1601,7 +1891,7 @@ function ProtocolFields(props: FieldProps) {
             <Field label='安全性'>
               <TlsSelect
                 value={num('tls')}
-                reality
+                options={TLS_NONE_TLS_REALITY}
                 onChange={(v) => set('tls', v)}
               />
             </Field>
@@ -1658,7 +1948,7 @@ function ProtocolFields(props: FieldProps) {
             </Field>
           </div>
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='上行宽带' suffix='Mbps'>
+            <Field label='上行宽带' suffix='Mbps，留空则使用BBR'>
               <Input
                 value={num('bandwidth.up')}
                 onChange={(e) =>
@@ -1667,10 +1957,11 @@ function ProtocolFields(props: FieldProps) {
                     e.target.value === '' ? null : Number(e.target.value)
                   )
                 }
+                placeholder='请输入上行宽带'
                 className='h-9 font-mono text-xs'
               />
             </Field>
-            <Field label='下行宽带' suffix='Mbps'>
+            <Field label='下行宽带' suffix='Mbps，留空则使用BBR'>
               <Input
                 value={num('bandwidth.down')}
                 onChange={(e) =>
@@ -1679,16 +1970,27 @@ function ProtocolFields(props: FieldProps) {
                     e.target.value === '' ? null : Number(e.target.value)
                   )
                 }
+                placeholder='请输入下行宽带'
                 className='h-9 font-mono text-xs'
               />
             </Field>
           </div>
-          <Field label='ALPN' hint='如 h3'>
-            <Input
-              value={str('alpn')}
-              onChange={(e) => set('alpn', e.target.value)}
-              className='h-9 font-mono text-xs'
-            />
+          <Field label='ALPN'>
+            <Select
+              value={str('alpn') || 'h3'}
+              onValueChange={(v) => set('alpn', v)}
+            >
+              <SelectTrigger className='h-9 font-mono text-xs'>
+                <SelectValue placeholder='ALPN' />
+              </SelectTrigger>
+              <SelectContent className='font-mono text-xs'>
+                {HYSTERIA_ALPN.map((a) => (
+                  <SelectItem key={a} value={a} className='text-xs'>
+                    {a}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
             <div className='flex items-center gap-2'>
@@ -1704,20 +2006,41 @@ function ProtocolFields(props: FieldProps) {
             {bool('obfs.open') && (
               <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
                 <Field label='混淆实现'>
-                  <Input
-                    value={str('obfs.type')}
-                    onChange={(e) => set('obfs.type', e.target.value)}
-                    placeholder='如 salamander'
-                    className='h-9 font-mono text-xs'
-                  />
+                  <Select
+                    value={str('obfs.type') || 'salamander'}
+                    onValueChange={(v) => set('obfs.type', v)}
+                  >
+                    <SelectTrigger className='h-9 font-mono text-xs'>
+                      <SelectValue placeholder='选择混淆实现' />
+                    </SelectTrigger>
+                    <SelectContent className='font-mono text-xs'>
+                      <SelectItem value='salamander' className='text-xs'>
+                        Salamander
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field label='混淆密码'>
-                  <Input
-                    value={str('obfs.password')}
-                    onChange={(e) => set('obfs.password', e.target.value)}
-                    placeholder='请输入混淆密码'
-                    className='h-9 font-mono text-xs'
-                  />
+                  <div className='relative'>
+                    <Input
+                      value={str('obfs.password')}
+                      onChange={(e) => set('obfs.password', e.target.value)}
+                      placeholder='请输入混淆密码'
+                      className='h-9 pr-9 font-mono text-xs'
+                    />
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='absolute right-0 top-0 h-full px-2 text-muted-foreground hover:text-foreground'
+                      onClick={() => {
+                        set('obfs.password', generateRandomPassword())
+                        toast.success('混淆密码生成成功')
+                      }}
+                    >
+                      <RefreshCw className='size-3.5' />
+                    </Button>
+                  </div>
                 </Field>
               </div>
             )}
@@ -1735,15 +2058,14 @@ function ProtocolFields(props: FieldProps) {
                 onValueChange={(v) => set('version', Number(v))}
               >
                 <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
+                  <SelectValue placeholder='选择TUIC版本' />
                 </SelectTrigger>
                 <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='4' className='text-xs'>
-                    4
-                  </SelectItem>
-                  <SelectItem value='5' className='text-xs'>
-                    5
-                  </SelectItem>
+                  {TUIC_VERSIONS.map((v) => (
+                    <SelectItem key={v} value={v} className='text-xs'>
+                      V{v}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
@@ -1753,59 +2075,46 @@ function ProtocolFields(props: FieldProps) {
                 onValueChange={(v) => set('congestion_control', v)}
               >
                 <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
+                  <SelectValue placeholder='选择拥塞控制算法' />
                 </SelectTrigger>
                 <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='cubic' className='text-xs'>
-                    cubic
-                  </SelectItem>
-                  <SelectItem value='bbr' className='text-xs'>
-                    bbr
-                  </SelectItem>
-                  <SelectItem value='new_reno' className='text-xs'>
-                    new_reno
-                  </SelectItem>
+                  {TUIC_CONGESTION.map((c) => (
+                    <SelectItem key={c} value={c} className='text-xs'>
+                      {c.toUpperCase()}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
           </div>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='UDP中继模式'>
-              <Select
-                value={str('udp_relay_mode') || 'native'}
-                onValueChange={(v) => set('udp_relay_mode', v)}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='native' className='text-xs'>
-                    native
+          <Field label='UDP中继模式'>
+            <Select
+              value={str('udp_relay_mode') || 'native'}
+              onValueChange={(v) => set('udp_relay_mode', v)}
+            >
+              <SelectTrigger className='h-9 font-mono text-xs'>
+                <SelectValue placeholder='选择UDP中继模式' />
+              </SelectTrigger>
+              <SelectContent className='font-mono text-xs'>
+                {TUIC_UDP_MODES.map((m) => (
+                  <SelectItem key={m.value} value={m.value} className='text-xs'>
+                    {m.label}
                   </SelectItem>
-                  <SelectItem value='quic' className='text-xs'>
-                    quic
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label='ALPN（逗号分隔）' hint='如 h3'>
-              <Input
-                value={arr('alpn')}
-                onChange={(e) =>
-                  set(
-                    'alpn',
-                    e.target.value
-                      ? e.target.value
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean)
-                      : []
-                  )
-                }
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-          </div>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label='ALPN'>
+            <MultiCheck
+              options={TUIC_ALPN}
+              selected={(() => {
+                const v = arr('alpn')
+                return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : []
+              })()}
+              onChange={(next) => set('alpn', next)}
+              empty='未找到可用的ALPN协议'
+            />
+          </Field>
         </>
       )
 
@@ -1897,7 +2206,11 @@ function ProtocolFields(props: FieldProps) {
     case 'http':
       return (
         <Field label='TLS'>
-          <TlsSelect value={num('tls')} onChange={(v) => set('tls', v)} />
+          <TlsSelect
+            value={num('tls')}
+            options={TLS_SUPPORT}
+            onChange={(v) => set('tls', v)}
+          />
         </Field>
       )
 
