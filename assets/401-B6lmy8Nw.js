@@ -1,0 +1,1 @@
+import{t as e}from"./unauthorized-error-DQ21rPbv.js";var t=e;export{t as component};
