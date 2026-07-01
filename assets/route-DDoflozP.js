@@ -1,1 +1,0 @@
-import{t as e}from"./authenticated-layout-QBOt5YEL.js";var t=e;export{t as component};
