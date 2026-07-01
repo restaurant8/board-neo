@@ -29,6 +29,10 @@ deploy
 *.sln
 *.sw?
 
+# Build/dev caches (auto-generated, never commit)
+.vite/
+.tanstack/
+
 # Test coverage
 /coverage
 
