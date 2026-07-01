@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check,
@@ -394,6 +394,22 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
   const queryClient = useQueryClient()
   const [echOpen, setEchOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  // 嵌套弹窗（高级设置 / ECH）关闭时，其焦点归还/指针事件会以「点击主弹窗之外」
+  // 的形式触达主弹窗；此时 advancedOpen/echOpen 已被置 false，仅靠 state 判定会漏挡。
+  // 用一个 ref 在嵌套弹窗打开期间「武装」，并延迟到关闭后的下一拍再解除，吞掉这枚尾随事件。
+  const nestedGuardRef = useRef(false)
+  useEffect(() => {
+    if (advancedOpen || echOpen) {
+      nestedGuardRef.current = true
+      return
+    }
+    if (!nestedGuardRef.current) return
+    const id = window.setTimeout(() => {
+      nestedGuardRef.current = false
+    }, 150)
+    return () => window.clearTimeout(id)
+  }, [advancedOpen, echOpen])
+  const nestedActive = () => advancedOpen || echOpen || nestedGuardRef.current
 
   const { data: groups } = useQuery({
     queryKey: ['server-groups'],
@@ -623,15 +639,22 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
   const parentOptions = (nodes ?? []).filter((n) => n.id !== current?.id)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // 嵌套弹窗打开或刚关闭时，忽略主弹窗的关闭请求（否则会连带关掉主弹窗）
+        if (!next && nestedActive()) return
+        onOpenChange(next)
+      }}
+    >
       <DialogContent
         className='max-w-xl gap-0 overflow-hidden p-0 sm:rounded-2xl'
         onInteractOutside={(e) => {
-          // 嵌套弹窗（高级设置 / ECH）打开时，关闭它们不应连带关闭主弹窗
-          if (advancedOpen || echOpen) e.preventDefault()
+          // 嵌套弹窗（高级设置 / ECH）打开或刚关闭时，不应连带关闭主弹窗
+          if (nestedActive()) e.preventDefault()
         }}
         onEscapeKeyDown={(e) => {
-          if (advancedOpen || echOpen) e.preventDefault()
+          if (nestedActive()) e.preventDefault()
         }}
       >
         <DialogHeader className='border-b bg-muted/20 px-6 pb-4 pt-6'>
