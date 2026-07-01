@@ -1,0 +1,1 @@
+import{t as e}from"./unauthorized-error-BTiv0Q3D.js";var t=e;export{t as component};
