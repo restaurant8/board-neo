@@ -481,6 +481,9 @@ export function UserPage() {
                 <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
                   权限组
                 </TableHead>
+                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
+                  分站
+                </TableHead>
                 {sortHead('expired_at', '到期时间')}
                 {sortHead('total_used', '已用流量')}
                 {sortHead('transfer_enable', '总流量')}
@@ -583,6 +586,15 @@ export function UserPage() {
                             {u.group?.name || '-'}
                           </Badge>
                         </div>
+                      </TableCell>
+                      <TableCell className='bg-card whitespace-nowrap'>
+                        {u.site_name ? (
+                          <Badge variant='secondary'>{u.site_name}</Badge>
+                        ) : (
+                          <span className='text-xs text-muted-foreground'>
+                            主站
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className='bg-card whitespace-nowrap'>
                         <Badge

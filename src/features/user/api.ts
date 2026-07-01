@@ -23,6 +23,10 @@ export type User = {
   plan_id: number | null
   group_id: number | null
   invite_user_id: number | null
+  /** 归属分站ID，null=主站 */
+  site_id?: number | null
+  /** 归属分站名，null=主站 */
+  site_name?: string | null
   /** 流量上行（字节）。 */
   u: number
   /** 流量下行（字节）。 */
