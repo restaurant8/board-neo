@@ -90,6 +90,10 @@ export type ResellerApplication = {
   status: 'pending' | 'approved' | 'rejected'
   review_remark: string | null
   site_id: number | null
+  /** 实扣押金（分），0=无 */
+  deposit_amount: number
+  /** 已手动退还押金的时间戳，null=未退 */
+  deposit_refunded_at: number | null
   created_at: number
 }
 
@@ -111,6 +115,14 @@ export function fetchResellerApplications(status?: string) {
 /** POST /reseller/application/review — 审批：approve 通过建站 / reject 拒绝。 */
 export function reviewResellerApplication(payload: ReviewPayload) {
   return post<number | boolean>('/reseller/application/review', payload)
+}
+
+/** POST /reseller/application/mark-deposit-refunded — 标记/撤销押金已退（仅记录，不动余额）。 */
+export function markDepositRefunded(id: number, refunded: boolean) {
+  return post<boolean>('/reseller/application/mark-deposit-refunded', {
+    id,
+    refunded,
+  })
 }
 
 export type ResellerPricePeriod = {

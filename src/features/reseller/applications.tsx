@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { handleServerError } from '@/lib/handle-server-error'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -19,6 +21,7 @@ import {
 import {
   type ResellerApplication,
   fetchResellerApplications,
+  markDepositRefunded,
 } from './api'
 import { ApplicationReviewDialog } from './components/application-review-dialog'
 
@@ -31,13 +34,26 @@ const STATUS_MAP: Record<
   rejected: { label: '已拒绝', variant: 'destructive' },
 }
 
+const yuan = (cents: number) => (cents / 100).toFixed(2)
+
 export function ResellerApplicationsPage() {
+  const queryClient = useQueryClient()
   const [reviewing, setReviewing] = useState<ResellerApplication | null>(null)
   const [action, setAction] = useState<'approve' | 'reject'>('approve')
 
   const { data } = useQuery({
     queryKey: ['reseller-applications'],
     queryFn: () => fetchResellerApplications(),
+  })
+
+  const markMutation = useMutation({
+    mutationFn: (v: { id: number; refunded: boolean }) =>
+      markDepositRefunded(v.id, v.refunded),
+    onSuccess: () => {
+      toast.success('已更新')
+      queryClient.invalidateQueries({ queryKey: ['reseller-applications'] })
+    },
+    onError: handleServerError,
   })
 
   const rows = data ?? []
@@ -79,6 +95,7 @@ export function ResellerApplicationsPage() {
                   <TableHead>申请人</TableHead>
                   <TableHead>期望分站名</TableHead>
                   <TableHead>期望域名</TableHead>
+                  <TableHead className='w-[160px]'>押金</TableHead>
                   <TableHead>联系方式</TableHead>
                   <TableHead className='w-[140px] text-end'>操作</TableHead>
                 </TableRow>
@@ -107,6 +124,46 @@ export function ResellerApplicationsPage() {
                         <span className='font-mono text-xs text-muted-foreground'>
                           {a.desired_domain ?? '—'}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {a.deposit_amount > 0 ? (
+                          <div className='flex items-center gap-2'>
+                            <span className='font-mono text-xs'>
+                              ¥{yuan(a.deposit_amount)}
+                            </span>
+                            {a.deposit_refunded_at ? (
+                              <button
+                                type='button'
+                                title='点击撤销（改回未退）'
+                                onClick={() =>
+                                  markMutation.mutate({
+                                    id: a.id,
+                                    refunded: false,
+                                  })
+                                }
+                              >
+                                <Badge variant='secondary'>已退</Badge>
+                              </button>
+                            ) : (
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                className='h-6 px-2 text-xs'
+                                disabled={markMutation.isPending}
+                                onClick={() =>
+                                  markMutation.mutate({
+                                    id: a.id,
+                                    refunded: true,
+                                  })
+                                }
+                              >
+                                标记已退
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className='text-xs text-muted-foreground'>—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className='font-mono text-xs text-muted-foreground'>
@@ -145,7 +202,7 @@ export function ResellerApplicationsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className='h-24 text-center'>
+                    <TableCell colSpan={8} className='h-24 text-center'>
                       暂无申请
                     </TableCell>
                   </TableRow>
