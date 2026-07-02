@@ -1,0 +1,1 @@
+import{t as e}from"./forbidden-B8R_lnQa.js";var t=e;export{t as component};
