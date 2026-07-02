@@ -53,6 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { fetchResellerSites } from '@/features/reseller/api'
 import { PERIOD_LEGACY_TO_INTERNAL, type Order, fetchOrders } from '../api'
 import {
   commissionStatusOptions,
@@ -218,6 +219,13 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
   // 受控搜索框（输入态），回车 / 提交后才写入 URL 触发请求
   const [searchInput, setSearchInput] = useState(tradeNo)
 
+  // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串（本地态，不进 URL）
+  const [siteSel, setSiteSel] = useState('')
+  const { data: resellerSites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+  })
+
   // 排序：URL "字段.desc" → react-table SortingState
   const sorting: SortingState = useMemo(() => {
     if (!search.sort) return []
@@ -302,8 +310,9 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
     if (statusSel.length) f.push({ id: 'status', value: statusSel.map(Number) })
     if (commissionSel.length)
       f.push({ id: 'commission_status', value: commissionSel.map(Number) })
+    if (siteSel) f.push({ id: 'site_id', value: siteSel })
     return f.length ? f : undefined
-  }, [search.user_id, tradeNo, typeSel, periodSel, statusSel, commissionSel])
+  }, [search.user_id, tradeNo, typeSel, periodSel, statusSel, commissionSel, siteSel])
 
   const sort = useMemo(
     () => (sorting.length ? sorting.map((s) => ({ id: s.id, desc: s.desc })) : undefined),
@@ -321,6 +330,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
       periodSel,
       statusSel,
       commissionSel,
+      siteSel,
       isCommission,
       search.sort,
     ],
@@ -430,6 +440,28 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
           selected={commissionSel}
           onChange={(v) => setFilter('commission_status', v)}
         />
+        {(resellerSites ?? []).length > 0 && (
+          <Select
+            value={siteSel || 'all'}
+            onValueChange={(v) => {
+              setSiteSel(v === 'all' ? '' : v)
+              patchSearch({ page: undefined })
+            }}
+          >
+            <SelectTrigger className='h-8 w-[140px]'>
+              <SelectValue placeholder='全部站点' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>全部站点</SelectItem>
+              <SelectItem value='main'>主站</SelectItem>
+              {(resellerSites ?? []).map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {hasFilter && (
           <Button
             variant='ghost'

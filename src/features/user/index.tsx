@@ -44,6 +44,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { fetchResellerSites } from '@/features/reseller/api'
+import {
   Table,
   TableBody,
   TableCell,
@@ -177,14 +185,22 @@ export function UserPage() {
 
   const { data: plans } = useQuery({ queryKey: ['plans-brief'], queryFn: fetchPlans })
 
+  // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串
+  const [siteFilter, setSiteFilter] = useState('')
+  const { data: resellerSites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+  })
+
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
     if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
     if (inviteUserId != null)
       f.push({ id: 'invite_user_id', value: `eq:${inviteUserId}` })
+    if (siteFilter) f.push({ id: 'site_id', value: siteFilter })
     f.push(...advancedFilter)
     return f
-  }, [appliedEmail, inviteUserId, advancedFilter])
+  }, [appliedEmail, inviteUserId, siteFilter, advancedFilter])
 
   const hasFilter = filter.length > 0
 
@@ -379,6 +395,28 @@ export function UserPage() {
           <Button onClick={applyQuickSearch}>
             <Search className='size-4' /> 查询
           </Button>
+          {(resellerSites ?? []).length > 0 && (
+            <Select
+              value={siteFilter || 'all'}
+              onValueChange={(v) => {
+                setSiteFilter(v === 'all' ? '' : v)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger className='h-9 w-[160px]'>
+                <SelectValue placeholder='全部站点' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>全部站点</SelectItem>
+                <SelectItem value='main'>主站</SelectItem>
+                {(resellerSites ?? []).map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant='outline' onClick={() => setFilterOpen(true)}>
             <Filter className='size-4' /> 高级筛选
             {conditions.length > 0 && (
