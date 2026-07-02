@@ -102,7 +102,7 @@ export function UserTrafficDialog({ open, onOpenChange, user }: Props) {
                         {rate}x
                       </TableCell>
                       <TableCell className='whitespace-nowrap font-mono font-medium'>
-                        {formatBytes(((r.u ?? 0) + (r.d ?? 0)) / rate)}
+                        {formatBytes((r.u ?? 0) + (r.d ?? 0))}
                       </TableCell>
                     </TableRow>
                   )
