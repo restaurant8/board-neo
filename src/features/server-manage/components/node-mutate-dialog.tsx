@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check,
   ChevronsUpDown,
+  Info,
   KeyRound,
+  Loader2,
   Plus,
   RefreshCw,
+  RotateCw,
   Settings2,
   X,
 } from 'lucide-react'
+import { Command as CommandPrimitive } from 'cmdk'
 import { toast } from 'sonner'
 import nacl from 'tweetnacl'
 import { cn } from '@/lib/utils'
@@ -41,6 +45,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
@@ -54,18 +59,24 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   SERVER_TYPES,
   SERVER_TYPE_COLOR,
   SERVER_TYPE_LABEL,
   type Server,
   type ServerType,
+  generateEchKey,
   saveNode,
 } from '../api'
 import {
   AdvancedConfigDialog,
   type AdvancedConfigValue,
 } from './advanced-config-dialog'
-import { EchGenerateDialog } from './ech-generate-dialog'
 
 type Props = {
   open: boolean
@@ -92,95 +103,129 @@ const ANYTLS_DEFAULT_PADDING = [
   '7=500-1000',
 ]
 
-/** protocol_settings 默认值（逐字段对应 PROTOCOL_CONFIGURATIONS 的 default）。 */
+/** ech 子对象默认值（对齐原版 v4t schema default）。 */
+const ECH_DEFAULT = {
+  enabled: false,
+  config: '',
+  query_server_name: '',
+  key: '',
+}
+/** utls 子对象默认值（对齐原版 _4t schema default）。 */
+const UTLS_DEFAULT = { enabled: false, fingerprint: 'chrome' }
+/** multiplex 子对象默认值（对齐原版 f4t schema default）。 */
+const MULTIPLEX_DEFAULT = {
+  enabled: false,
+  protocol: 'smux',
+  max_connections: 4,
+  padding: false,
+  brutal: { enabled: false, up_mbps: 100, down_mbps: 100 },
+}
+
+/** protocol_settings 默认值（逐字段对齐原版各协议 zod schema 的 default）。 */
 const PROTOCOL_DEFAULTS: Record<ServerType, Record<string, unknown>> = {
   shadowsocks: {
     cipher: 'aes-128-gcm',
     plugin: '',
     plugin_opts: '',
-    client_fingerprint: '',
+    client_fingerprint: 'chrome',
   },
   vmess: {
     tls: 0,
+    tls_settings: {
+      server_name: '',
+      allow_insecure: false,
+      ech: { ...ECH_DEFAULT },
+    },
+    utls: { ...UTLS_DEFAULT },
     network: 'tcp',
     network_settings: {},
-    tls_settings: { server_name: '', allow_insecure: false },
+    multiplex: { ...MULTIPLEX_DEFAULT },
   },
   vless: {
     tls: 0,
-    tls_settings: { server_name: '', allow_insecure: false },
-    flow: '',
-    encryption: { enabled: false, encryption: '', decryption: '' },
-    network: 'tcp',
-    network_settings: {},
-    reality_settings: {
+    tls_settings: {
       server_name: '',
-      server_port: '',
+      allow_insecure: false,
+      ech: { ...ECH_DEFAULT },
+    },
+    utls: { ...UTLS_DEFAULT },
+    reality_settings: {
+      server_port: 443,
+      server_name: '',
+      allow_insecure: false,
       public_key: '',
       private_key: '',
       short_id: '',
-      allow_insecure: false,
+      fingerprint: 'chrome',
     },
+    network: 'tcp',
+    network_settings: {},
+    flow: '',
+    multiplex: { ...MULTIPLEX_DEFAULT },
+    encryption: { enabled: false, encryption: '', decryption: '' },
   },
   trojan: {
     tls: 1,
-    network: 'tcp',
-    network_settings: {},
-    tls_settings: { server_name: '', allow_insecure: false },
-    reality_settings: {
+    tls_settings: {
       server_name: '',
-      server_port: '',
+      allow_insecure: false,
+      ech: { ...ECH_DEFAULT },
+    },
+    server_name: '',
+    allow_insecure: false,
+    reality_settings: {
+      server_port: 443,
+      server_name: '',
+      allow_insecure: false,
       public_key: '',
       private_key: '',
       short_id: '',
-      allow_insecure: false,
     },
+    utls: { ...UTLS_DEFAULT },
+    network: 'tcp',
+    network_settings: {},
+    multiplex: { ...MULTIPLEX_DEFAULT },
   },
   hysteria: {
     version: 2,
-    bandwidth: { up: null, down: null },
+    alpn: 'h2',
     obfs: { open: false, type: 'salamander', password: '' },
-    tls: { server_name: '', allow_insecure: false },
-    hop_interval: null,
+    tls: { server_name: '', allow_insecure: false, ech: { ...ECH_DEFAULT } },
+    bandwidth: { up: '', down: '' },
   },
   tuic: {
     version: 5,
-    congestion_control: 'cubic',
+    congestion_control: 'bbr',
     alpn: ['h3'],
     udp_relay_mode: 'native',
-    tls: { server_name: '', allow_insecure: false },
+    tls: { server_name: '', allow_insecure: false, ech: { ...ECH_DEFAULT } },
   },
   anytls: {
-    padding_scheme: [...ANYTLS_DEFAULT_PADDING],
-    tls: { server_name: '', allow_insecure: false },
-    alpn: '',
+    padding_scheme: [],
+    tls: { server_name: '', allow_insecure: false, ech: { ...ECH_DEFAULT } },
   },
-  socks: {
-    tls: 0,
-    tls_settings: { server_name: '', allow_insecure: false },
-  },
+  socks: {},
   naive: {
     tls: 0,
-    tls_settings: { server_name: '', allow_insecure: false },
+    tls_settings: {
+      server_name: '',
+      allow_insecure: false,
+      ech: { ...ECH_DEFAULT },
+    },
   },
   http: {
     tls: 0,
-    tls_settings: { server_name: '', allow_insecure: false },
+    tls_settings: {
+      server_name: '',
+      allow_insecure: false,
+      ech: { ...ECH_DEFAULT },
+    },
   },
   mieru: { transport: 'TCP', traffic_pattern: '' },
 }
 
-/** 走数组式 tls_settings（SNI / allow_insecure / ech 在 tls_settings.*）。 */
-const TLS_SETTINGS_TYPES: ServerType[] = [
-  'vmess',
-  'vless',
-  'trojan',
-  'socks',
-  'naive',
-  'http',
-]
-/** 走对象式 tls（SNI / allow_insecure / ech 在 tls.*）。 */
-const TLS_OBJECT_TYPES: ServerType[] = ['hysteria', 'tuic', 'anytls']
+/** 带 multiplex 的协议（高级设置弹窗展示「多路复用」Tab，对齐原版 hasMultiplex）。 */
+const MULTIPLEX_TYPES: ServerType[] = ['vmess', 'vless', 'trojan']
 
 /** shadowsocks 预设加密方式（对齐原版 config.ciphers）。 */
 const SS_CIPHERS = [
@@ -245,27 +290,126 @@ const TUIC_ALPN = [
   { value: 'h2', label: 'HTTP/2' },
   { value: 'http/1.1', label: 'HTTP/1.1' },
 ]
-const NETWORKS = [
-  'tcp',
-  'ws',
-  'grpc',
-  'http',
-  'httpupgrade',
-  'splithttp',
-  'kcp',
-  'quic',
+/** uTLS 指纹（对齐原版 b4t，比 ss 客户端指纹多 Edge/Random）。 */
+const UTLS_FINGERPRINTS = [
+  { value: 'chrome', label: 'Chrome' },
+  { value: 'firefox', label: 'Firefox' },
+  { value: 'safari', label: 'Safari' },
+  { value: 'ios', label: 'iOS' },
+  { value: 'edge', label: 'Edge' },
+  { value: 'random', label: 'Random' },
 ]
-/** TLS 开关（vmess/socks/naive/http：不支持 / 支持，对齐原版 tls.disabled/enabled）。 */
-const TLS_SUPPORT = [
-  { value: '0', label: '不支持' },
-  { value: '1', label: '支持' },
+/** vmess/trojan 传输协议（对齐原版 networkOptions）。 */
+const VMESS_NETWORKS = [
+  { value: 'tcp', label: 'TCP' },
+  { value: 'ws', label: 'Websocket' },
+  { value: 'grpc', label: 'gRPC' },
+  { value: 'h2', label: 'HTTP/2' },
+  { value: 'httpupgrade', label: 'HttpUpgrade' },
+  { value: 'xhttp', label: 'XHTTP' },
 ]
-/** 安全性（vless/trojan：无 / TLS / Reality，对齐原版 tls.none/tls/reality）。 */
-const TLS_NONE_TLS_REALITY = [
-  { value: '0', label: '无' },
-  { value: '1', label: 'TLS' },
-  { value: '2', label: 'Reality' },
+/** vless 传输协议（对齐原版：多 mKCP）。 */
+const VLESS_NETWORKS = [
+  { value: 'tcp', label: 'TCP' },
+  { value: 'ws', label: 'Websocket' },
+  { value: 'grpc', label: 'gRPC' },
+  { value: 'h2', label: 'HTTP/2' },
+  { value: 'kcp', label: 'mKCP' },
+  { value: 'httpupgrade', label: 'HttpUpgrade' },
+  { value: 'xhttp', label: 'XHTTP' },
 ]
+
+/** network_settings JSON 模板（对齐原版 m4t 的 templates）。 */
+const NETWORK_TEMPLATES: Record<string, { label: string; content: unknown }> = {
+  tcp: {
+    label: 'TCP',
+    content: { acceptProxyProtocol: false, header: { type: 'none' } },
+  },
+  'tcp-http': {
+    label: 'TCP + HTTP',
+    content: {
+      acceptProxyProtocol: false,
+      header: {
+        type: 'http',
+        request: {
+          version: '1.1',
+          method: 'GET',
+          path: ['/'],
+          headers: { Host: ['www.example.com'] },
+        },
+        response: { version: '1.1', status: '200', reason: 'OK' },
+      },
+    },
+  },
+  grpc: { label: 'gRPC', content: { serviceName: 'GunService' } },
+  ws: {
+    label: 'WebSocket',
+    content: { path: '/', headers: { Host: 'v2ray.com' } },
+  },
+  h2: { label: 'HTTP/2', content: { path: '/', host: ['www.google.com'] } },
+  httpupgrade: {
+    label: 'HttpUpgrade',
+    content: {
+      acceptProxyProtocol: false,
+      path: '/',
+      host: 'xray.com',
+      headers: { key: 'value' },
+    },
+  },
+  xhttp: {
+    label: 'XHTTP',
+    content: {
+      host: 'example.com',
+      path: '/yourpath',
+      mode: 'auto',
+      extra: {
+        headers: {},
+        xPaddingBytes: '100-1000',
+        noGRPCHeader: false,
+        noSSEHeader: false,
+        scMaxEachPostBytes: 1e6,
+        scMinPostsIntervalMs: 30,
+        scMaxBufferedPosts: 30,
+        xmux: {
+          maxConcurrency: '16-32',
+          maxConnections: 0,
+          cMaxReuseTimes: '64-128',
+          cMaxLifetimeMs: 0,
+          hMaxRequestTimes: '800-900',
+          hKeepAlivePeriod: 0,
+        },
+        downloadSettings: {
+          address: '',
+          port: 443,
+          network: 'xhttp',
+          security: 'tls',
+          tlsSettings: {},
+          xhttpSettings: { path: '/yourpath' },
+          sockopt: {},
+        },
+      },
+    },
+  },
+}
+/** 各传输协议可用的模板 key（对齐原版 m4t.getTemplates）。 */
+function templatesForType(type: string): string[] {
+  switch (type) {
+    case 'tcp':
+      return ['tcp', 'tcp-http']
+    case 'grpc':
+      return ['grpc']
+    case 'ws':
+      return ['ws']
+    case 'h2':
+      return ['h2']
+    case 'httpupgrade':
+      return ['httpupgrade']
+    case 'xhttp':
+      return ['xhttp']
+    default:
+      return []
+  }
+}
 
 /* -------------------------------------------------------------------------- */
 /* 路径式读写 protocol_settings（结构化字段与高级 JSON 共享同一对象，无损）       */
@@ -392,14 +536,15 @@ const EMPTY_BASE: BaseState = {
 export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
   const isEdit = !!current
   const queryClient = useQueryClient()
-  const [echOpen, setEchOpen] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  // 嵌套弹窗（高级设置 / ECH）关闭时，其焦点归还/指针事件会以「点击主弹窗之外」
-  // 的形式触达主弹窗；此时 advancedOpen/echOpen 已被置 false，仅靠 state 判定会漏挡。
+  /** 协议卡片内嵌弹窗（如「编辑协议」network_settings JSON）打开中。 */
+  const [protoDialogOpen, setProtoDialogOpen] = useState(false)
+  // 嵌套弹窗（高级设置 / 编辑协议）关闭时，其焦点归还/指针事件会以「点击主弹窗之外」
+  // 的形式触达主弹窗；此时 open state 已被置 false，仅靠 state 判定会漏挡。
   // 用一个 ref 在嵌套弹窗打开期间「武装」，并延迟到关闭后的下一拍再解除，吞掉这枚尾随事件。
   const nestedGuardRef = useRef(false)
   useEffect(() => {
-    if (advancedOpen || echOpen) {
+    if (advancedOpen || protoDialogOpen) {
       nestedGuardRef.current = true
       return
     }
@@ -408,8 +553,9 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
       nestedGuardRef.current = false
     }, 150)
     return () => window.clearTimeout(id)
-  }, [advancedOpen, echOpen])
-  const nestedActive = () => advancedOpen || echOpen || nestedGuardRef.current
+  }, [advancedOpen, protoDialogOpen])
+  const nestedActive = () =>
+    advancedOpen || protoDialogOpen || nestedGuardRef.current
 
   const { data: groups } = useQuery({
     queryKey: ['server-groups'],
@@ -449,9 +595,18 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
     custom_routes: [],
   })
   const [tagInput, setTagInput] = useState('')
+  // 「打开时装载」用渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    current?: Server | null
+  } | null>(null)
 
-  useEffect(() => {
-    if (!open) return
+  if (loaded?.open !== open || loaded?.current !== current) {
+    setLoaded({ open, current })
+    if (open) loadForm()
+  }
+
+  function loadForm() {
     setTagInput('')
     if (current) {
       const te = current.transfer_enable
@@ -496,7 +651,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
       setPs({ ...PROTOCOL_DEFAULTS.shadowsocks })
       setAdvanced({ cert_config: {}, custom_outbounds: [], custom_routes: [] })
     }
-  }, [open, current])
+  }
 
   const set = (path: string, value: unknown) =>
     setPs((prev) => setPath(prev, path, value))
@@ -506,23 +661,6 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
     setBase((b) => ({ ...b, type }))
     setPs({ ...(PROTOCOL_DEFAULTS[type] ?? {}) })
   }
-
-  // SNI / allow_insecure / ECH 显隐（对齐原版，避免与 Reality 字段重复）：
-  // - 对象式 TLS 协议（hysteria/tuic/anytls）恒有 TLS，始终显示；
-  // - 数组式 TLS 协议（vmess/vless/trojan/socks/naive/http）仅在 tls=1(普通 TLS) 时显示；
-  //   tls=0(关闭) 不显示，tls=2(Reality) 交由协议配置块内的 Reality 字段维护。
-  const showTlsSettings = useMemo(() => {
-    if (TLS_OBJECT_TYPES.includes(base.type)) return true
-    if (TLS_SETTINGS_TYPES.includes(base.type))
-      return Number(getPath(ps, 'tls')) === 1
-    return false
-  }, [base.type, ps])
-
-  /** SNI / allow_insecure / ech 的路径前缀（按协议 TLS 形态）。 */
-  const tlsPrefix = useMemo(
-    () => (TLS_SETTINGS_TYPES.includes(base.type) ? 'tls_settings' : 'tls'),
-    [base.type]
-  )
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -574,12 +712,6 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
     onError: handleServerError,
   })
 
-  const handleEchGenerated = (r: { key: string; config: string }) => {
-    const ech = { enabled: true, key: r.key, config: r.config }
-    setPs((prev) => setPath(prev, `${tlsPrefix}.ech`, ech))
-    toast.success('已回填 ECH 到协议配置')
-  }
-
   /* 标签 chip 输入 */
   const addTag = () => {
     const t = tagInput.trim()
@@ -628,7 +760,11 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
     const v = getPath(ps, path)
     return Array.isArray(v) ? v.join('\n') : v == null ? '' : String(v)
   }
-  const echEnabled = bool(`${tlsPrefix}.ech.enabled`)
+  /** 对象字段（如 network_settings，供 JSON 编辑弹窗读取）。 */
+  const obj = (path: string) => {
+    const v = getPath(ps, path)
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Dict) : null
+  }
 
   const groupOptions = (groups ?? []).map((g) => ({
     value: String(g.id),
@@ -745,7 +881,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                     <Label className='font-mono text-[12px] text-foreground/80'>
                       启用动态倍率
                     </Label>
-                    <div className='font-mono text-[11px] opacity-70'>
+                    <div className='font-mono text-[11px] text-muted-foreground opacity-70'>
                       根据时间段设置不同的倍率乘数
                     </div>
                   </div>
@@ -948,7 +1084,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                         setBase((b) => ({ ...b, dns_cloudflare_zone_id: v }))
                       }
                     >
-                      <SelectTrigger className='h-9 font-mono text-xs'>
+                      <SelectTrigger className='h-9 w-full font-mono text-xs'>
                         <SelectValue placeholder='选择 Zone' />
                       </SelectTrigger>
                       <SelectContent>
@@ -998,98 +1134,6 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 </Field>
               </div>
 
-              {/* SNI / allow_insecure / ECH — 仅普通 TLS 模式（Reality 用自有字段） */}
-              {showTlsSettings && (
-                <>
-                  <div className='flex gap-4'>
-                    <Field label='服务器名称指示(SNI)' className='flex-1'>
-                      <Input
-                        value={str(`${tlsPrefix}.server_name`)}
-                        onChange={(e) =>
-                          set(`${tlsPrefix}.server_name`, e.target.value)
-                        }
-                        placeholder='当节点地址与证书不一致时用于证书验证'
-                        className='h-9 font-mono text-xs'
-                      />
-                    </Field>
-                    <div className='flex items-end gap-2 pb-2'>
-                      <Switch
-                        checked={bool(`${tlsPrefix}.allow_insecure`)}
-                        onCheckedChange={(c) =>
-                          set(`${tlsPrefix}.allow_insecure`, c)
-                        }
-                        className='scale-90'
-                      />
-                      <Label className='font-mono text-[12px] text-foreground/80'>
-                        允许不安全连接
-                      </Label>
-                    </div>
-                  </div>
-
-                  <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center gap-2'>
-                        <Switch
-                          checked={echEnabled}
-                          onCheckedChange={(c) =>
-                            set(`${tlsPrefix}.ech.enabled`, c)
-                          }
-                          className='scale-90'
-                        />
-                        <Label className='font-mono text-[12px] text-foreground/80'>
-                          ECH（Encrypted Client Hello）
-                        </Label>
-                      </div>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        className='h-7 px-2 font-mono text-[10px]'
-                        onClick={() => setEchOpen(true)}
-                      >
-                        <KeyRound className='mr-1 size-3' /> 自动生成 ECH 密钥对
-                      </Button>
-                    </div>
-                    {echEnabled && (
-                      <div className='space-y-3'>
-                        <Field label='ECH 配置 (PEM)'>
-                          <Textarea
-                            rows={3}
-                            className='border-border/50 bg-muted/30 font-mono text-[11px]'
-                            value={str(`${tlsPrefix}.ech.config`)}
-                            onChange={(e) =>
-                              set(`${tlsPrefix}.ech.config`, e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field label='ECH Key'>
-                          <Textarea
-                            rows={3}
-                            className='border-border/50 bg-muted/30 font-mono text-[11px]'
-                            value={str(`${tlsPrefix}.ech.key`)}
-                            onChange={(e) =>
-                              set(`${tlsPrefix}.ech.key`, e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field label='ECH 查询域名'>
-                          <Input
-                            value={str(`${tlsPrefix}.ech.query_server_name`)}
-                            onChange={(e) =>
-                              set(
-                                `${tlsPrefix}.ech.query_server_name`,
-                                e.target.value
-                              )
-                            }
-                            placeholder='可选，用于覆盖 HTTPS 记录查询域名'
-                            className='h-9 font-mono text-xs'
-                          />
-                        </Field>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
 
             {/* ----------------------------- 协议专属配置 ----------------------------- */}
@@ -1107,8 +1151,10 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 bool={bool}
                 arr={arr}
                 lines={lines}
+                obj={obj}
                 set={set}
                 setPs={setPs}
+                onNestedDialog={setProtoDialogOpen}
               />
             </div>
 
@@ -1124,7 +1170,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                     }))
                   }
                 >
-                  <SelectTrigger className='h-9 font-mono text-xs'>
+                  <SelectTrigger className='h-9 w-full font-mono text-xs'>
                     <SelectValue placeholder='选择父节点' />
                   </SelectTrigger>
                   <SelectContent className='font-mono text-xs'>
@@ -1163,7 +1209,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                     }))
                   }
                 >
-                  <SelectTrigger className='h-9 font-mono text-xs'>
+                  <SelectTrigger className='h-9 w-full font-mono text-xs'>
                     <SelectValue placeholder='选择服务器（可选）' />
                   </SelectTrigger>
                   <SelectContent className='font-mono text-xs'>
@@ -1189,16 +1235,37 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
 
         <DialogFooter className='flex flex-row items-center justify-between border-t bg-muted/20 px-6 py-4 sm:space-x-0'>
           <div className='flex items-center gap-2'>
-            <Button
-              type='button'
-              variant='secondary'
-              size='sm'
-              onClick={() => setAdvancedOpen(true)}
-              className='flex h-7 items-center gap-2 rounded-md border border-border/50 bg-muted/50 px-2.5 font-mono text-[11px] hover:bg-muted'
-            >
-              <Settings2 className='size-3 text-muted-foreground' />
-              <span className='opacity-80'>高级设置</span>
-            </Button>
+            {(() => {
+              const certMode = String(
+                (advanced.cert_config as Dict)?.cert_mode ?? ''
+              )
+              const hasCert = !!certMode && certMode !== 'none'
+              const hasMux =
+                MULTIPLEX_TYPES.includes(base.type) &&
+                !!(getPath(ps, 'multiplex.enabled') as boolean)
+              const hasRoutes =
+                (advanced.custom_outbounds?.length ?? 0) > 0 ||
+                (advanced.custom_routes?.length ?? 0) > 0
+              return (
+                <Button
+                  type='button'
+                  variant='secondary'
+                  size='sm'
+                  onClick={() => setAdvancedOpen(true)}
+                  className='flex h-7 items-center gap-2 rounded-md border border-border/50 bg-muted/50 px-2.5 font-mono text-[11px] hover:bg-muted'
+                >
+                  <Settings2 className='size-3 text-muted-foreground' />
+                  <span className='opacity-80'>高级设置</span>
+                  {(hasCert || hasMux || hasRoutes) && (
+                    <div className='ml-1 flex items-center gap-1.5 border-l border-border/60 pl-2'>
+                      {hasCert && <AdvancedChip label='TLS' />}
+                      {hasMux && <AdvancedChip label='MUX' />}
+                      {hasRoutes && <AdvancedChip label='RT' />}
+                    </div>
+                  )}
+                </Button>
+              )
+            })()}
           </div>
           <div className='flex items-center gap-3'>
             <Button
@@ -1222,16 +1289,14 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         </DialogFooter>
       </DialogContent>
 
-      <EchGenerateDialog
-        open={echOpen}
-        onOpenChange={setEchOpen}
-        onGenerated={handleEchGenerated}
-      />
       <AdvancedConfigDialog
         open={advancedOpen}
         onOpenChange={setAdvancedOpen}
         value={advanced}
         onSave={setAdvanced}
+        hasMultiplex={MULTIPLEX_TYPES.includes(base.type)}
+        multiplex={(getPath(ps, 'multiplex') as Dict) ?? null}
+        onMultiplexChange={(m) => setPs((prev) => setPath(prev, 'multiplex', m))}
       />
     </Dialog>
   )
@@ -1270,66 +1335,26 @@ function Field({
         )}
       </Label>
       {children}
-      {hint && (
-        <p className='font-mono text-[11px] text-muted-foreground'>{hint}</p>
-      )}
+      {hint && <p className='font-mono text-[11px] text-muted-foreground opacity-70'>{hint}</p>}
     </div>
   )
 }
 
-function TlsSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (v: number) => void
-}) {
-  const opts = options
+/** 底部「高级设置」按钮上的状态角标（对齐原版触发器 chips）。 */
+function AdvancedChip({ label }: { label: string }) {
   return (
-    <Select
-      value={value === '' ? '0' : value}
-      onValueChange={(v) => onChange(Number(v))}
-    >
-      <SelectTrigger className='h-9 font-mono text-xs'>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent className='font-mono text-xs'>
-        {opts.map((o) => (
-          <SelectItem key={o.value} value={o.value} className='text-xs'>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className='flex items-center gap-1'>
+      <div className='h-1 w-1 rounded-full bg-primary shadow-[0_0_4px_rgba(var(--primary),0.5)]' />
+      <span className='text-[9px] font-bold tracking-tighter text-primary'>
+        {label}
+      </span>
+    </div>
   )
 }
 
-function NetworkSelect({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <Select value={value || 'tcp'} onValueChange={onChange}>
-      <SelectTrigger className='h-9 font-mono text-xs'>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent className='font-mono text-xs'>
-        {NETWORKS.map((n) => (
-          <SelectItem key={n} value={n} className='text-xs'>
-            {n}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
-
-/** 加密算法可搜索下拉（预设 + 自定义，对齐原版 shadowsocks cipher 组合框）。 */
+/** 加密算法可搜索下拉（预设 + 自定义，对齐原版 shadowsocks cipher 组合框）。
+ * 对齐要点：预设列表不随搜索过滤；输入非预设值即时生效（onChange）；
+ * 弹层固定 400px；空态提示区分「有搜索词 → 使用自定义」与「无搜索词 → 提示语」。 */
 function CipherCombobox({
   value,
   onChange,
@@ -1339,90 +1364,72 @@ function CipherCombobox({
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const isCustom = !!value && !SS_CIPHERS.includes(value)
-  const kw = search.trim().toLowerCase()
-  const filtered = SS_CIPHERS.filter((c) => c.toLowerCase().includes(kw))
-  const showCustomFromSearch =
-    !!search.trim() && !SS_CIPHERS.some((c) => c === search.trim())
   const pick = (v: string) => {
     onChange(v)
     setSearch('')
     setOpen(false)
   }
   return (
-    <Popover
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (!o) setSearch('')
-      }}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type='button'
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='h-9 w-full justify-between font-mono text-xs font-normal'
+          className={cn(
+            'w-full justify-between',
+            !value && 'text-foreground/80'
+          )}
         >
-          <span className='truncate'>{value || '选择加密算法'}</span>
-          <ChevronsUpDown className='ml-2 size-3.5 shrink-0 opacity-50' />
+          {value || '选择加密算法'}
+          <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className='w-[--radix-popover-trigger-width] p-0'
-        align='start'
-      >
+      <PopoverContent className='w-[400px] p-0' align='start'>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder='搜索或输入自定义加密方式...'
             value={search}
-            onValueChange={setSearch}
-            className='font-mono text-xs'
+            onValueChange={(v) => {
+              setSearch(v)
+              if (v && !SS_CIPHERS.includes(v)) onChange(v)
+            }}
           />
           <CommandList>
-            <CommandEmpty className='py-4 text-center font-mono text-xs text-muted-foreground'>
-              未找到匹配的加密方式
+            <CommandEmpty>
+              {search ? (
+                <CommandItem value={search} onSelect={(v) => pick(v)}>
+                  <Check className='mr-2 h-4 w-4 opacity-100' />
+                  <span className='font-medium text-blue-600'>
+                    使用 &quot;{search}&quot;
+                  </span>
+                  <span className='ml-2 text-xs text-foreground/80'>
+                    (自定义)
+                  </span>
+                </CommandItem>
+              ) : (
+                <div className='p-2 text-sm text-foreground/80'>
+                  <p>未找到匹配的加密方式</p>
+                  <p className='mt-1 text-xs'>
+                    你可以直接输入自定义的加密方式，如：aes-256-cfb
+                  </p>
+                </div>
+              )}
             </CommandEmpty>
-            {showCustomFromSearch && (
-              <CommandGroup heading='自定义加密方式'>
-                <CommandItem
-                  value={`__custom_${search}`}
-                  onSelect={() => pick(search.trim())}
-                  className='font-mono text-xs'
-                >
-                  使用 “{search.trim()}”
+            <CommandGroup heading='预设加密方式'>
+              {SS_CIPHERS.map((c) => (
+                <CommandItem key={c} value={c} onSelect={(v) => pick(v)}>
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === c ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  {c}
                 </CommandItem>
-              </CommandGroup>
-            )}
-            {isCustom && !showCustomFromSearch && (
-              <CommandGroup heading='当前值'>
-                <CommandItem value={value} className='font-mono text-xs'>
-                  <Check className='mr-2 size-3.5 opacity-100' />
-                  {value}
-                </CommandItem>
-              </CommandGroup>
-            )}
-            {filtered.length > 0 && (
-              <CommandGroup heading='预设加密方式'>
-                {filtered.map((c) => (
-                  <CommandItem
-                    key={c}
-                    value={c}
-                    onSelect={() => pick(c)}
-                    className='font-mono text-xs'
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 size-3.5',
-                        value === c ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    {c}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
+              ))}
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
@@ -1430,40 +1437,217 @@ function CipherCombobox({
   )
 }
 
-/** network_settings 结构化字段（随 network：path/host/serviceName）。 */
-function NetworkSettings({ str, set }: Pick<FieldProps, 'str' | 'set'>) {
+/** SNI + 允许不安全 一行（对齐原版 flex gap-2：SNI 占 2 份，开关列 py-2 居中）。 */
+function SniRow({
+  prefix,
+  sniLabel = '服务器名称指示(SNI)',
+  sniPlaceholder,
+  insecureLabel = '允许不安全?',
+  str,
+  bool,
+  set,
+}: {
+  prefix: string
+  sniLabel?: string
+  sniPlaceholder: string
+  insecureLabel?: string
+} & Pick<FieldProps, 'str' | 'bool' | 'set'>) {
   return (
-    <div className='grid grid-cols-1 gap-4 rounded-xl border bg-muted/5 p-4 sm:grid-cols-3'>
-      <Field label='path（ws/http 路径）'>
+    <div className='flex gap-2'>
+      <div className='flex-[2] space-y-2'>
+        <Label className='font-mono text-[12px] text-foreground/80'>
+          {sniLabel}
+        </Label>
         <Input
-          value={str('network_settings.path')}
-          onChange={(e) => set('network_settings.path', e.target.value)}
-          placeholder='如 /ws'
-          className='h-9 font-mono text-xs'
+          value={str(`${prefix}.server_name`)}
+          onChange={(e) => set(`${prefix}.server_name`, e.target.value)}
+          placeholder={sniPlaceholder}
+          className='font-mono text-xs'
         />
-      </Field>
-      <Field label='host（Host 头）'>
-        <Input
-          value={str('network_settings.host')}
-          onChange={(e) => set('network_settings.host', e.target.value)}
-          placeholder='如 cdn.example.com'
-          className='h-9 font-mono text-xs'
-        />
-      </Field>
-      <Field label='serviceName（gRPC）'>
-        <Input
-          value={str('network_settings.serviceName')}
-          onChange={(e) => set('network_settings.serviceName', e.target.value)}
-          placeholder='如 grpc-service'
-          className='h-9 font-mono text-xs'
-        />
-      </Field>
+      </div>
+      <div className='space-y-2'>
+        <Label className='font-mono text-[12px] text-foreground/80'>
+          {insecureLabel}
+        </Label>
+        <div className='py-2 text-center'>
+          <Switch
+            checked={bool(`${prefix}.allow_insecure`)}
+            onCheckedChange={(c) => set(`${prefix}.allow_insecure`, c)}
+          />
+        </div>
+      </div>
     </div>
   )
 }
 
-/** Reality 配置块（vless tls=2 / trojan）。 */
-function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'set'>) {
+/** ECH 配置块（对齐原版 x4t：开关卡片 + 就地调 API 生成密钥对回填）。 */
+function EchBlock({
+  prefix,
+  str,
+  bool,
+  set,
+}: { prefix: string } & Pick<FieldProps, 'str' | 'bool' | 'set'>) {
+  const enabled = bool(`${prefix}.enabled`)
+  const [generating, setGenerating] = useState(false)
+  const generate = async () => {
+    setGenerating(true)
+    try {
+      const r = await generateEchKey()
+      if (r) {
+        set(`${prefix}.key`, r.key)
+        set(`${prefix}.config`, r.config)
+      }
+    } catch {
+      // 与原版一致：失败静默（请求层已有全局错误提示）
+    } finally {
+      setGenerating(false)
+    }
+  }
+  return (
+    <div className='space-y-4 rounded-lg border bg-muted/10 p-4'>
+      <div className='flex flex-row items-center justify-between'>
+        <div className='space-y-0.5'>
+          <Label className='font-mono text-[13px] font-bold'>ECH</Label>
+          <p className='font-mono text-[11px] text-muted-foreground opacity-70'>
+            为支持的 TLS 客户端启用 Encrypted Client
+            Hello。留空配置时会尝试通过 DNS 查询。
+          </p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={(c) => set(`${prefix}.enabled`, c)}
+        />
+      </div>
+      {enabled && (
+        <div className='space-y-4 border-t border-dashed pt-2'>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={generate}
+            disabled={generating}
+            className='w-full font-mono text-xs'
+          >
+            {generating ? (
+              <Loader2 className='mr-2 h-3.5 w-3.5 animate-spin' />
+            ) : (
+              <KeyRound className='mr-2 h-3.5 w-3.5' />
+            )}
+            自动生成 ECH 密钥对
+          </Button>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              ECH 配置 (PEM)
+            </Label>
+            <Textarea
+              className='min-h-[120px] resize-y font-mono text-xs'
+              value={str(`${prefix}.config`)}
+              onChange={(e) => set(`${prefix}.config`, e.target.value)}
+              placeholder='粘贴 PEM 格式的 ECH 配置，每行一段内容'
+            />
+            <p className='font-mono text-[10px] text-muted-foreground opacity-70'>
+              留空时，sing-box 会尝试通过 DNS 加载 ECH 配置。
+            </p>
+          </div>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              ECH Key
+            </Label>
+            <Textarea
+              className='min-h-[100px] resize-y font-mono text-xs'
+              value={str(`${prefix}.key`)}
+              onChange={(e) => set(`${prefix}.key`, e.target.value)}
+              placeholder='当后端需要时粘贴 ECH key 内容'
+            />
+            <p className='font-mono text-[10px] text-muted-foreground opacity-70'>
+              后端需要时可填写的 ECH key 内容。
+            </p>
+          </div>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              ECH 查询域名
+            </Label>
+            <Input
+              className='h-8 font-mono text-xs'
+              value={str(`${prefix}.query_server_name`)}
+              onChange={(e) => set(`${prefix}.query_server_name`, e.target.value)}
+              placeholder='可选，用于覆盖 HTTPS 记录查询域名'
+            />
+            <p className='font-mono text-[10px] text-muted-foreground opacity-70'>
+              覆盖用于 ECH HTTPS 记录查询的域名，留空时默认使用 server_name。
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** uTLS 配置块（对齐原版 y4t：开关卡片，开启时给默认指纹 chrome）。 */
+function UtlsBlock({
+  prefix = 'utls',
+  str,
+  bool,
+  set,
+}: { prefix?: string } & Pick<FieldProps, 'str' | 'bool' | 'set'>) {
+  const enabled = bool(`${prefix}.enabled`)
+  return (
+    <div className='space-y-4 rounded-lg border bg-muted/10 p-4'>
+      <div className='flex flex-row items-center justify-between'>
+        <div className='space-y-0.5'>
+          <Label className='font-mono text-[13px] font-bold'>uTLS</Label>
+          <p className='font-mono text-[11px] text-muted-foreground opacity-70'>
+            客户端伪装指纹，用于降低被识别风险
+          </p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={(c) => {
+            set(`${prefix}.enabled`, c)
+            if (c && !str(`${prefix}.fingerprint`))
+              set(`${prefix}.fingerprint`, 'chrome')
+          }}
+        />
+      </div>
+      {enabled && (
+        <div className='border-t border-dashed pt-2'>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              客户端指纹 (uTLS)
+            </Label>
+            <Select
+              value={str(`${prefix}.fingerprint`) || 'chrome'}
+              onValueChange={(v) => set(`${prefix}.fingerprint`, v)}
+            >
+              <SelectTrigger className='h-8 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择客户端指纹' />
+              </SelectTrigger>
+              <SelectContent>
+                {UTLS_FINGERPRINTS.map((f) => (
+                  <SelectItem
+                    key={f.value}
+                    value={f.value}
+                    className='font-mono text-xs'
+                  >
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Reality 配置（vless tls=2 / trojan tls=2，对齐原版平铺行 + 图标生成按钮）。 */
+function RealityBlock({
+  variant,
+  str,
+  bool,
+  set,
+}: { variant: 'vless' | 'trojan' } & Pick<FieldProps, 'str' | 'bool' | 'set'>) {
   const genKeypair = () => {
     try {
       const kp = generateRealityKeypair()
@@ -1478,244 +1662,490 @@ function RealityFields({ str, bool, set }: Pick<FieldProps, 'str' | 'bool' | 'se
     set('reality_settings.short_id', generateShortId())
     toast.success('Short ID 生成成功')
   }
+  const shortIdDesc =
+    '客户端可用的 shortId 列表，可用于区分不同的客户端，使用0-f的十六进制字符'
   return (
-    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-      <div className='flex items-center justify-between'>
-        <Label className='font-mono text-[12px] font-bold tracking-wide text-foreground/80'>
-          Reality 配置
-        </Label>
-        <Button
-          type='button'
-          variant='outline'
-          size='sm'
-          className='h-7 px-2 font-mono text-[10px]'
-          onClick={genKeypair}
-        >
-          <KeyRound className='mr-1 size-3' /> 生成密钥对
-        </Button>
-      </div>
-      <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-        <Field label='伪装站点(dest)'>
+    <>
+      <div className='flex gap-2'>
+        <div className='flex-[2] space-y-2'>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            伪装站点(dest)
+          </Label>
           <Input
+            className='font-mono text-xs'
             value={str('reality_settings.server_name')}
             onChange={(e) => set('reality_settings.server_name', e.target.value)}
             placeholder='例如：example.com'
-            className='h-9 font-mono text-xs'
           />
-        </Field>
-        <Field label='端口(port)'>
+        </div>
+        <div className='flex-1 space-y-2'>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            端口(port)
+          </Label>
           <Input
+            className='font-mono text-xs'
             value={str('reality_settings.server_port')}
             onChange={(e) => set('reality_settings.server_port', e.target.value)}
             placeholder='例如：443'
-            className='h-9 font-mono text-xs'
           />
-        </Field>
-        <Field label='公钥(Public key)'>
-          <Input
-            value={str('reality_settings.public_key')}
-            onChange={(e) => set('reality_settings.public_key', e.target.value)}
-            className='h-9 font-mono text-xs'
-          />
-        </Field>
-        <Field label='私钥(Private key)'>
-          <Input
-            value={str('reality_settings.private_key')}
-            onChange={(e) => set('reality_settings.private_key', e.target.value)}
-            className='h-9 font-mono text-xs'
-          />
-        </Field>
-        <Field
-          label='Short ID'
-          hint='客户端可用的 shortId 列表，可用于区分不同的客户端，使用0-f的十六进制字符'
-        >
+        </div>
+        <div className='space-y-2'>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            允许不安全?
+          </Label>
+          <div className='py-2 text-center'>
+            <Switch
+              checked={bool('reality_settings.allow_insecure')}
+              onCheckedChange={(c) => set('reality_settings.allow_insecure', c)}
+            />
+          </div>
+        </div>
+      </div>
+      <div className='flex items-end gap-2'>
+        <div className='flex-1 space-y-2'>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            私钥(Private key)
+          </Label>
           <div className='relative'>
             <Input
+              className='pr-9 font-mono text-xs'
+              value={str('reality_settings.private_key')}
+              onChange={(e) =>
+                set('reality_settings.private_key', e.target.value)
+              }
+            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    onClick={genKeypair}
+                    className='absolute right-0 top-0 h-full px-2 transition-transform duration-150 active:scale-90'
+                  >
+                    <KeyRound className='h-4 w-4 transition-transform duration-300 hover:rotate-180' />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>生成密钥对</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      </div>
+      <div className='space-y-2'>
+        <Label className='font-mono text-[12px] text-foreground/80'>
+          公钥(Public key)
+        </Label>
+        <Input
+          className='font-mono text-xs'
+          value={str('reality_settings.public_key')}
+          onChange={(e) => set('reality_settings.public_key', e.target.value)}
+        />
+      </div>
+      {variant === 'vless' ? (
+        <div className='space-y-2'>
+          <Label className='font-mono text-[12px] text-foreground/80'>
+            Short ID
+          </Label>
+          <div className='relative'>
+            <Input
+              className='pr-9 font-mono text-xs'
               value={str('reality_settings.short_id')}
               onChange={(e) => set('reality_settings.short_id', e.target.value)}
               placeholder='可留空，长度为2的倍数，最长16位'
-              className='h-9 pr-9 font-mono text-xs'
             />
-            <Button
-              type='button'
-              variant='ghost'
-              size='icon'
-              className='absolute right-0 top-0 h-full px-2 text-muted-foreground hover:text-foreground'
-              onClick={genShortId}
-            >
-              <RefreshCw className='size-3.5' />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    onClick={genShortId}
+                    className='absolute right-0 top-0 h-full px-2 transition-transform duration-150 active:scale-90'
+                  >
+                    <RefreshCw className='h-4 w-4 transition-transform duration-300 hover:rotate-180' />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>生成 Short ID</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-        </Field>
-      </div>
-      <div className='flex items-center gap-2'>
-        <Switch
-          checked={bool('reality_settings.allow_insecure')}
-          onCheckedChange={(c) => set('reality_settings.allow_insecure', c)}
-          className='scale-90'
-        />
-        <Label className='font-mono text-[12px] text-foreground/80'>
-          允许不安全?
-        </Label>
-      </div>
-    </div>
-  )
-}
-
-/** 通用多路复用块（vmess/vless/trojan/mieru）。 */
-function MultiplexFields({ bool, num, str, set }: Pick<FieldProps, 'bool' | 'num' | 'str' | 'set'>) {
-  const enabled = bool('multiplex.enabled')
-  return (
-    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <Label className='font-mono text-[12px] text-foreground/80'>
-            多路复用 (Multiplex)
-          </Label>
-          <div className='font-mono text-[11px] opacity-70'>
-            通过单条 TCP 连接传输多个流，降低握手延迟
+          <p className='font-mono text-[11px] text-xs text-foreground/80 opacity-70'>
+            {shortIdDesc}
+          </p>
+        </div>
+      ) : (
+        <div className='flex gap-2'>
+          <div className='flex-1 space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              <div className='flex items-center gap-1'>
+                Short ID
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='h-3 w-3 cursor-help text-muted-foreground' />
+                    </TooltipTrigger>
+                    <TooltipContent className='max-w-[300px]'>
+                      <p>{shortIdDesc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </Label>
+            <div className='relative'>
+              <Input
+                className='pr-9 font-mono text-xs'
+                value={str('reality_settings.short_id')}
+                onChange={(e) =>
+                  set('reality_settings.short_id', e.target.value)
+                }
+              />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      onClick={genShortId}
+                      className='absolute right-0 top-0 h-full px-2 transition-transform duration-150 active:scale-90'
+                    >
+                      <RefreshCw className='h-4 w-4' />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>生成 Short ID</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
-        <Switch
-          checked={enabled}
-          onCheckedChange={(c) => set('multiplex.enabled', c)}
-          className='scale-90'
-        />
-      </div>
-      {enabled && (
-        <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='复用协议'>
-              <Select
-                value={str('multiplex.protocol') || 'yamux'}
-                onValueChange={(v) => set('multiplex.protocol', v)}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='smux' className='text-xs'>
-                    smux
-                  </SelectItem>
-                  <SelectItem value='yamux' className='text-xs'>
-                    yamux
-                  </SelectItem>
-                  <SelectItem value='h2mux' className='text-xs'>
-                    h2mux
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label='最大连接数'>
-              <Input
-                value={num('multiplex.max_connections')}
-                onChange={(e) =>
-                  set(
-                    'multiplex.max_connections',
-                    e.target.value === '' ? null : Number(e.target.value)
-                  )
-                }
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-          </div>
-          <div className='flex items-center gap-2'>
-            <Switch
-              checked={bool('multiplex.padding')}
-              onCheckedChange={(c) => set('multiplex.padding', c)}
-              className='scale-90'
-            />
-            <Label className='font-mono text-[12px] text-foreground/80'>
-              启用填充
-            </Label>
-          </div>
-          <div className='flex items-center gap-2'>
-            <Switch
-              checked={bool('multiplex.brutal.enabled')}
-              onCheckedChange={(c) => set('multiplex.brutal.enabled', c)}
-              className='scale-90'
-            />
-            <Label className='font-mono text-[12px] text-foreground/80'>
-              TCP Brutal (激进拥塞控制)
-            </Label>
-          </div>
-          {bool('multiplex.brutal.enabled') && (
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-              <Field label='上行带宽'>
-                <Input
-                  value={num('multiplex.brutal.up_mbps')}
-                  onChange={(e) =>
-                    set(
-                      'multiplex.brutal.up_mbps',
-                      e.target.value === '' ? null : Number(e.target.value)
+      )}
+    </>
+  )
+}
+
+/** network_settings JSON 编辑弹窗（对齐原版 m4t：模板按钮 + JSON 校验 + 关闭即保存）。 */
+function NetworkSettingsDialog({
+  value,
+  onChange,
+  templateType,
+  onOpenNotify,
+}: {
+  value: Dict | null
+  onChange: (v: Dict | null) => void
+  templateType: string
+  onOpenNotify: (open: boolean) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const templates = templatesForType(templateType)
+
+  const validate = (t: string): string | null => {
+    if (!t) return null
+    try {
+      const p = JSON.parse(t)
+      // 与原版一致：仅要求 typeof object（数组也放行）
+      return typeof p !== 'object' || p === null ? '配置必须是一个JSON对象' : null
+    } catch {
+      return '无效的JSON格式'
+    }
+  }
+
+  const save = () => {
+    const err = validate(text || '')
+    if (err) {
+      toast.error(err)
+      return
+    }
+    try {
+      if (!text) {
+        onChange(null)
+        setOpen(false)
+        onOpenNotify(false)
+        return
+      }
+      onChange(JSON.parse(text))
+      setOpen(false)
+      onOpenNotify(false)
+    } catch {
+      toast.error('保存时发生错误')
+    }
+  }
+
+  const handleOpenChange = (o: boolean) => {
+    if (o) {
+      // 打开时装载当前值（原版 m4t：非空才序列化展示）
+      setText(
+        value && Object.keys(value).length > 0
+          ? JSON.stringify(value, null, 2)
+          : ''
+      )
+      setError(null)
+    }
+    if (!o && open) save()
+    setOpen(o)
+    onOpenNotify(o)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Button
+        type='button'
+        variant='link'
+        onClick={() => handleOpenChange(true)}
+      >
+        编辑协议
+      </Button>
+      <DialogContent className='sm:max-w-[425px]'>
+        <DialogHeader>
+          <DialogTitle>编辑协议配置</DialogTitle>
+        </DialogHeader>
+        <div className='space-y-4'>
+          {templates.length > 0 && (
+            <div className='flex flex-wrap gap-2 pt-2'>
+              {templates.map((k) => (
+                <Button
+                  key={k}
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => {
+                    setText(
+                      JSON.stringify(NETWORK_TEMPLATES[k].content, null, 2)
                     )
-                  }
-                  className='h-9 font-mono text-xs'
-                />
-              </Field>
-              <Field label='下行带宽'>
-                <Input
-                  value={num('multiplex.brutal.down_mbps')}
-                  onChange={(e) =>
-                    set(
-                      'multiplex.brutal.down_mbps',
-                      e.target.value === '' ? null : Number(e.target.value)
-                    )
-                  }
-                  className='h-9 font-mono text-xs'
-                />
-              </Field>
+                    setError(null)
+                  }}
+                >
+                  使用{NETWORK_TEMPLATES[k].label}模板
+                </Button>
+              ))}
             </div>
           )}
-        </>
-      )}
+          <div className='space-y-2'>
+            <Textarea
+              className={
+                'min-h-[200px] font-mono text-sm ' +
+                (error ? 'border-red-500 focus-visible:ring-red-500' : '')
+              }
+              value={text}
+              placeholder={
+                templates.length > 0
+                  ? '请输入JSON配置或选择上方模板'
+                  : '请输入JSON配置'
+              }
+              onChange={(e) => {
+                setText(e.target.value)
+                setError(validate(e.target.value))
+              }}
+            />
+            {error && <p className='text-sm text-red-500'>{error}</p>}
+          </div>
+        </div>
+        <DialogFooter className='gap-2'>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              setOpen(false)
+              onOpenNotify(false)
+            }}
+          >
+            取消
+          </Button>
+          <Button type='button' onClick={save} disabled={!!error}>
+            确定
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** 传输协议字段（label 内嵌「编辑协议」JSON 弹窗触发器，对齐原版）。 */
+function NetworkField({
+  options,
+  obj,
+  str,
+  set,
+  setPs,
+  onNestedDialog,
+}: {
+  options: { value: string; label: string }[]
+} & Pick<FieldProps, 'obj' | 'str' | 'set' | 'setPs' | 'onNestedDialog'>) {
+  const network = str('network') || 'tcp'
+  return (
+    <div className='space-y-2'>
+      <Label className='font-mono text-[12px] text-foreground/80'>
+        传输协议
+        <NetworkSettingsDialog
+          value={obj('network_settings')}
+          onChange={(v) =>
+            setPs((prev) => setPath(prev, 'network_settings', v))
+          }
+          templateType={network}
+          onOpenNotify={onNestedDialog}
+        />
+      </Label>
+      <Select value={network} onValueChange={(v) => set('network', v)}>
+        <SelectTrigger className='h-9 w-full font-mono text-xs'>
+          <SelectValue placeholder='选择传输协议' />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value} className='cursor-pointer'>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
 
-/** 通用 uTLS 块（vmess/vless/trojan）。 */
-function UtlsFields({ bool, str, set }: Pick<FieldProps, 'bool' | 'str' | 'set'>) {
-  const enabled = bool('utls.enabled')
+/** tuic ALPN 多选（对齐原版 MultipleSelector：badge + 命令面板下拉）。 */
+function AlpnMultiSelect({
+  value,
+  onChange,
+}: {
+  value: string[]
+  onChange: (v: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const selected = TUIC_ALPN.filter((o) => value.includes(o.value))
+  const remaining = TUIC_ALPN.filter((o) => !value.includes(o.value))
+  const remove = (v: string) => onChange(value.filter((x) => x !== v))
   return (
-    <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-      <div className='flex items-center gap-2'>
-        <Switch
-          checked={enabled}
-          onCheckedChange={(c) => set('utls.enabled', c)}
-          className='scale-90'
-        />
-        <Label className='font-mono text-[12px] text-foreground/80'>
-          uTLS（指纹伪装）
-        </Label>
-      </div>
-      {enabled && (
-        <Field label='fingerprint'>
-          <Select
-            value={str('utls.fingerprint') || 'chrome'}
-            onValueChange={(v) => set('utls.fingerprint', v)}
+    <Command
+      shouldFilter={false}
+      className='h-auto overflow-visible bg-transparent'
+      onKeyDown={(e) => {
+        if (
+          (e.key === 'Delete' || e.key === 'Backspace') &&
+          !search &&
+          value.length > 0
+        )
+          remove(value[value.length - 1])
+        if (e.key === 'Escape') inputRef.current?.blur()
+      }}
+    >
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverAnchor asChild>
+          <div
+            className={cn(
+              'rounded-md border border-input font-mono text-xs ring-offset-background focus-within:ring-1 focus-within:ring-ring',
+              selected.length !== 0 && 'cursor-text px-3 py-2'
+            )}
+            onClick={() => inputRef.current?.focus()}
           >
-            <SelectTrigger className='h-9 font-mono text-xs'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className='font-mono text-xs'>
-              <SelectItem value='chrome' className='text-xs'>
-                Chrome
-              </SelectItem>
-              <SelectItem value='firefox' className='text-xs'>
-                Firefox
-              </SelectItem>
-              <SelectItem value='safari' className='text-xs'>
-                Safari
-              </SelectItem>
-              <SelectItem value='ios' className='text-xs'>
-                iOS
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-      )}
-    </div>
+            <div className='flex flex-wrap gap-1'>
+              {selected.map((o) => (
+                <Badge key={o.value}>
+                  {o.label}
+                  <button
+                    type='button'
+                    className='ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                    }}
+                    onClick={() => remove(o.value)}
+                  >
+                    <X className='h-3 w-3 text-muted-foreground hover:text-foreground' />
+                  </button>
+                </Badge>
+              ))}
+              <CommandPrimitive.Input
+                ref={inputRef}
+                value={search}
+                onValueChange={setSearch}
+                onFocus={() => setOpen(true)}
+                placeholder='选择ALPN协议'
+                className={cn(
+                  'flex-1 bg-transparent outline-none placeholder:text-muted-foreground',
+                  selected.length === 0 ? 'px-3 py-2' : 'ml-1'
+                )}
+              />
+            </div>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            if (e.target === inputRef.current) e.preventDefault()
+          }}
+          className='w-[--radix-popover-trigger-width] border-none bg-transparent p-0 shadow-none'
+          side='bottom'
+          align='start'
+          sideOffset={4}
+        >
+          <CommandList className='rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in'>
+            {remaining.filter((o) =>
+              o.label.toLowerCase().includes(search.toLowerCase())
+            ).length === 0 ? (
+              <p className='p-2 text-center text-lg leading-10 text-gray-600 dark:text-gray-400'>
+                未找到可用的ALPN协议
+              </p>
+            ) : (
+              <CommandGroup className='h-full overflow-auto'>
+                {remaining
+                  .filter((o) =>
+                    o.label.toLowerCase().includes(search.toLowerCase())
+                  )
+                  .map((o) => (
+                    <CommandItem
+                      key={o.value}
+                      value={o.value}
+                      className='cursor-pointer'
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                      }}
+                      onSelect={() => {
+                        setSearch('')
+                        onChange([...value, o.value])
+                      }}
+                    >
+                      {o.label}
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </PopoverContent>
+      </Popover>
+    </Command>
   )
+}
+
+/** mieru 流量模式生成（对齐原版 protobuf varint + base64 算法）。 */
+function generateMieruPattern(): string {
+  const a = Math.floor(101 * Math.random()) + 100
+  const b = Math.floor(201 * Math.random()) + 400
+  const varint = (n: number) => {
+    const out: number[] = []
+    while (n >= 128) {
+      out.push((n & 127) | 128)
+      n >>>= 7
+    }
+    out.push(n)
+    return out
+  }
+  const inner = [8, ...varint(a), 16, ...varint(b)]
+  const bytes = new Uint8Array([10, ...varint(inner.length), ...inner])
+  let s = ''
+  bytes.forEach((x) => (s += String.fromCharCode(x)))
+  return window.btoa(s)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1729,15 +2159,20 @@ type FieldProps = {
   bool: (path: string) => boolean
   arr: (path: string) => string
   lines: (path: string) => string
+  obj: (path: string) => Dict | null
   set: (path: string, value: unknown) => void
   setPs: React.Dispatch<React.SetStateAction<Dict>>
+  /** 协议卡片内嵌弹窗开合通知（主弹窗据此屏蔽误关闭）。 */
+  onNestedDialog: (open: boolean) => void
 }
 
 function ProtocolFields(props: FieldProps) {
-  const { type, str, num, bool, arr, lines, set, setPs } = props
+  const { type, str, num, bool, arr, lines, obj, set, setPs, onNestedDialog } =
+    props
   switch (type) {
     case 'shadowsocks': {
-      const plugin = str('plugin') || 'none'
+      const plugin = str('plugin')
+      const hasPlugin = !!plugin && plugin !== 'none'
       return (
         <>
           <Field label='加密算法' hint='选择预设加密方式或输入自定义加密方式'>
@@ -1746,30 +2181,49 @@ function ProtocolFields(props: FieldProps) {
               onChange={(v) => set('cipher', v)}
             />
           </Field>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='插件'>
-              <Select
-                value={plugin}
-                onValueChange={(v) => set('plugin', v === 'none' ? '' : v)}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue placeholder='选择插件' />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  {SS_PLUGINS.map((p) => (
-                    <SelectItem key={p.value} value={p.value} className='text-xs'>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+          {/* 插件专属提示挂在插件下拉下方（对齐原版 plugin 字段 description） */}
+          <Field label='插件' hint={hasPlugin ? SS_PLUGIN_HINTS[plugin] : undefined}>
+            <Select
+              value={plugin || 'none'}
+              onValueChange={(v) => set('plugin', v === 'none' ? '' : v)}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择插件' />
+              </SelectTrigger>
+              <SelectContent className='font-mono text-xs'>
+                {SS_PLUGINS.map((p) => (
+                  <SelectItem key={p.value} value={p.value} className='text-xs'>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          {/* 插件选项仅在选择插件后显示，说明文字在输入框上方（对齐原版） */}
+          {hasPlugin && (
+            <div className='space-y-2'>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                插件选项
+              </Label>
+              <p className='font-mono text-[11px] text-muted-foreground opacity-70'>
+                按照 key=value;key2=value2 格式输入插件选项
+              </p>
+              <Input
+                value={str('plugin_opts')}
+                onChange={(e) => set('plugin_opts', e.target.value)}
+                placeholder='例如: mode=tls;host=bing.com'
+                className='h-9 font-mono text-xs'
+              />
+            </div>
+          )}
+          {/* 客户端指纹仅 shadow-tls / restls 插件显示（对齐原版） */}
+          {(plugin === 'shadow-tls' || plugin === 'restls') && (
             <Field label='客户端指纹' hint='客户端伪装指纹，用于降低被识别风险'>
               <Select
-                value={str('client_fingerprint') || undefined}
+                value={str('client_fingerprint') || 'chrome'}
                 onValueChange={(v) => set('client_fingerprint', v)}
               >
-                <SelectTrigger className='h-9 font-mono text-xs'>
+                <SelectTrigger className='h-9 w-full font-mono text-xs'>
                   <SelectValue placeholder='选择客户端指纹' />
                 </SelectTrigger>
                 <SelectContent className='font-mono text-xs'>
@@ -1781,21 +2235,7 @@ function ProtocolFields(props: FieldProps) {
                 </SelectContent>
               </Select>
             </Field>
-          </div>
-          <Field
-            label='插件选项'
-            hint={
-              SS_PLUGIN_HINTS[plugin] ??
-              '按照 key=value;key2=value2 格式输入插件选项'
-            }
-          >
-            <Input
-              value={str('plugin_opts')}
-              onChange={(e) => set('plugin_opts', e.target.value)}
-              placeholder='例如: mode=tls;host=bing.com'
-              className='h-9 font-mono text-xs'
-            />
-          </Field>
+          )}
         </>
       )
     }
@@ -1803,342 +2243,470 @@ function ProtocolFields(props: FieldProps) {
     case 'vmess':
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='TLS'>
-              <TlsSelect
-                value={num('tls')}
-                options={TLS_SUPPORT}
-                onChange={(v) => set('tls', v)}
+          <Field label='TLS'>
+            <Select
+              value={num('tls') || '0'}
+              onValueChange={(v) => set('tls', Number(v))}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='请选择安全性' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='0'>None</SelectItem>
+                <SelectItem value='1'>TLS</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {num('tls') === '1' && (
+            <>
+              <SniRow
+                prefix='tls_settings'
+                sniPlaceholder='不使用请留空'
+                str={str}
+                bool={bool}
+                set={set}
               />
-            </Field>
-            <Field label='传输协议'>
-              <NetworkSelect
-                value={str('network')}
-                onChange={(v) => set('network', v)}
-              />
-            </Field>
-          </div>
-          <NetworkSettings str={str} set={set} />
-          <MultiplexFields bool={bool} num={num} str={str} set={set} />
-          <UtlsFields bool={bool} str={str} set={set} />
+              <div className='mt-2 space-y-2'>
+                <UtlsBlock str={str} bool={bool} set={set} />
+                <EchBlock
+                  prefix='tls_settings.ech'
+                  str={str}
+                  bool={bool}
+                  set={set}
+                />
+              </div>
+            </>
+          )}
+          <NetworkField
+            options={VMESS_NETWORKS}
+            obj={obj}
+            str={str}
+            set={set}
+            setPs={setPs}
+            onNestedDialog={onNestedDialog}
+          />
         </>
       )
 
     case 'vless':
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='安全性'>
-              <TlsSelect
-                value={num('tls')}
-                options={TLS_NONE_TLS_REALITY}
-                onChange={(v) => set('tls', v)}
+          <Field label='安全性'>
+            <Select
+              value={num('tls') || '0'}
+              onValueChange={(v) => set('tls', Number(v))}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='请选择安全性' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='0'>无</SelectItem>
+                <SelectItem value='1'>TLS</SelectItem>
+                <SelectItem value='2'>Reality</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {num('tls') === '1' && (
+            <>
+              <SniRow
+                prefix='tls_settings'
+                sniPlaceholder='不使用请留空'
+                str={str}
+                bool={bool}
+                set={set}
               />
-            </Field>
-            <Field label='传输协议'>
-              <NetworkSelect
-                value={str('network')}
-                onChange={(v) => set('network', v)}
-              />
-            </Field>
-          </div>
+              <div className='mt-2 space-y-2'>
+                <UtlsBlock str={str} bool={bool} set={set} />
+                <EchBlock
+                  prefix='tls_settings.ech'
+                  str={str}
+                  bool={bool}
+                  set={set}
+                />
+              </div>
+            </>
+          )}
+          {num('tls') === '2' && (
+            <>
+              <RealityBlock variant='vless' str={str} bool={bool} set={set} />
+              <div className='mt-2 space-y-2'>
+                <UtlsBlock str={str} bool={bool} set={set} />
+              </div>
+            </>
+          )}
+          <NetworkField
+            options={VLESS_NETWORKS}
+            obj={obj}
+            str={str}
+            set={set}
+            setPs={setPs}
+            onNestedDialog={onNestedDialog}
+          />
           <Field label='流控'>
             <Select
               value={str('flow') || 'none'}
-              onValueChange={(v) => set('flow', v === 'none' ? '' : v)}
+              onValueChange={(v) => set('flow', v === 'none' ? null : v)}
             >
-              <SelectTrigger className='h-9 font-mono text-xs'>
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
                 <SelectValue placeholder='选择流控' />
               </SelectTrigger>
-              <SelectContent className='font-mono text-xs'>
+              <SelectContent>
                 {VLESS_FLOWS.map((f) => (
-                  <SelectItem key={f} value={f} className='text-xs'>
+                  <SelectItem key={f} value={f}>
                     {f}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <NetworkSettings str={str} set={set} />
-          <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <Label className='font-mono text-[12px] text-foreground/80'>
+          <div className='space-y-4 rounded-lg border bg-muted/10 p-4'>
+            <div className='flex flex-row items-center justify-between'>
+              <div className='space-y-0.5'>
+                <Label className='font-mono text-[13px] font-bold'>
                   VLESS Encryption
                 </Label>
-                <div className='font-mono text-[11px] opacity-70'>
+                <p className='font-mono text-[11px] text-muted-foreground opacity-70'>
                   启用 VLESS 加密
-                </div>
+                </p>
               </div>
               <Switch
                 checked={bool('encryption.enabled')}
                 onCheckedChange={(c) => set('encryption.enabled', c)}
-                className='scale-90'
               />
             </div>
             {bool('encryption.enabled') && (
-              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                <Field label='encryption'>
+              <div className='space-y-4 border-t border-dashed pt-2'>
+                <div className='space-y-2'>
+                  <Label className='font-mono text-[11px] text-foreground/60'>
+                    decryption
+                  </Label>
                   <Input
-                    value={str('encryption.encryption')}
-                    onChange={(e) =>
-                      set('encryption.encryption', e.target.value)
-                    }
-                    placeholder='./xray vlessenc 生成'
-                    className='h-9 font-mono text-xs'
-                  />
-                </Field>
-                <Field label='decryption'>
-                  <Input
+                    className='font-mono text-xs'
                     value={str('encryption.decryption')}
                     onChange={(e) =>
                       set('encryption.decryption', e.target.value)
                     }
                     placeholder='./xray vlessenc 生成'
-                    className='h-9 font-mono text-xs'
                   />
-                </Field>
+                </div>
+                <div className='space-y-2'>
+                  <Label className='font-mono text-[11px] text-foreground/60'>
+                    encryption
+                  </Label>
+                  <Input
+                    className='font-mono text-xs'
+                    value={str('encryption.encryption')}
+                    onChange={(e) =>
+                      set('encryption.encryption', e.target.value)
+                    }
+                    placeholder='./xray vlessenc 生成'
+                  />
+                </div>
+                <p className='px-1 font-mono text-[10px] italic leading-relaxed text-primary/70'>
+                  * ./xray vlessenc 生成
+                </p>
               </div>
             )}
           </div>
-          {num('tls') === '2' && (
-            <RealityFields str={str} bool={bool} set={set} />
-          )}
-          <MultiplexFields bool={bool} num={num} str={str} set={set} />
-          <UtlsFields bool={bool} str={str} set={set} />
         </>
       )
 
     case 'trojan':
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='安全性'>
-              <TlsSelect
-                value={num('tls')}
-                options={TLS_NONE_TLS_REALITY}
-                onChange={(v) => set('tls', v)}
-              />
-            </Field>
-            <Field label='传输协议'>
-              <NetworkSelect
-                value={str('network')}
-                onChange={(v) => set('network', v)}
-              />
-            </Field>
-          </div>
-          <NetworkSettings str={str} set={set} />
-          {num('tls') === '2' && (
-            <RealityFields str={str} bool={bool} set={set} />
+          <Field label='安全性'>
+            <Select
+              value={num('tls') || '1'}
+              onValueChange={(v) => set('tls', Number(v))}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='请选择安全性' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='1'>TLS</SelectItem>
+                <SelectItem value='2'>Reality</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {num('tls') === '1' && (
+            <SniRow
+              prefix='tls_settings'
+              sniPlaceholder='当节点地址于证书不一致时用于证书验证'
+              str={str}
+              bool={bool}
+              set={set}
+            />
           )}
-          <MultiplexFields bool={bool} num={num} str={str} set={set} />
-          <UtlsFields bool={bool} str={str} set={set} />
+          {num('tls') === '2' && (
+            <RealityBlock variant='trojan' str={str} bool={bool} set={set} />
+          )}
+          <div className='mb-4 space-y-4'>
+            <UtlsBlock str={str} bool={bool} set={set} />
+            <EchBlock
+              prefix='tls_settings.ech'
+              str={str}
+              bool={bool}
+              set={set}
+            />
+          </div>
+          <NetworkField
+            options={VMESS_NETWORKS}
+            obj={obj}
+            str={str}
+            set={set}
+            setPs={setPs}
+            onNestedDialog={onNestedDialog}
+          />
         </>
       )
 
-    case 'hysteria':
+    case 'hysteria': {
+      const isV2 = (num('version') || '2') === '2'
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='协议版本'>
+          <div className='flex gap-2'>
+            <div className='flex-1 space-y-2'>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                协议版本
+              </Label>
               <Select
                 value={num('version') || '2'}
                 onValueChange={(v) => set('version', Number(v))}
               >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
+                <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                  <SelectValue placeholder='协议版本' />
                 </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='1' className='text-xs'>
-                    1
+                <SelectContent>
+                  <SelectItem value='1' className='cursor-pointer'>
+                    V1
                   </SelectItem>
-                  <SelectItem value='2' className='text-xs'>
-                    2
+                  <SelectItem value='2' className='cursor-pointer'>
+                    V2
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </Field>
-            <Field label='hop_interval（端口跳跃间隔秒）'>
-              <Input
-                value={num('hop_interval')}
-                onChange={(e) =>
-                  set(
-                    'hop_interval',
-                    e.target.value === '' ? null : Number(e.target.value)
-                  )
-                }
-                placeholder='如 30'
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
+            </div>
+            {num('version') === '1' && (
+              <div className='flex-[2] space-y-2'>
+                <Label className='font-mono text-[12px] text-foreground/80'>
+                  ALPN
+                </Label>
+                <Select
+                  value={str('alpn') || 'h2'}
+                  onValueChange={(v) => set('alpn', v)}
+                >
+                  <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                    <SelectValue placeholder='ALPN' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HYSTERIA_ALPN.map((a) => (
+                      <SelectItem key={a} value={a}>
+                        {a}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='上行宽带' suffix='Mbps，留空则使用BBR'>
-              <Input
-                value={num('bandwidth.up')}
-                onChange={(e) =>
-                  set(
-                    'bandwidth.up',
-                    e.target.value === '' ? null : Number(e.target.value)
-                  )
-                }
-                placeholder='请输入上行宽带'
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-            <Field label='下行宽带' suffix='Mbps，留空则使用BBR'>
-              <Input
-                value={num('bandwidth.down')}
-                onChange={(e) =>
-                  set(
-                    'bandwidth.down',
-                    e.target.value === '' ? null : Number(e.target.value)
-                  )
-                }
-                placeholder='请输入下行宽带'
-                className='h-9 font-mono text-xs'
-              />
-            </Field>
-          </div>
-          <Field label='ALPN'>
-            <Select
-              value={str('alpn') || 'h3'}
-              onValueChange={(v) => set('alpn', v)}
-            >
-              <SelectTrigger className='h-9 font-mono text-xs'>
-                <SelectValue placeholder='ALPN' />
-              </SelectTrigger>
-              <SelectContent className='font-mono text-xs'>
-                {HYSTERIA_ALPN.map((a) => (
-                  <SelectItem key={a} value={a} className='text-xs'>
-                    {a}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <div className='space-y-3 rounded-xl border bg-muted/5 p-4'>
-            <div className='flex items-center gap-2'>
-              <Switch
-                checked={bool('obfs.open')}
-                onCheckedChange={(c) => set('obfs.open', c)}
-                className='scale-90'
-              />
+          <div className='flex gap-2'>
+            <div className='space-y-2'>
               <Label className='font-mono text-[12px] text-foreground/80'>
                 混淆
               </Label>
+              <div className='py-2 text-center'>
+                <Switch
+                  checked={bool('obfs.open')}
+                  onCheckedChange={(c) => set('obfs.open', c)}
+                />
+              </div>
             </div>
             {bool('obfs.open') && (
-              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                <Field label='混淆实现'>
-                  <Select
-                    value={str('obfs.type') || 'salamander'}
-                    onValueChange={(v) => set('obfs.type', v)}
-                  >
-                    <SelectTrigger className='h-9 font-mono text-xs'>
-                      <SelectValue placeholder='选择混淆实现' />
-                    </SelectTrigger>
-                    <SelectContent className='font-mono text-xs'>
-                      <SelectItem value='salamander' className='text-xs'>
-                        Salamander
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label='混淆密码'>
+              <>
+                {isV2 && (
+                  <div className='flex-1 space-y-2'>
+                    <Label className='font-mono text-[12px] text-foreground/80'>
+                      混淆实现
+                    </Label>
+                    <Select
+                      value={str('obfs.type') || 'salamander'}
+                      onValueChange={(v) => set('obfs.type', v)}
+                    >
+                      <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                        <SelectValue placeholder='选择混淆实现' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='salamander'>Salamander</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className={isV2 ? 'w-full space-y-2' : 'flex-[2] space-y-2'}>
+                  <Label className='font-mono text-[12px] text-foreground/80'>
+                    混淆密码
+                  </Label>
                   <div className='relative'>
                     <Input
+                      className='pr-9 font-mono text-xs'
                       value={str('obfs.password')}
                       onChange={(e) => set('obfs.password', e.target.value)}
                       placeholder='请输入混淆密码'
-                      className='h-9 pr-9 font-mono text-xs'
                     />
                     <Button
                       type='button'
                       variant='ghost'
                       size='icon'
-                      className='absolute right-0 top-0 h-full px-2 text-muted-foreground hover:text-foreground'
+                      className='absolute right-0 top-0 h-full px-2 transition-transform duration-150 active:scale-90'
                       onClick={() => {
                         set('obfs.password', generateRandomPassword())
                         toast.success('混淆密码生成成功')
                       }}
                     >
-                      <RefreshCw className='size-3.5' />
+                      <RefreshCw className='h-4 w-4 transition-transform duration-300 hover:rotate-180' />
                     </Button>
                   </div>
-                </Field>
-              </div>
+                </div>
+              </>
             )}
+          </div>
+          <SniRow
+            prefix='tls'
+            sniPlaceholder='当节点地址于证书不一致时用于证书验证'
+            str={str}
+            bool={bool}
+            set={set}
+          />
+          <EchBlock prefix='tls.ech' str={str} bool={bool} set={set} />
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              上行宽带
+            </Label>
+            <div className='relative flex'>
+              <Input
+                type='number'
+                className='rounded-br-none rounded-tr-none font-mono text-xs'
+                value={num('bandwidth.up')}
+                onChange={(e) => set('bandwidth.up', e.target.value)}
+                placeholder={'请输入上行宽带' + (isV2 ? '，留空则使用BBR' : '')}
+              />
+              <div className='pointer-events-none z-[-1] flex items-center rounded-md rounded-bl-none rounded-tl-none border border-l-0 border-input px-3 shadow-sm'>
+                <span className='text-gray-500'>Mbps</span>
+              </div>
+            </div>
+          </div>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              下行宽带
+            </Label>
+            <div className='relative flex'>
+              <Input
+                type='number'
+                className='rounded-br-none rounded-tr-none font-mono text-xs'
+                value={num('bandwidth.down')}
+                onChange={(e) => set('bandwidth.down', e.target.value)}
+                placeholder={'请输入下行宽带' + (isV2 ? '，留空则使用BBR' : '')}
+              />
+              <div className='pointer-events-none z-[-1] flex items-center rounded-md rounded-bl-none rounded-tl-none border border-l-0 border-input px-3 shadow-sm'>
+                <span className='text-gray-500'>Mbps</span>
+              </div>
+            </div>
+          </div>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              Hop 间隔 (秒)
+            </Label>
+            <Input
+              type='number'
+              className='font-mono text-xs'
+              value={num('hop_interval')}
+              onChange={(e) =>
+                set(
+                  'hop_interval',
+                  e.target.value ? parseInt(e.target.value) : undefined
+                )
+              }
+              placeholder='例如: 30'
+            />
+            <p className='font-mono text-[11px] text-muted-foreground opacity-70'>
+              Hop 间隔时间，单位为秒
+            </p>
           </div>
         </>
       )
+    }
 
     case 'tuic':
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='协议版本'>
-              <Select
-                value={num('version') || '5'}
-                onValueChange={(v) => set('version', Number(v))}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue placeholder='选择TUIC版本' />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  {TUIC_VERSIONS.map((v) => (
-                    <SelectItem key={v} value={v} className='text-xs'>
-                      V{v}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label='拥塞控制'>
-              <Select
-                value={str('congestion_control') || 'cubic'}
-                onValueChange={(v) => set('congestion_control', v)}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue placeholder='选择拥塞控制算法' />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  {TUIC_CONGESTION.map((c) => (
-                    <SelectItem key={c} value={c} className='text-xs'>
-                      {c.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <Field label='UDP中继模式'>
+          <Field label='协议版本'>
             <Select
-              value={str('udp_relay_mode') || 'native'}
-              onValueChange={(v) => set('udp_relay_mode', v)}
+              value={num('version') || '5'}
+              onValueChange={(v) => set('version', Number(v))}
             >
-              <SelectTrigger className='h-9 font-mono text-xs'>
-                <SelectValue placeholder='选择UDP中继模式' />
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择TUIC版本' />
               </SelectTrigger>
-              <SelectContent className='font-mono text-xs'>
-                {TUIC_UDP_MODES.map((m) => (
-                  <SelectItem key={m.value} value={m.value} className='text-xs'>
-                    {m.label}
+              <SelectContent>
+                {TUIC_VERSIONS.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    V{v}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
+          <Field label='拥塞控制'>
+            <Select
+              value={str('congestion_control') || 'bbr'}
+              onValueChange={(v) => set('congestion_control', v)}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择拥塞控制算法' />
+              </SelectTrigger>
+              <SelectContent>
+                {TUIC_CONGESTION.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <SniRow
+            prefix='tls'
+            sniPlaceholder='当节点地址与证书不一致时用于证书验证'
+            str={str}
+            bool={bool}
+            set={set}
+          />
+          <EchBlock prefix='tls.ech' str={str} bool={bool} set={set} />
           <Field label='ALPN'>
-            <MultiCheck
-              options={TUIC_ALPN}
-              selected={(() => {
+            <AlpnMultiSelect
+              value={(() => {
                 const v = arr('alpn')
-                return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : []
+                return v
+                  ? v.split(',').map((s) => s.trim()).filter(Boolean)
+                  : []
               })()}
               onChange={(next) => set('alpn', next)}
-              empty='未找到可用的ALPN协议'
             />
+          </Field>
+          <Field label='UDP中继模式'>
+            <Select
+              value={str('udp_relay_mode') || 'native'}
+              onValueChange={(v) => set('udp_relay_mode', v)}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择UDP中继模式' />
+              </SelectTrigger>
+              <SelectContent>
+                {TUIC_UDP_MODES.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </>
       )
@@ -2146,48 +2714,60 @@ function ProtocolFields(props: FieldProps) {
     case 'mieru':
       return (
         <>
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-            <Field label='传输协议'>
-              <Select
-                value={str('transport') || 'TCP'}
-                onValueChange={(v) => set('transport', v)}
-              >
-                <SelectTrigger className='h-9 font-mono text-xs'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className='font-mono text-xs'>
-                  <SelectItem value='TCP' className='text-xs'>
-                    TCP
-                  </SelectItem>
-                  <SelectItem value='UDP' className='text-xs'>
-                    UDP
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label='流量 (Base64)'>
+          <Field label='传输协议'>
+            <Select
+              value={str('transport') || 'TCP'}
+              onValueChange={(v) => set('transport', v)}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='选择传输协议' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='TCP'>TCP</SelectItem>
+                <SelectItem value='UDP'>UDP</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className='space-y-2'>
+            <Label className='font-mono text-[12px] text-foreground/80'>
+              流量 (Base64)
+            </Label>
+            <div className='flex gap-2'>
               <Input
+                className='font-mono text-xs'
                 value={str('traffic_pattern')}
                 onChange={(e) => set('traffic_pattern', e.target.value)}
                 placeholder='请输入 Base64 字符串用于微调网络行为'
-                className='h-9 font-mono text-xs'
               />
-            </Field>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                className='h-9 w-9 shrink-0'
+                onClick={() => {
+                  set('traffic_pattern', generateMieruPattern())
+                  toast.success('流量模式已生成')
+                }}
+              >
+                <RotateCw className='h-4 w-4' />
+              </Button>
+            </div>
           </div>
-          <MultiplexFields bool={bool} num={num} str={str} set={set} />
         </>
       )
 
     case 'anytls':
       return (
         <>
-          <Field label='ALPN' hint='如 h2,http/1.1'>
-            <Input
-              value={str('alpn')}
-              onChange={(e) => set('alpn', e.target.value)}
-              className='h-9 font-mono text-xs'
-            />
-          </Field>
+          <SniRow
+            prefix='tls'
+            sniPlaceholder='当节点地址与证书不一致时用于证书验证'
+            insecureLabel='允许不安全连接'
+            str={str}
+            bool={bool}
+            set={set}
+          />
+          <EchBlock prefix='tls.ech' str={str} bool={bool} set={set} />
           <div className='space-y-2'>
             <div className='flex items-center justify-between'>
               <Label className='font-mono text-[12px] text-foreground/80'>
@@ -2197,7 +2777,7 @@ function ProtocolFields(props: FieldProps) {
                 type='button'
                 variant='outline'
                 size='sm'
-                className='h-7 px-2 font-mono text-[10px]'
+                className='h-7 px-2 text-[10px]'
                 onClick={() =>
                   setPs((prev) =>
                     setPath(prev, 'padding_scheme', [...ANYTLS_DEFAULT_PADDING])
@@ -2207,37 +2787,70 @@ function ProtocolFields(props: FieldProps) {
                 使用默认方案
               </Button>
             </div>
+            <div className='mb-1 font-mono text-[10px] text-muted-foreground'>
+              用于混淆流量特征的填充方案，每行一条规则，支持通配符 *
+            </div>
             <Textarea
-              rows={10}
-              className='border-border/50 bg-muted/30 font-mono text-[11px]'
+              className='min-h-[120px] resize-y font-mono text-xs'
               value={lines('padding_scheme')}
               onChange={(e) =>
                 set(
                   'padding_scheme',
-                  e.target.value
-                    .split('\n')
-                    .map((l) => l.trim())
-                    .filter(Boolean)
+                  e.target.value.split('\n').filter((l) => l.trim() !== '')
                 )
               }
-              placeholder='每行一条规则，如 stop=8'
+              placeholder='选择填充方案'
             />
           </div>
         </>
       )
 
     case 'socks':
+      // 对齐原版：socks 无协议专属字段
+      return null
+
     case 'naive':
-    case 'http':
+    case 'http': {
+      const isHttp = type === 'http'
       return (
-        <Field label='TLS'>
-          <TlsSelect
-            value={num('tls')}
-            options={TLS_SUPPORT}
-            onChange={(v) => set('tls', v)}
-          />
-        </Field>
+        <>
+          <Field label='TLS'>
+            <Select
+              value={num('tls') || '0'}
+              onValueChange={(v) => set('tls', Number(v))}
+            >
+              <SelectTrigger className='h-9 w-full font-mono text-xs'>
+                <SelectValue placeholder='请选择安全性' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='0'>不支持</SelectItem>
+                <SelectItem value='1'>支持</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {num('tls') === '1' && (
+            <>
+              <SniRow
+                prefix='tls_settings'
+                sniPlaceholder={
+                  isHttp ? '当节点地址与证书不一致时用于证书验证' : '不使用请留空'
+                }
+                insecureLabel={isHttp ? '允许不安全连接' : '允许不安全?'}
+                str={str}
+                bool={bool}
+                set={set}
+              />
+              <EchBlock
+                prefix='tls_settings.ech'
+                str={str}
+                bool={bool}
+                set={set}
+              />
+            </>
+          )}
+        </>
       )
+    }
 
     default:
       return null

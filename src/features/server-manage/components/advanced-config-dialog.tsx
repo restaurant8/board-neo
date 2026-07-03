@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -30,12 +31,25 @@ export type AdvancedConfigValue = {
   custom_routes: unknown[]
 }
 
+/** protocol_settings.multiplex（vmess/vless/trojan，对齐原版 f4t schema）。 */
+export type MultiplexValue = {
+  enabled?: boolean
+  protocol?: string
+  max_connections?: number
+  padding?: boolean
+  brutal?: { enabled?: boolean; up_mbps?: number; down_mbps?: number }
+}
+
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   value: AdvancedConfigValue
   /** 保存即把合并结果回写到主表单。 */
   onSave: (value: AdvancedConfigValue) => void
+  /** 是否展示「多路复用」Tab（仅 vmess/vless/trojan，对齐原版）。 */
+  hasMultiplex?: boolean
+  multiplex?: MultiplexValue | null
+  onMultiplexChange?: (m: MultiplexValue) => void
 }
 
 /**
@@ -87,48 +101,67 @@ export function AdvancedConfigDialog({
   onOpenChange,
   value,
   onSave,
+  hasMultiplex = false,
+  multiplex,
+  onMultiplexChange,
 }: Props) {
   const [cert, setCert] = useState<CertConfig>({})
   const [outbounds, setOutbounds] = useState('[]')
   const [routes, setRoutes] = useState('[]')
+  const [mux, setMux] = useState<MultiplexValue>({})
+  // 「打开时装载」用渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    value: AdvancedConfigValue
+    multiplex?: MultiplexValue | null
+  } | null>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const c = { ...(value.cert_config ?? {}) }
-    // 兼容旧字段 mode -> cert_mode
-    if (c.mode != null && c.cert_mode == null) {
-      c.cert_mode = c.mode
-      delete c.mode
+  if (
+    loaded?.open !== open ||
+    loaded?.value !== value ||
+    loaded?.multiplex !== multiplex
+  ) {
+    setLoaded({ open, value, multiplex })
+    if (open) {
+      const c = { ...(value.cert_config ?? {}) }
+      // 兼容旧字段 mode -> cert_mode
+      if (c.mode != null && c.cert_mode == null) {
+        c.cert_mode = c.mode
+        delete c.mode
+      }
+      if (c.cert_mode == null) c.cert_mode = 'none'
+      // dns_env 存储为对象，编辑用逐行文本
+      c.dns_env = dnsEnvToText(c.dns_env)
+      setCert(c)
+      setOutbounds(JSON.stringify(value.custom_outbounds ?? [], null, 2))
+      setRoutes(JSON.stringify(value.custom_routes ?? [], null, 2))
+      setMux({ ...(multiplex ?? {}) })
     }
-    if (c.cert_mode == null) c.cert_mode = 'none'
-    // dns_env 存储为对象，编辑用逐行文本
-    c.dns_env = dnsEnvToText(c.dns_env)
-    setCert(c)
-    setOutbounds(JSON.stringify(value.custom_outbounds ?? [], null, 2))
-    setRoutes(JSON.stringify(value.custom_routes ?? [], null, 2))
-  }, [open, value])
+  }
 
   const setCertField = (key: string, v: unknown) =>
     setCert((prev) => ({ ...prev, [key]: v }))
 
   const certMode = str(cert, 'cert_mode') || 'none'
 
-  const handleSave = () => {
-    let parsedOutbounds: unknown[] = []
-    let parsedRoutes: unknown[] = []
+  /** 解析 JSON 数组文本；空文本视为 []，非法或非数组返回 null。 */
+  const parseJsonArray = (text: string): unknown[] | null => {
     try {
-      const o = outbounds.trim() ? JSON.parse(outbounds) : []
-      if (!Array.isArray(o)) throw new Error()
-      parsedOutbounds = o
+      const v = text.trim() ? JSON.parse(text) : []
+      return Array.isArray(v) ? v : null
     } catch {
+      return null
+    }
+  }
+
+  const handleSave = () => {
+    const parsedOutbounds = parseJsonArray(outbounds)
+    if (!parsedOutbounds) {
       toast.error('自定义 Outbounds 必须是合法 JSON 数组')
       return
     }
-    try {
-      const r = routes.trim() ? JSON.parse(routes) : []
-      if (!Array.isArray(r)) throw new Error()
-      parsedRoutes = r
-    } catch {
+    const parsedRoutes = parseJsonArray(routes)
+    if (!parsedRoutes) {
       toast.error('自定义 Routes 必须是合法 JSON 数组')
       return
     }
@@ -138,6 +171,7 @@ export function AdvancedConfigDialog({
       custom_outbounds: parsedOutbounds,
       custom_routes: parsedRoutes,
     })
+    if (hasMultiplex) onMultiplexChange?.(mux)
     onOpenChange(false)
   }
 
@@ -151,13 +185,26 @@ export function AdvancedConfigDialog({
                 高级协议配置
               </DialogTitle>
             </div>
-            <TabsList className='grid w-full grid-cols-3 rounded-lg bg-muted/50 p-1'>
+            <TabsList
+              className='grid w-full rounded-lg bg-muted/50 p-1'
+              style={{
+                gridTemplateColumns: `repeat(${hasMultiplex ? 4 : 3}, minmax(0, 1fr))`,
+              }}
+            >
               <TabsTrigger
                 value='tls'
                 className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
               >
                 TLS
               </TabsTrigger>
+              {hasMultiplex && (
+                <TabsTrigger
+                  value='multiplex'
+                  className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
+                >
+                  多路复用
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value='outbounds'
                 className='text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm'
@@ -175,6 +222,14 @@ export function AdvancedConfigDialog({
 
           {/* 中间内容区可滚动，避免证书内容过长把底部 Save 顶出视口 */}
           <div className='max-h-[60vh] min-h-[350px] overflow-y-auto px-6 py-4'>
+          {hasMultiplex && (
+            <TabsContent
+              value='multiplex'
+              className='mt-0 space-y-4 duration-200 animate-in fade-in-50'
+            >
+              <MultiplexPanel mux={mux} setMux={setMux} />
+            </TabsContent>
+          )}
           <TabsContent value='tls' className='mt-0 grid gap-4 duration-200 animate-in fade-in-50'>
             <div className='grid gap-2'>
               <Label className='font-mono text-[11px] text-muted-foreground'>
@@ -433,6 +488,197 @@ function CertField({
         {label}
       </Label>
       {children}
+    </div>
+  )
+}
+
+/** 多路复用面板（对齐原版 w4t：开关卡片 + 协议/连接数 + 填充 + Brutal）。 */
+function MultiplexPanel({
+  mux,
+  setMux,
+}: {
+  mux: MultiplexValue
+  setMux: React.Dispatch<React.SetStateAction<MultiplexValue>>
+}) {
+  const brutal = mux.brutal ?? {}
+  return (
+    <div className='space-y-4 rounded-lg border bg-muted/10 p-4'>
+      <div className='flex flex-row items-center justify-between'>
+        <div className='space-y-0.5'>
+          <Label className='font-mono text-[13px] font-bold'>
+            多路复用 (Multiplex)
+          </Label>
+          <p className='text-[11px] text-muted-foreground'>
+            通过单条 TCP 连接传输多个流，降低握手延迟
+          </p>
+        </div>
+        <Switch
+          checked={!!mux.enabled}
+          onCheckedChange={(c) =>
+            setMux((m) => ({
+              protocol: 'smux',
+              max_connections: 4,
+              padding: false,
+              brutal: { enabled: false, up_mbps: 100, down_mbps: 100 },
+              ...m,
+              enabled: c,
+            }))
+          }
+        />
+      </div>
+      {mux.enabled && (
+        <div className='space-y-4 border-t border-dashed pt-2'>
+          <div className='grid grid-cols-2 gap-4'>
+            <div className='space-y-2'>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                复用协议
+              </Label>
+              <Select
+                value={mux.protocol || 'smux'}
+                onValueChange={(v) => setMux((m) => ({ ...m, protocol: v }))}
+              >
+                <SelectTrigger className='h-8 w-full font-mono text-xs'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='smux' className='font-mono text-xs'>
+                    smux
+                  </SelectItem>
+                  <SelectItem value='yamux' className='font-mono text-xs'>
+                    yamux
+                  </SelectItem>
+                  <SelectItem value='h2mux' className='font-mono text-xs'>
+                    h2mux
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className='text-[10px] text-muted-foreground opacity-70'>
+                {mux.protocol === 'h2mux'
+                  ? '适合高延迟、大带宽且不需要 Brutal 的环境'
+                  : '通用模式，兼容性最好'}
+              </p>
+            </div>
+            <div className='space-y-2'>
+              <Label className='font-mono text-[12px] text-foreground/80'>
+                最大连接数
+              </Label>
+              <Input
+                type='number'
+                className='h-8 font-mono text-xs'
+                value={mux.max_connections ?? ''}
+                onChange={(e) =>
+                  setMux((m) => ({
+                    ...m,
+                    max_connections: Number(e.target.value),
+                  }))
+                }
+              />
+              <p className='text-[10px] text-muted-foreground opacity-70'>
+                最大建立的物理 TCP 数量
+              </p>
+            </div>
+          </div>
+          <div className='grid grid-cols-2 gap-4'>
+            <div className='flex flex-row items-center justify-between rounded-md border bg-muted/5 p-2'>
+              <div className='space-y-0.5'>
+                <Label className='font-mono text-[12px] text-foreground/80'>
+                  启用填充
+                </Label>
+                <p className='text-[10px] leading-tight text-muted-foreground'>
+                  填充数据包以对抗流量特征分析
+                </p>
+              </div>
+              <Switch
+                className='scale-75'
+                checked={!!mux.padding}
+                onCheckedChange={(c) => setMux((m) => ({ ...m, padding: c }))}
+              />
+            </div>
+          </div>
+          <div className='mt-2 space-y-3 rounded bg-primary/5 p-3'>
+            <div className='flex flex-row items-center justify-between'>
+              <div className='space-y-0.5'>
+                <Label className='font-mono text-[12px] font-medium text-primary'>
+                  TCP Brutal (激进拥塞控制)
+                </Label>
+              </div>
+              <Switch
+                checked={!!brutal.enabled}
+                onCheckedChange={(c) =>
+                  setMux((m) => ({
+                    ...m,
+                    brutal: {
+                      up_mbps: 100,
+                      down_mbps: 100,
+                      ...m.brutal,
+                      enabled: c,
+                    },
+                  }))
+                }
+              />
+            </div>
+            {brutal.enabled && (
+              <div className='grid grid-cols-1 gap-3 duration-200 animate-in fade-in zoom-in'>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div className='space-y-2'>
+                    <Label className='font-mono text-[11px] text-foreground/70'>
+                      上行带宽
+                    </Label>
+                    <div className='relative'>
+                      <Input
+                        type='number'
+                        className='h-8 pr-12 font-mono text-xs'
+                        value={brutal.up_mbps ?? ''}
+                        onChange={(e) =>
+                          setMux((m) => ({
+                            ...m,
+                            brutal: {
+                              ...m.brutal,
+                              up_mbps: Number(e.target.value),
+                            },
+                          }))
+                        }
+                      />
+                      <span className='absolute right-2 top-2 font-mono text-[9px] text-muted-foreground'>
+                        Mbps
+                      </span>
+                    </div>
+                  </div>
+                  <div className='space-y-2'>
+                    <Label className='font-mono text-[11px] text-foreground/70'>
+                      下行带宽
+                    </Label>
+                    <div className='relative'>
+                      <Input
+                        type='number'
+                        className='h-8 pr-12 font-mono text-xs'
+                        value={brutal.down_mbps ?? ''}
+                        onChange={(e) =>
+                          setMux((m) => ({
+                            ...m,
+                            brutal: {
+                              ...m.brutal,
+                              down_mbps: Number(e.target.value),
+                            },
+                          }))
+                        }
+                      />
+                      <span className='absolute right-2 top-2 font-mono text-[9px] text-muted-foreground'>
+                        Mbps
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p className='px-1 font-mono text-[10px] italic leading-relaxed text-primary/70'>
+                  * TCP Brutal
+                  是双边加速算法，建议带宽设为机器实际带宽的
+                  80%-90%，开启后 BBR 将失效。
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
