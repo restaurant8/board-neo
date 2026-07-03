@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -40,9 +40,13 @@ export function ThemeConfigDialog({ open, onOpenChange, theme }: Props) {
     enabled: open && !!name,
   })
 
-  useEffect(() => {
-    if (data) setValues(data)
-  }, [data])
+  // 配置到达时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loadedData, setLoadedData] = useState<typeof data>(undefined)
+
+  if (data && data !== loadedData) {
+    setLoadedData(data)
+    setValues(data)
+  }
 
   const saveMutation = useMutation({
     mutationFn: () => saveThemeConfig(name!, values),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -48,7 +48,14 @@ export function GenerateCodesDialog({
     enabled: open,
   })
 
-  useEffect(() => {
+  // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    templateId?: number | null
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.templateId !== templateId) {
+    setLoaded({ open, templateId })
     if (open) {
       setTplId(templateId ? String(templateId) : '')
       setCount('1')
@@ -56,7 +63,7 @@ export function GenerateCodesDialog({
       setExpiresHours('')
       setMaxUsage('1')
     }
-  }, [open, templateId])
+  }
 
   const mutation = useMutation({
     mutationFn: () =>

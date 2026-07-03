@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FileCode,
@@ -138,13 +138,14 @@ export function ConfigPage() {
   const [form, setForm] = useState<Record<string, unknown>>({})
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [section, setSection] = useState('site')
+  // 数据到达/更新时装载表单：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loadedData, setLoadedData] = useState<typeof data>(undefined)
 
-  useEffect(() => {
-    if (data) {
-      setForm(flatten(data))
-      setDirty(new Set())
-    }
-  }, [data])
+  if (data && data !== loadedData) {
+    setLoadedData(data)
+    setForm(flatten(data))
+    setDirty(new Set())
+  }
 
   const set = (key: string, value: unknown) => {
     setForm((prev) => ({ ...prev, [key]: value }))

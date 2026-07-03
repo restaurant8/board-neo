@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -79,18 +79,22 @@ export function DnsNodesTable({ nodes, isLoading, zones }: Props) {
   const queryClient = useQueryClient()
   const [rows, setRows] = useState<Record<number, RowState>>({})
 
-  useEffect(() => {
-    if (nodes) {
-      const next: Record<number, RowState> = {}
-      for (const n of nodes) {
-        next[n.id] = {
-          enabled: n.dns_auto_sync,
-          zone: n.zone_id || ZONE_DEFAULT,
-        }
+  // 节点数据到达时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loadedNodes, setLoadedNodes] = useState<DnsNode[] | undefined>(
+    undefined
+  )
+
+  if (nodes && nodes !== loadedNodes) {
+    setLoadedNodes(nodes)
+    const next: Record<number, RowState> = {}
+    for (const n of nodes) {
+      next[n.id] = {
+        enabled: n.dns_auto_sync,
+        zone: n.zone_id || ZONE_DEFAULT,
       }
-      setRows(next)
     }
-  }, [nodes])
+    setRows(next)
+  }
 
   const mutation = useMutation({
     mutationFn: (payload: {

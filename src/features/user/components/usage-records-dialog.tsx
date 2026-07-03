@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -73,8 +73,14 @@ export function UsageRecordsDialog({
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
   const [confirmClear, setConfirmClear] = useState(false)
 
-  // 打开时重置并应用预填
-  useEffect(() => {
+  // 打开时重置并应用预填：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    prefillKeyword?: string
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.prefillKeyword !== prefillKeyword) {
+    setLoaded({ open, prefillKeyword })
     if (open) {
       const kw = prefillKeyword ?? ''
       setKeywordInput(kw)
@@ -86,7 +92,7 @@ export function UsageRecordsDialog({
       setOrderBy('record_at')
       setOrderDir('desc')
     }
-  }, [open, prefillKeyword])
+  }
 
   const queryParams = {
     keyword: applied.keyword || undefined,

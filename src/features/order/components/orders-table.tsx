@@ -320,20 +320,9 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
   )
 
   const { data, isLoading } = useQuery({
-    queryKey: [
-      'orders',
-      page,
-      pageSize,
-      search.user_id,
-      tradeNo,
-      typeSel,
-      periodSel,
-      statusSel,
-      commissionSel,
-      siteSel,
-      isCommission,
-      search.sort,
-    ],
+    // 直接以 queryFn 实际使用的 filter/sort（useMemo 稳定引用）作为 key，
+    // 同时修正原先排序变化不触发重新拉取的问题（key 里误用了 search.sort）
+    queryKey: ['orders', page, pageSize, filter, sort, isCommission],
     queryFn: () =>
       fetchOrders({
         current: page,

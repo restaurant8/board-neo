@@ -180,9 +180,20 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     }
   }
 
+  // 打开时清空基础月价：渲染期间派生重置，避免 effect 里同步 setState；
+  // form.reset 仍留在 effect（RHF 官方用法，渲染期间调用会触发子组件更新警告）
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    current?: typeof current
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.current !== current) {
+    setLoaded({ open, current })
+    if (open) setBasePrice('')
+  }
+
   useEffect(() => {
     if (!open) return
-    setBasePrice('')
     const prices = { ...emptyPrices }
     if (current?.prices) {
       for (const p of PLAN_PERIODS) {

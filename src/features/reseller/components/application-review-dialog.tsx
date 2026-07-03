@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -36,12 +36,19 @@ export function ApplicationReviewDialog({
   const [domain, setDomain] = useState('')
   const [remark, setRemark] = useState('')
 
-  useEffect(() => {
+  // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    application?: ResellerApplication | null
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.application !== application) {
+    setLoaded({ open, application })
     if (open) {
       setDomain(application?.desired_domain ?? '')
       setRemark('')
     }
-  }, [open, application])
+  }
 
   const mutation = useMutation({
     mutationFn: () =>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
 import { ArrowDownToLine, ArrowUpFromLine, Sigma } from 'lucide-react'
 import { formatBytes } from '@/features/dashboard/format'
@@ -32,6 +32,16 @@ const RANGES = [
 
 const EMPTY_SUMMARY: Summary = { u: 0, d: 0, total: 0 }
 
+/** 按天数算查询区间：0 = 今日 0 点起，否则往前推 N 天。 */
+function calcRange(days: number) {
+  const end = Math.floor(Date.now() / 1000)
+  const start =
+    days === 0
+      ? Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
+      : end - days * 86400
+  return { start, end }
+}
+
 export function TrafficStatPage() {
   // 默认「今日」以减小大表聚合的首屏扫描量；需要更长区间可手动切换
   const [days, setDays] = useState(0)
@@ -49,14 +59,12 @@ export function TrafficStatPage() {
   const [diagSummary, setDiagSummary] = useState<Summary>(EMPTY_SUMMARY)
   const [auditSummary, setAuditSummary] = useState<Summary>(EMPTY_SUMMARY)
 
-  const range = useMemo(() => {
-    const end = Math.floor(Date.now() / 1000)
-    const start =
-      days === 0
-        ? Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-        : end - days * 86400
-    return { start, end }
-  }, [days])
+  // range 在事件时计算（切换天数才重算，语义同原 useMemo；渲染期不调用 Date.now）
+  const [range, setRange] = useState(() => calcRange(0))
+  const pickDays = (d: number) => {
+    setDays(d)
+    setRange(calcRange(d))
+  }
 
   // 审计接口默认 diagnostic；当总模式为 all 时审计用 diagnostic 以拿到目的地维度
   const auditMode = mode === 'all' ? 'diagnostic' : mode
@@ -117,7 +125,7 @@ export function TrafficStatPage() {
                 key={r.days}
                 size='sm'
                 variant={days === r.days ? 'default' : 'outline'}
-                onClick={() => setDays(r.days)}
+                onClick={() => pickDays(r.days)}
               >
                 {r.label}
               </Button>

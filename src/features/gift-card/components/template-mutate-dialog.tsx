@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -124,8 +124,18 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
   const [icon, setIcon] = useState('')
   const [backgroundImage, setBackgroundImage] = useState('')
 
-  useEffect(() => {
-    if (!open) return
+  // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    current?: typeof current
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.current !== current) {
+    setLoaded({ open, current })
+    if (open) loadForm()
+  }
+
+  function loadForm() {
     const r = (current?.rewards ?? {}) as Record<string, unknown>
     const c = (current?.conditions ?? {}) as Record<string, unknown>
     const l = (current?.limits ?? {}) as Record<string, unknown>
@@ -159,7 +169,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
     setThemeColor(current?.theme_color ?? '#1890ff')
     setIcon(current?.icon ?? '')
     setBackgroundImage(current?.background_image ?? '')
-  }, [open, current])
+  }
 
   const mutation = useMutation({
     mutationFn: () => {

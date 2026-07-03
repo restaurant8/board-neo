@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import {
   useMutation,
   useQuery,
@@ -60,10 +60,32 @@ function cmpVer(a: string, b: string) {
   return 0
 }
 
+/* 每 10 秒滴答一次的「当前秒」时钟（useSyncExternalStore 是渲染期读取
+ * Date.now 这类外部可变值的正规方式，顺带让超时状态无需刷新数据也会自动更新）。 */
+const nowListeners = new Set<() => void>()
+let nowSec = Math.floor(Date.now() / 1000)
+let nowTimer: number | undefined
+function subscribeNow(cb: () => void) {
+  nowListeners.add(cb)
+  if (nowListeners.size === 1) {
+    nowTimer = window.setInterval(() => {
+      nowSec = Math.floor(Date.now() / 1000)
+      nowListeners.forEach((l) => l())
+    }, 10_000)
+  }
+  return () => {
+    nowListeners.delete(cb)
+    if (nowListeners.size === 0) window.clearInterval(nowTimer)
+  }
+}
+function useNowSec() {
+  return useSyncExternalStore(subscribeNow, () => nowSec)
+}
+
 function UpgradeStatusCell({ upgrade }: { upgrade: UpgradeStatus }) {
+  const now = useNowSec()
   if (!upgrade || !upgrade.status)
     return <span className='text-muted-foreground'>—</span>
-  const now = Date.now() / 1000
   switch (upgrade.status) {
     case 'dispatched':
       if (upgrade.updated_at && now - upgrade.updated_at > DISPATCH_TIMEOUT) {

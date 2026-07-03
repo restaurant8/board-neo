@@ -57,17 +57,20 @@ export function OrderPage() {
     onError: handleServerError,
   })
 
+  // useMutation 返回值引用不稳定，解构出稳定的 mutate 再进依赖数组
+  const { mutate: mutateCommission } = commissionMutation
+
   const handlers: OrderColumnHandlers = {
     onView: useCallback((order: Order) => setDetailId(order.id), []),
     onMarkPaid: useCallback((order: Order) => setPaying(order), []),
     onCancel: useCallback((order: Order) => setCancelling(order), []),
     onSetCommission: useCallback(
       (order: Order, commission_status: number) =>
-        commissionMutation.mutate({
+        mutateCommission({
           trade_no: order.trade_no,
           commission_status,
         }),
-      [commissionMutation]
+      [mutateCommission]
     ),
   }
 

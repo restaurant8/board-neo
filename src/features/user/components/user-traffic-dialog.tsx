@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,12 +39,19 @@ export function UserTrafficDialog({ open, onOpenChange, user }: Props) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  useEffect(() => {
+  // 打开时重置分页：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    userId?: number
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.userId !== user?.id) {
+    setLoaded({ open, userId: user?.id })
     if (open) {
       setPage(1)
       setPageSize(10)
     }
-  }, [open, user?.id])
+  }
 
   const { data, isFetching } = useQuery({
     queryKey: ['user-traffic', user?.id, page, pageSize],

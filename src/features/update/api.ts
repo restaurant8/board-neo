@@ -36,7 +36,7 @@ async function call<T>(action: 'check' | 'apply', method: 'GET' | 'POST'): Promi
     `${ENDPOINT}?action=${action}&token=${encodeURIComponent(token)}`,
     { method }
   )
-  let json: Record<string, unknown> = {}
+  let json: Record<string, unknown>
   try {
     json = await res.json()
   } catch {

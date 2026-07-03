@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -39,16 +39,21 @@ export function ResellerTiersPage() {
     queryFn: fetchResellerTiers,
   })
 
-  useEffect(() => {
-    if (data?.tiers) setTiers(data.tiers)
-    if (data?.cooldown_days != null) setCooldown(String(data.cooldown_days))
-    if (data?.base_domain != null) setBaseDomain(data.base_domain)
-    if (data?.apply_deposit != null) setDeposit(String(data.apply_deposit / 100))
-    if (data?.require_active_plan != null) setRequirePlan(data.require_active_plan)
-    if (data?.deposit_refund_threshold != null)
+  // 数据到达时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loadedData, setLoadedData] = useState<typeof data>(undefined)
+
+  if (data && data !== loadedData) {
+    setLoadedData(data)
+    if (data.tiers) setTiers(data.tiers)
+    if (data.cooldown_days != null) setCooldown(String(data.cooldown_days))
+    if (data.base_domain != null) setBaseDomain(data.base_domain)
+    if (data.apply_deposit != null) setDeposit(String(data.apply_deposit / 100))
+    if (data.require_active_plan != null)
+      setRequirePlan(data.require_active_plan)
+    if (data.deposit_refund_threshold != null)
       setRefundThreshold(String(data.deposit_refund_threshold / 100))
-    if (data?.reseller_enabled != null) setEnabled(data.reseller_enabled)
-  }, [data])
+    if (data.reseller_enabled != null) setEnabled(data.reseller_enabled)
+  }
 
   const saveMutation = useMutation({
     mutationFn: (t: ResellerTier[]) =>

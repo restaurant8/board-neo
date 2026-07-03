@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -86,7 +86,14 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
     enabled: open && !!payment,
   })
 
-  useEffect(() => {
+  // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    current?: typeof current
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.current !== current) {
+    setLoaded({ open, current })
     if (open) {
       setName(current?.name ?? '')
       setIcon(current?.icon ?? '')
@@ -104,20 +111,21 @@ export function PaymentMutateDialog({ open, onOpenChange, current }: Props) {
       )
       setConfig(current?.config ?? {})
     }
-  }, [open, current])
+  }
 
-  // 网关表单加载后，用其默认/当前值初始化 config
-  useEffect(() => {
-    if (formFields) {
-      setConfig((prev) => {
-        const next: Record<string, unknown> = { ...prev }
-        for (const [key, field] of Object.entries(formFields)) {
-          if (next[key] === undefined) next[key] = field.value ?? ''
-        }
-        return next
-      })
-    }
-  }, [formFields])
+  // 网关表单加载后，用其默认/当前值初始化 config（同样渲染期间派生合并）
+  const [mergedFields, setMergedFields] = useState<typeof formFields>(undefined)
+
+  if (formFields && formFields !== mergedFields) {
+    setMergedFields(formFields)
+    setConfig((prev) => {
+      const next: Record<string, unknown> = { ...prev }
+      for (const [key, field] of Object.entries(formFields)) {
+        if (next[key] === undefined) next[key] = field.value ?? ''
+      }
+      return next
+    })
+  }
 
   const mutation = useMutation({
     mutationFn: () =>

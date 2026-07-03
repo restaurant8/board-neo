@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -171,12 +171,20 @@ export function UserAdvancedFilter({
 }: Props) {
   const [conditions, setConditions] = useState<FilterCondition[]>([])
 
-  // 每次打开时用已应用条件回显（无则给一条空白）
-  useEffect(() => {
+  // 每次打开时用已应用条件回显（无则给一条空白）：渲染期间派生重置，避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    initial?: typeof initial
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.initial !== initial) {
+    setLoaded({ open, initial })
     if (open) {
-      setConditions(initial.length > 0 ? initial.map((c) => ({ ...c })) : [emptyCondition()])
+      setConditions(
+        initial.length > 0 ? initial.map((c) => ({ ...c })) : [emptyCondition()]
+      )
     }
-  }, [open, initial])
+  }
 
   const addCondition = () =>
     setConditions((s) => [...s, emptyCondition()])

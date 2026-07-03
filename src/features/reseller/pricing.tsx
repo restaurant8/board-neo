@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -63,9 +63,12 @@ export function ResellerPricingPage() {
     queryFn: fetchResellerSites,
   })
 
-  useEffect(() => {
-    if (siteId == null && sites && sites.length > 0) setSiteId(sites[0].id)
-  }, [sites, siteId])
+  // 以下三处装载/重置均用「渲染期间派生重置」（React 官方模式），避免 effect 里同步 setState
+
+  // 分站列表到达后默认选中第一个
+  if (siteId == null && sites && sites.length > 0) {
+    setSiteId(sites[0].id)
+  }
 
   const { data: pricing } = useQuery({
     queryKey: ['reseller-prices', siteId],
@@ -74,14 +77,19 @@ export function ResellerPricingPage() {
   })
 
   // 切换分站时清空编辑缓冲（换站点才整体重置）
-  useEffect(() => {
+  const [editsSiteId, setEditsSiteId] = useState<number | null>(null)
+
+  if (editsSiteId !== siteId) {
+    setEditsSiteId(siteId)
     setEdits({})
-  }, [siteId])
+  }
 
   // 拉到数据时，只为「尚未编辑过」的行填充服务器值；已在编辑/刚保存的行保持本地值，
   // 避免保存一行后 refetch 把其它未保存行的开关/底价刷回去。
-  useEffect(() => {
-    if (!pricing) return
+  const [filledPricing, setFilledPricing] = useState<typeof pricing>(undefined)
+
+  if (pricing && pricing !== filledPricing) {
+    setFilledPricing(pricing)
     setEdits((prev) => {
       const next = { ...prev }
       pricing.plans.forEach((p) =>
@@ -97,7 +105,7 @@ export function ResellerPricingPage() {
       )
       return next
     })
-  }, [pricing])
+  }
 
   // 服务器原值，用于判断哪些行改动过（脏）
   const originalMap = useMemo(() => {

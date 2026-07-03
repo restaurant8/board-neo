@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -86,7 +86,14 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
 
   const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
 
-  useEffect(() => {
+  // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
+  const [loaded, setLoaded] = useState<{
+    open: boolean
+    current?: Coupon | null
+  } | null>(null)
+
+  if (loaded?.open !== open || loaded?.current !== current) {
+    setLoaded({ open, current })
     if (open) {
       setName(current?.name ?? '')
       setType(current?.type ?? COUPON_TYPE_AMOUNT)
@@ -111,7 +118,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
       setLimitPlanIds((current?.limit_plan_ids ?? []).map((x) => String(x)))
       setLimitPeriod((current?.limit_period ?? []).map(normalizePeriod))
     }
-  }, [open, current])
+  }
 
   const mutation = useMutation({
     mutationFn: () => {
