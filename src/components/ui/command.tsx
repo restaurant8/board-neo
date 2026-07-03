@@ -62,15 +62,16 @@ function CommandInput({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
+    // 对齐原版 xboard（旧版 shadcn）：搜索图标 mr-2、无 wrapper 高度限制
     <div
       data-slot='command-input-wrapper'
-      className='flex h-9 items-center gap-2 border-b px-3'
+      className='flex items-center border-b px-3'
     >
-      <SearchIcon className='size-4 shrink-0 opacity-50' />
+      <SearchIcon className='mr-2 h-4 w-4 shrink-0 opacity-50' />
       <CommandPrimitive.Input
         data-slot='command-input'
         className={cn(
-          'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
         {...props}
@@ -87,7 +88,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot='command-list'
       className={cn(
-        'max-h-75 scroll-py-1 overflow-x-hidden overflow-y-auto',
+        'max-h-[300px] overflow-y-auto overflow-x-hidden',
         className
       )}
       {...props}
@@ -144,7 +145,8 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot='command-item'
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        // 对齐原版 xboard（旧版 shadcn）：无 gap-2 / svg 强制尺寸
+        'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground',
         className
       )}
       {...props}
