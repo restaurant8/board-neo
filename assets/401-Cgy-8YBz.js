@@ -1,1 +1,0 @@
-import{t as e}from"./unauthorized-error-Chdo0i_w.js";var t=e;export{t as component};
