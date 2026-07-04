@@ -4,11 +4,13 @@ import { PlusCircledIcon, CheckIcon } from '@radix-ui/react-icons'
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
   ChevronsUpDown,
   Copy,
   GripVertical,
   HelpCircle,
   MoreHorizontal,
+  MousePointerClick,
   Pencil,
   Plus,
   RotateCcw,
@@ -231,10 +233,13 @@ export function ServerManagePage() {
   // 节点ID 排序（点击表头）
   const [idSort, setIdSort] = useState<'asc' | 'desc' | null>(null)
 
-  // 排序编辑态（拖拽）
+  // 排序编辑态（点选/拖拽）
   const [sortMode, setSortMode] = useState(false)
   const [orderedIds, setOrderedIds] = useState<number[]>([])
   const [dragId, setDragId] = useState<number | null>(null)
+  // 点选排序：按点击顺序编号（微信相册式），先点的排前面
+  const [pickMode, setPickMode] = useState(true)
+  const [pickOrder, setPickOrder] = useState<number[]>([])
 
   const { data, isLoading } = useQuery({ queryKey: ['nodes'], queryFn: getNodes })
   const { data: groups } = useQuery({
@@ -405,6 +410,8 @@ export function ServerManagePage() {
 
   const enterSortMode = () => {
     setOrderedIds(filtered.map((n) => n.id))
+    setPickOrder([])
+    setPickMode(true)
     setSortMode(true)
   }
 
@@ -422,8 +429,60 @@ export function ServerManagePage() {
     setDragId(null)
   }
 
-  const saveSort = () =>
-    sortMutation.mutate(orderedIds.map((id, idx) => ({ id, order: idx + 1 })))
+  // 点选：未编号的行点一下追加序号，已编号的行点一下取消（后续序号自动前移）
+  const togglePick = (id: number) =>
+    setPickOrder((p) =>
+      p.includes(id) ? p.filter((x) => x !== id) : [...p, id]
+    )
+
+  // 已点选的按点击顺序排前面，未点选的保持原顺序跟在后面
+  const mergePickOrder = (ids: number[], picks: number[]) => {
+    const pickSet = new Set(picks)
+    return [...picks, ...ids.filter((id) => !pickSet.has(id))]
+  }
+
+  // 点选/拖拽互切：离开点选时先把已点编号落进预览顺序
+  const switchSortTool = (pick: boolean) => {
+    if (!pick && pickMode && pickOrder.length > 0) {
+      setOrderedIds((ids) => mergePickOrder(ids, pickOrder))
+    }
+    setPickOrder([])
+    setPickMode(pick)
+  }
+
+  const saveSort = () => {
+    const finalIds = pickMode
+      ? mergePickOrder(orderedIds, pickOrder)
+      : orderedIds
+    sortMutation.mutate(finalIds.map((id, idx) => ({ id, order: idx + 1 })))
+  }
+
+  // 快速排序预设：只重排排序态的预览顺序（orderedIds），保存前可继续拖拽微调
+  type QuickSortKey = 'name' | 'type' | 'rate' | 'id'
+  const applyQuickSort = (key: QuickSortKey, dir: 'asc' | 'desc') => {
+    const byId = new Map(filtered.map((n) => [n.id, n]))
+    const byName = (a: Server, b: Server) =>
+      a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true })
+    setOrderedIds((ids) => {
+      const next = [...ids]
+      next.sort((ia, ib) => {
+        const a = byId.get(ia)
+        const b = byId.get(ib)
+        if (!a || !b) return 0
+        let r = 0
+        if (key === 'name') r = byName(a, b)
+        else if (key === 'type')
+          r =
+            SERVER_TYPES.indexOf(a.type) - SERVER_TYPES.indexOf(b.type) ||
+            byName(a, b)
+        else if (key === 'rate') r = Number(a.rate) - Number(b.rate) || byName(a, b)
+        else r = a.id - b.id
+        return dir === 'asc' ? r : -r
+      })
+      return next
+    })
+    setPickOrder([]) // 预设重排覆盖顺序，已点编号作废
+  }
 
   const cycleIdSort = () =>
     setIdSort((s) => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))
@@ -481,7 +540,30 @@ export function ServerManagePage() {
         <div className='flex flex-wrap items-center justify-between gap-2'>
           {sortMode ? (
             <p className='text-muted-foreground text-sm'>
-              拖拽节点进行排序，完成后点击保存
+              {pickMode
+                ? '按目标顺序依次点击节点行编号，先点的排前面；未点选的保持原顺序跟在后面，再点一次可取消'
+                : '拖拽节点进行排序，完成后点击保存'}
+              ，保存后用户订阅将按此顺序输出
+              {pickMode && pickOrder.length > 0 && (
+                <>
+                  <span className='text-foreground font-medium'>
+                    （已点选 {pickOrder.length} 个）
+                  </span>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    className='h-6 px-2'
+                    onClick={() => setPickOrder([])}
+                  >
+                    清空
+                  </Button>
+                </>
+              )}
+              {hasFilter && (
+                <span className='text-amber-600 dark:text-amber-500'>
+                  （当前筛选生效，仅重排筛选出的节点）
+                </span>
+              )}
             </p>
           ) : (
             <div className='flex flex-1 flex-wrap items-center gap-2'>
@@ -617,6 +699,63 @@ export function ServerManagePage() {
           <div className='flex items-center gap-2'>
             {sortMode ? (
               <>
+                <div className='flex items-center rounded-md border p-0.5'>
+                  <Button
+                    variant={pickMode ? 'secondary' : 'ghost'}
+                    size='sm'
+                    className='h-7'
+                    onClick={() => switchSortTool(true)}
+                    disabled={sortMutation.isPending}
+                  >
+                    <MousePointerClick className='size-4' /> 点选
+                  </Button>
+                  <Button
+                    variant={!pickMode ? 'secondary' : 'ghost'}
+                    size='sm'
+                    className='h-7'
+                    onClick={() => switchSortTool(false)}
+                    disabled={sortMutation.isPending}
+                  >
+                    <GripVertical className='size-4' /> 拖拽
+                  </Button>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      disabled={sortMutation.isPending}
+                    >
+                      <ArrowUpDown className='size-4' /> 快速排序
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='end'>
+                    <DropdownMenuItem onClick={() => applyQuickSort('name', 'asc')}>
+                      名称 A→Z
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => applyQuickSort('name', 'desc')}>
+                      名称 Z→A
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => applyQuickSort('type', 'asc')}>
+                      按协议类型分组
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => applyQuickSort('rate', 'asc')}>
+                      倍率 低→高
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => applyQuickSort('rate', 'desc')}>
+                      倍率 高→低
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => applyQuickSort('id', 'asc')}>
+                      ID 旧→新
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => applyQuickSort('id', 'desc')}>
+                      ID 新→旧
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant='outline'
                   size='sm'
@@ -797,21 +936,54 @@ export function ServerManagePage() {
                     n.machine_id != null
                       ? machineNameById.get(n.machine_id)
                       : null
+                  const dragging = sortMode && !pickMode
+                  const pickIdx = pickOrder.indexOf(n.id)
                   return (
                     <TableRow
                       key={n.id}
-                      draggable={sortMode}
-                      onDragStart={() => sortMode && setDragId(n.id)}
-                      onDragOver={(e) => sortMode && e.preventDefault()}
-                      onDrop={() => sortMode && onDrop(n.id)}
+                      draggable={dragging}
+                      onDragStart={() => dragging && setDragId(n.id)}
+                      onDragOver={(e) => dragging && e.preventDefault()}
+                      onDrop={() => dragging && onDrop(n.id)}
+                      onClick={(e) => {
+                        if (!sortMode || !pickMode) return
+                        // 行内按钮/开关/输入等自身可交互的元素不触发点选
+                        const el = e.target as HTMLElement
+                        if (
+                          el.closest(
+                            'button,[role="switch"],[role="checkbox"],[role="menuitem"],a,input,select'
+                          )
+                        )
+                          return
+                        togglePick(n.id)
+                      }}
                       className={cn(
                         'animate-fade-in hover:bg-muted/50',
-                        sortMode && dragId === n.id && 'opacity-50'
+                        dragging && dragId === n.id && 'opacity-50',
+                        sortMode && pickMode && 'cursor-pointer select-none',
+                        sortMode && pickMode && pickIdx >= 0 && 'bg-primary/5'
                       )}
                     >
                       {sortMode ? (
-                        <TableCell className='bg-card text-muted-foreground cursor-grab px-4'>
-                          <GripVertical className='size-4' />
+                        <TableCell
+                          className={cn(
+                            'bg-card px-4',
+                            pickMode
+                              ? 'cursor-pointer'
+                              : 'text-muted-foreground cursor-grab'
+                          )}
+                        >
+                          {pickMode ? (
+                            pickIdx >= 0 ? (
+                              <span className='bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-full text-xs font-semibold'>
+                                {pickIdx + 1}
+                              </span>
+                            ) : (
+                              <span className='border-muted-foreground/40 block size-5 rounded-full border-2' />
+                            )
+                          ) : (
+                            <GripVertical className='size-4' />
+                          )}
                         </TableCell>
                       ) : (
                         <TableCell className='bg-card px-4'>
