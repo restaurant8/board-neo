@@ -184,6 +184,9 @@ export type SendMailPayload = {
   scope?: BulkScope
   user_ids?: number[]
   filter?: UserFilter[]
+  /** filtered 范围时随请求传递的排序列与方向。 */
+  sort?: string
+  sort_type?: 'ASC' | 'DESC'
 }
 
 /** POST /user/sendMail — 群发邮件。 */

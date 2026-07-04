@@ -333,6 +333,7 @@ export function ConfigPage() {
                     <SwitchField label='允许用户更改订阅' description='开启后用户将会可以对订阅计划进行变更。' value={v('plan_change_enable') as boolean} onChange={(b) => set('plan_change_enable', b)} />
                     <SwitchField label='开启折抵方案' description='开启后用户更换订阅将会由系统对原有订阅进行折抵，方案参考文档。' value={v('surplus_enable') as boolean} onChange={(b) => set('surplus_enable', b)} />
                     <SwitchField label='在订阅中展示订阅信息' description='开启后将会在用户订阅节点时输出订阅信息。' value={v('show_info_to_server_enable') as boolean} onChange={(b) => set('show_info_to_server_enable', b)} />
+                    <SwitchField label='在订阅中提示被过滤的线路数' description='开启后按协议订阅时，若有线路被过滤，将插入一条「过滤掉N条线路」的提示节点。' value={v('show_filtered_count_to_server_enable') as boolean} onChange={(b) => set('show_filtered_count_to_server_enable', b)} />
                     <SwitchField label='在订阅中线路名称中显示协议名称' description='开启后订阅线路会附带协议名称（例如: [Hy2]香港）' value={v('show_protocol_to_server_enable') as boolean} onChange={(b) => set('show_protocol_to_server_enable', b)} />
                     <SwitchField label='默认到期提醒' description='开启后默认向用户发送订阅到期提醒。' value={v('default_remind_expire') as boolean} onChange={(b) => set('default_remind_expire', b)} />
                     <SwitchField label='默认流量提醒' description='开启后默认向用户发送订阅流量不足提醒。' value={v('default_remind_traffic') as boolean} onChange={(b) => set('default_remind_traffic', b)} />
@@ -452,6 +453,7 @@ export function ConfigPage() {
                     />
                     <TextField label='发件人地址' placeholder='请输入' description='发件人邮箱地址' value={v('email_from_address') as string} onChange={(x) => set('email_from_address', x)} />
                     <SwitchField label='邮件提醒' description='开启后用户订阅即将到期或流量不足时会收到邮件通知。' value={v('remind_mail_enable') as boolean} onChange={(b) => set('remind_mail_enable', b)} />
+                    <TextField label='群发邮件每秒发送上限' placeholder='0' description='后台「用户管理 → 发送邮件」群发时，每秒最多发送的邮件封数（全局共享）。0 为不限速。SMTP 有频率限制时建议设置，避免触发限流或被判为垃圾邮件。' type='number' value={v('email_mass_send_limit_per_second') as number} onChange={(x) => set('email_mass_send_limit_per_second', x === '' ? 0 : Number(x))} />
                     <div className='space-y-2'>
                       <Button
                         variant='outline'

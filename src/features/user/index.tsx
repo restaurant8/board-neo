@@ -885,6 +885,7 @@ export function UserPage() {
         onOpenChange={setMailOpen}
         filter={filter}
         selectedIds={selected}
+        sort={sort}
       />
       <UsageRecordsDialog
         open={usageOpen}

@@ -50,6 +50,7 @@ export type ConfigData = {
     renew_order_event_id?: number
     change_order_event_id?: number
     show_info_to_server_enable?: boolean
+    show_filtered_count_to_server_enable?: boolean
     show_protocol_to_server_enable?: boolean
     default_remind_expire?: boolean
     default_remind_traffic?: boolean
@@ -87,6 +88,8 @@ export type ConfigData = {
     email_encryption?: string | null
     email_from_address?: string | null
     remind_mail_enable?: boolean
+    /** 群发邮件每秒发送上限；0 为不限速。 */
+    email_mass_send_limit_per_second?: number
   }
   telegram?: {
     telegram_bot_enable?: boolean
