@@ -1,1 +1,0 @@
-import{m as e}from"./index-Moic4OsC.js";var t=e;export{t as component};
