@@ -21,17 +21,37 @@ export const RANGE_OPTIONS: { value: RangeMode; label: string }[] = [
 
 const DAY = 86400
 
-function startOfToday() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return Math.floor(d.getTime() / 1000)
+// 后端把当天流量统计行写成 record_at = 服务器时区(Asia/Shanghai, UTC+8) 的 0 点。
+// 因此所有“日”边界必须按 UTC+8 计算，不能用浏览器本地时区：否则当浏览器时区领先
+// UTC+8（如东京 UTC+9，且已过北京 23:00）时，“今日”窗口会整体偏后一天，把服务器
+// 当天的 record_at 排除在外，导致今日流量排行永远空白。这里复刻原版的 NS/ES/LS：
+// NS = (480 + getTimezoneOffset()) 分钟，本地为 UTC+8 时 NS=0（行为不变，无回归）。
+const SERVER_TZ_OFFSET_MIN = 480 // UTC+8
+function nsMs(d: Date) {
+  return (SERVER_TZ_OFFSET_MIN + d.getTimezoneOffset()) * 60_000
 }
-/** date input(yyyy-mm-dd) → unix 秒(当地 0 点) */
+/** 浏览器瞬时 → 一个 getFullYear/Month/Date 读出为“服务器时区墙钟”的 Date（原版 ES） */
+function toServer(d: Date) {
+  return new Date(d.getTime() + nsMs(d))
+}
+/** 服务器时区墙钟 Date → 真实 unix 瞬时（原版 LS） */
+function fromServer(d: Date) {
+  return new Date(d.getTime() - nsMs(d))
+}
+
+function startOfToday() {
+  const t = toServer(new Date())
+  const n = new Date(t.getFullYear(), t.getMonth(), t.getDate())
+  return Math.floor(fromServer(n).getTime() / 1000)
+}
+/** date input(yyyy-mm-dd) → unix 秒(服务器时区 0 点) */
 function dateToTs(v: string) {
-  return v ? Math.floor(new Date(`${v}T00:00:00`).getTime() / 1000) : 0
+  if (!v) return 0
+  const [y, m, d] = v.split('-').map(Number)
+  return Math.floor(fromServer(new Date(y, m - 1, d)).getTime() / 1000)
 }
 function tsToDate(ts: number) {
-  const d = new Date(ts * 1000)
+  const d = toServer(new Date(ts * 1000))
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
