@@ -1,1 +1,0 @@
-import{p as e}from"./index-Cs69RtI5.js";var t=e;export{t as component};
