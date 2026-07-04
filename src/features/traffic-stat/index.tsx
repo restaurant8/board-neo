@@ -1,7 +1,11 @@
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { ArrowDownToLine, ArrowUpFromLine, Sigma } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, Sigma, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { toastError } from '@/lib/api-client'
 import { formatBytes } from '@/features/dashboard/format'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -17,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { clearTrafficStats } from './api'
 import { AuditTable } from './components/audit-table'
 import { DiagnosticsTable } from './components/diagnostics-table'
 
@@ -70,6 +75,23 @@ export function TrafficStatPage() {
   const auditMode = mode === 'all' ? 'diagnostic' : mode
 
   const summary = tab === 'diagnostics' ? diagSummary : auditSummary
+
+  // 一键清理：days=0 清空全部，>0 只删 N 天前的数据
+  const queryClient = useQueryClient()
+  const [clearOpen, setClearOpen] = useState(false)
+  const [clearDays, setClearDays] = useState('30')
+  const clearMutation = useMutation({
+    mutationFn: () => clearTrafficStats(Number(clearDays)),
+    onSuccess: (res) => {
+      toast.success(
+        `已清理 ${res.total_deleted.toLocaleString()} 行流量统计数据`
+      )
+      setClearOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['traffic-diag'] })
+      queryClient.invalidateQueries({ queryKey: ['traffic-audit'] })
+    },
+    onError: (e) => toastError(e, '清理失败'),
+  })
 
   return (
     <>
@@ -158,7 +180,39 @@ export function TrafficStatPage() {
               className='h-8 w-48'
             />
           )}
+          <Button
+            size='sm'
+            variant='outline'
+            className='text-destructive ms-auto'
+            onClick={() => setClearOpen(true)}
+          >
+            <Trash2 className='me-1 size-4' />
+            清理数据
+          </Button>
         </div>
+
+        <ConfirmDialog
+          open={clearOpen}
+          onOpenChange={setClearOpen}
+          title='清理流量统计数据'
+          destructive
+          isLoading={clearMutation.isPending}
+          cancelBtnText='取消'
+          confirmText={clearMutation.isPending ? '清理中...' : '确认清理'}
+          handleConfirm={() => clearMutation.mutate()}
+          desc='将删除节点统计、用户审计与上报去重记录中的数据，操作不可恢复。日常无需手动清理：系统每天凌晨会按「系统配置 → 服务器」中设置的保留天数自动清理过期数据。'
+        >
+          <Select value={clearDays} onValueChange={setClearDays}>
+            <SelectTrigger className='w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='30'>清理 30 天前的数据</SelectItem>
+              <SelectItem value='7'>清理 7 天前的数据</SelectItem>
+              <SelectItem value='0'>清空全部数据（立即释放表空间）</SelectItem>
+            </SelectContent>
+          </Select>
+        </ConfirmDialog>
 
         {/* 明细表 */}
         <Tabs

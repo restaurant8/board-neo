@@ -68,6 +68,8 @@ export type ConfigData = {
     server_push_interval?: number
     traffic_stats_mode?: string
     traffic_stats_interval?: number
+    traffic_stats_audit_retention_days?: number
+    traffic_stats_server_retention_days?: number
     device_limit_mode?: number
     server_ws_enable?: boolean
     server_ws_url?: string

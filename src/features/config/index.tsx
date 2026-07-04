@@ -414,6 +414,8 @@ export function ConfigPage() {
                       ]}
                     />
                     <TextField label='流量统计周期' placeholder='请输入周期分钟数' description='节点、类别、域名流量统计的聚合周期，单位为分钟。' type='number' value={v('traffic_stats_interval') as number} onChange={(x) => set('traffic_stats_interval', Number(x) || 0)} />
+                    <TextField label='用户审计保留天数' placeholder='请输入保留天数' description='用户流量审计明细的保留天数，超期数据每天凌晨自动清理；0 为不自动清理。' type='number' value={v('traffic_stats_audit_retention_days') as number} onChange={(x) => set('traffic_stats_audit_retention_days', x === '' ? null : Number(x))} />
+                    <TextField label='节点统计保留天数' placeholder='请输入保留天数' description='节点流量统计明细的保留天数，超期数据每天凌晨自动清理；0 为不自动清理。' type='number' value={v('traffic_stats_server_retention_days') as number} onChange={(x) => set('traffic_stats_server_retention_days', x === '' ? null : Number(x))} />
                     <SelectField
                       label='设备限制模式'
                       description='宽松模式下，同一IP地址使用多个节点只统计为一个设备。'

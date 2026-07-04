@@ -1,4 +1,4 @@
-import { get } from '@/lib/api-client'
+import { get, post } from '@/lib/api-client'
 
 export type DiagRow = {
   server_id: number
@@ -136,6 +136,32 @@ export async function fetchUserTrafficAudit(params: UserAuditParams) {
     '/stat/getUserTrafficAudit',
     params,
     { timeout: 120000 }
+  )
+  return r.data
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            一键清理 (clearTrafficStats)                     */
+/* -------------------------------------------------------------------------- */
+
+export type ClearTrafficStatsResult = {
+  days: number
+  /** 各表删除行数，key 为表名（v2_user_traffic_audit 等） */
+  deleted: Record<string, number>
+  total_deleted: number
+}
+
+/**
+ * POST /stat/clearTrafficStats — 一键清理流量统计数据。
+ * days=0 清空全部（truncate，立即释放表空间）；days>0 删除 N 天前的数据（分批 delete）。
+ * 同样返回 `{ data: {...} }` 非标准信封，手动取内层 data。
+ */
+export async function clearTrafficStats(days: number) {
+  // 大表清理可能耗时较长，放宽超时
+  const r = await post<{ data: ClearTrafficStatsResult }>(
+    '/stat/clearTrafficStats',
+    { days },
+    { timeout: 300000 }
   )
   return r.data
 }
