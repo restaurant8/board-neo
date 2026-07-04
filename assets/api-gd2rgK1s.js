@@ -1,1 +1,0 @@
-import{i as e,n as t}from"./api-client-D4d-hCAy.js";function n(){return t(`/server/group/fetch`)}function r(t){return e(`/server/group/save`,t)}function i(t){return e(`/server/group/drop`,{id:t})}export{n,r,i as t};
