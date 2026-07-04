@@ -35,22 +35,39 @@ export function formatExpire(ts: number | null | undefined): string {
  * 到期状态（对齐官方 columns.expire_status）：
  * - null → 长期有效
  * - 已过去 → 已过期 N 天
- * - 未来 → 剩余 N 天
+ * - 未来 → 剩余 N 天（≤30 天标记 expiringSoon，列表中显示黄色预警）
  */
 export function formatExpireStatus(ts: number | null | undefined): {
   text: string
   expired: boolean
   permanent: boolean
+  expiringSoon: boolean
 } {
-  if (!ts) return { text: '长期有效', expired: false, permanent: true }
+  if (!ts)
+    return {
+      text: '长期有效',
+      expired: false,
+      permanent: true,
+      expiringSoon: false,
+    }
   const now = Math.floor(Date.now() / 1000)
   const dayMs = 86400
   if (ts <= now) {
     const days = Math.max(0, Math.floor((now - ts) / dayMs))
-    return { text: `已过期 ${days} 天`, expired: true, permanent: false }
+    return {
+      text: `已过期 ${days} 天`,
+      expired: true,
+      permanent: false,
+      expiringSoon: false,
+    }
   }
   const days = Math.max(0, Math.ceil((ts - now) / dayMs))
-  return { text: `剩余 ${days} 天`, expired: false, permanent: false }
+  return {
+    text: `剩余 ${days} 天`,
+    expired: false,
+    permanent: false,
+    expiringSoon: days <= 30,
+  }
 }
 
 /**

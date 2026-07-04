@@ -643,7 +643,9 @@ export function UserPage() {
                               ? 'border-destructive/50 bg-destructive/10 text-destructive'
                               : exp.permanent
                                 ? 'border-primary/40 bg-primary/5 text-primary/90'
-                                : 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-500'
+                                : exp.expiringSoon
+                                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500'
+                                  : 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-500'
                           )}
                         >
                           {exp.permanent
