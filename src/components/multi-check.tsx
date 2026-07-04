@@ -1,5 +1,4 @@
 import { Checkbox } from '@/components/ui/checkbox'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 export type MultiOption = { value: string; label: string }
 
@@ -33,7 +32,7 @@ export function MultiCheck({
   }
 
   return (
-    <ScrollArea className='max-h-44 rounded-md border p-2'>
+    <div className='max-h-44 overflow-y-auto rounded-md border p-2'>
       <div className='grid grid-cols-2 gap-2'>
         {options.map((o) => (
           <label
@@ -48,6 +47,6 @@ export function MultiCheck({
           </label>
         ))}
       </div>
-    </ScrollArea>
+    </div>
   )
 }
