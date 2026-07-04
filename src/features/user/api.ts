@@ -48,6 +48,8 @@ export type User = {
   is_admin: number
   is_staff: number
   banned: number
+  /** 记录流量审计明细（审计范围为自定义条件时生效）。 */
+  traffic_audit_enabled?: number | boolean
   remarks: string | null
   token: string
   uuid: string
@@ -117,6 +119,8 @@ export type UserUpdatePayload = {
   remarks?: string | null
   speed_limit?: number | null
   device_limit?: number | null
+  /** 记录流量审计明细（审计范围为自定义条件时生效）。 */
+  traffic_audit_enabled?: boolean
   /** 设置邀请人邮箱，传空则清除邀请人。 */
   invite_user_email?: string
 }

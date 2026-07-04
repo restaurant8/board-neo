@@ -76,6 +76,7 @@ const formSchema = z.object({
   banned: z.boolean(),
   is_admin: z.boolean(),
   is_staff: z.boolean(),
+  traffic_audit_enabled: z.boolean(),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -122,6 +123,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
       banned: false,
       is_admin: false,
       is_staff: false,
+      traffic_audit_enabled: false,
     },
   })
 
@@ -149,6 +151,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
         banned: !!current.banned,
         is_admin: !!current.is_admin,
         is_staff: !!current.is_staff,
+        traffic_audit_enabled: !!current.traffic_audit_enabled,
       })
     }
   }, [open, current, form])
@@ -176,6 +179,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
         banned: values.banned,
         is_admin: values.is_admin,
         is_staff: values.is_staff,
+        traffic_audit_enabled: values.traffic_audit_enabled,
       }),
     onSuccess: () => {
       toast.success('已保存')
@@ -478,6 +482,21 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 render={({ field }) => (
                   <FormItem className='flex items-center gap-2'>
                     <FormLabel>是否员工</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='traffic_audit_enabled'
+                render={({ field }) => (
+                  <FormItem className='flex items-center gap-2'>
+                    <FormLabel>记录流量明细</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}

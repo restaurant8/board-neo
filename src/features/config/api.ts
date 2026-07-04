@@ -69,6 +69,12 @@ export type ConfigData = {
     server_push_interval?: number
     traffic_stats_mode?: string
     traffic_stats_interval?: number
+    /** 审计用户范围：all=全部用户，custom=自定义条件（仅诊断模式生效）。 */
+    traffic_stats_audit_scope?: string
+    /** 指定用户：邮箱或用户ID，换行/逗号分隔。 */
+    traffic_stats_audit_users?: string | null
+    traffic_stats_audit_plan_ids?: number[]
+    traffic_stats_audit_group_ids?: number[]
     traffic_stats_audit_retention_days?: number
     traffic_stats_server_retention_days?: number
     device_limit_mode?: number

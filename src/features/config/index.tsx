@@ -22,7 +22,9 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { MultiCheck } from '@/components/multi-check'
 import { fetchPlans } from '@/features/plan/api'
+import { fetchServerGroups } from '@/features/server-group/api'
 import {
   type ConfigData,
   fetchConfig,
@@ -31,6 +33,7 @@ import {
   testSendMail,
 } from './api'
 import {
+  FieldRow,
   SelectField,
   SwitchField,
   TextareaField,
@@ -133,6 +136,11 @@ export function ConfigPage() {
   const { data: plans } = useQuery({
     queryKey: ['plans-brief'],
     queryFn: fetchPlans,
+  })
+  // 流量统计审计范围：按权限组筛选用
+  const { data: serverGroups } = useQuery({
+    queryKey: ['server-groups'],
+    queryFn: fetchServerGroups,
   })
 
   const [form, setForm] = useState<Record<string, unknown>>({})
@@ -414,6 +422,64 @@ export function ConfigPage() {
                         { value: 'diagnostic', label: '授权诊断模式' },
                       ]}
                     />
+                    {(v('traffic_stats_mode') as string) === 'diagnostic' && (
+                      <>
+                        <SelectField
+                          label='审计用户范围'
+                          description='自定义条件时仅记录命中任一条件的用户明细，可显著减少数据库写入量；全部用户则记录所有人。'
+                          placeholder='请选择范围'
+                          value={(v('traffic_stats_audit_scope') as string) || 'all'}
+                          onChange={(x) => set('traffic_stats_audit_scope', x)}
+                          options={[
+                            { value: 'all', label: '全部用户' },
+                            { value: 'custom', label: '自定义条件' },
+                          ]}
+                        />
+                        {(v('traffic_stats_audit_scope') as string) === 'custom' && (
+                          <>
+                            <TextareaField
+                              label='指定用户'
+                              description='每行一个邮箱或用户ID，也可用逗号分隔；留空则不按此条件筛选。'
+                              placeholder={'user@example.com\n1024'}
+                              rows={4}
+                              value={(v('traffic_stats_audit_users') as string) ?? ''}
+                              onChange={(x) => set('traffic_stats_audit_users', x)}
+                            />
+                            <FieldRow
+                              label='按订阅套餐'
+                              description='勾选后该套餐下的用户全部记录；留空则不按此条件筛选。'
+                            >
+                              <MultiCheck
+                                options={(plans ?? []).map((p) => ({
+                                  value: String(p.id),
+                                  label: p.name,
+                                }))}
+                                selected={((v('traffic_stats_audit_plan_ids') as number[]) ?? []).map(String)}
+                                onChange={(next) => set('traffic_stats_audit_plan_ids', next.map(Number))}
+                                empty='暂无套餐，请先前往订阅管理添加'
+                              />
+                            </FieldRow>
+                            <FieldRow
+                              label='按权限组'
+                              description='勾选后该权限组内的用户全部记录；留空则不按此条件筛选。'
+                            >
+                              <MultiCheck
+                                options={(serverGroups ?? []).map((g) => ({
+                                  value: String(g.id),
+                                  label: g.name,
+                                }))}
+                                selected={((v('traffic_stats_audit_group_ids') as number[]) ?? []).map(String)}
+                                onChange={(next) => set('traffic_stats_audit_group_ids', next.map(Number))}
+                                empty='暂无权限组，请先前往权限组管理添加'
+                              />
+                            </FieldRow>
+                            <p className='text-muted-foreground text-sm'>
+                              以上条件取并集；此外在用户管理中单独开启"记录流量明细"的用户也会被记录。
+                            </p>
+                          </>
+                        )}
+                      </>
+                    )}
                     <TextField label='流量统计周期' placeholder='请输入周期分钟数' description='节点、类别、域名流量统计的聚合周期，单位为分钟。' type='number' value={v('traffic_stats_interval') as number} onChange={(x) => set('traffic_stats_interval', Number(x) || 0)} />
                     <TextField label='用户审计保留天数' placeholder='请输入保留天数' description='用户流量审计明细的保留天数，超期数据每天凌晨自动清理；0 为不自动清理。' type='number' value={v('traffic_stats_audit_retention_days') as number} onChange={(x) => set('traffic_stats_audit_retention_days', x === '' ? null : Number(x))} />
                     <TextField label='节点统计保留天数' placeholder='请输入保留天数' description='节点流量统计明细的保留天数，超期数据每天凌晨自动清理；0 为不自动清理。' type='number' value={v('traffic_stats_server_retention_days') as number} onChange={(x) => set('traffic_stats_server_retention_days', x === '' ? null : Number(x))} />
