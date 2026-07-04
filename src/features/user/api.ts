@@ -80,6 +80,16 @@ export type UserFetchParams = {
   pageSize?: number
   filter?: UserFilter[]
   sort?: UserSort[]
+  /** 使用记录统计窗口起点（秒级时间戳），影响 订阅/连接异地 列、筛选与排序。 */
+  usage_start?: number
+  /** 使用记录统计窗口终点（秒级时间戳），缺省为不限。 */
+  usage_end?: number
+}
+
+/** 使用记录统计窗口（随 fetch/ban/sendMail/dumpCSV 传递）。 */
+export type UsageWindow = {
+  usage_start?: number
+  usage_end?: number
 }
 
 /** GET/POST /user/fetch — 分页用户列表（路由 any）。 */
@@ -134,6 +144,9 @@ export function banUsers(params: {
   scope?: BulkScope
   user_ids?: number[]
   filter?: UserFilter[]
+  /** filtered 范围含异地条件时，统计窗口需与列表一致。 */
+  usage_start?: number
+  usage_end?: number
 }) {
   return post<boolean>('/user/ban', params)
 }
@@ -187,6 +200,9 @@ export type SendMailPayload = {
   /** filtered 范围时随请求传递的排序列与方向。 */
   sort?: string
   sort_type?: 'ASC' | 'DESC'
+  /** filtered 范围含异地条件时，统计窗口需与列表一致。 */
+  usage_start?: number
+  usage_end?: number
 }
 
 /** POST /user/sendMail — 群发邮件。 */

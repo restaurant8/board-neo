@@ -21,7 +21,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { type BulkScope, type UserFilter, type UserSort, sendMail } from '../api'
+import {
+  type BulkScope,
+  type UsageWindow,
+  type UserFilter,
+  type UserSort,
+  sendMail,
+} from '../api'
 
 // 与后端 UserController@sendMail 注入的变量一致
 const AVAILABLE_VARS = [
@@ -51,6 +57,8 @@ type Props = {
   selectedIds?: number[]
   /** 当前列表排序（仅 filtered 范围随请求传递）。 */
   sort?: UserSort[]
+  /** 使用记录统计窗口（filtered 范围含异地条件时须与列表一致）。 */
+  usageWindow?: UsageWindow
 }
 
 export function UserSendMailDialog({
@@ -59,6 +67,7 @@ export function UserSendMailDialog({
   filter,
   selectedIds,
   sort,
+  usageWindow,
 }: Props) {
   const [subject, setSubject] = useState('')
   const [content, setContent] = useState('')
@@ -81,6 +90,7 @@ export function UserSendMailDialog({
         scope,
         user_ids: scope === 'selected' ? selectedIds : undefined,
         filter: scope === 'filtered' ? filter : undefined,
+        ...(scope === 'filtered' ? usageWindow : {}),
         sort: scope === 'filtered' ? sort?.[0]?.id : undefined,
         sort_type:
           scope === 'filtered' && sort?.[0]

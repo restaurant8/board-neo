@@ -60,6 +60,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  type UsageWindow,
   type User,
   type UserFilter,
   type UserSort,
@@ -192,6 +193,30 @@ export function UserPage() {
     queryFn: fetchResellerSites,
   })
 
+  // 使用记录统计窗口：驱动 订阅/连接异地 列、异地筛选与排序。默认今天。
+  const [usageRange, setUsageRange] = useState('today')
+  const [usageStartDate, setUsageStartDate] = useState('')
+  const [usageEndDate, setUsageEndDate] = useState('')
+  const usageWindow = useMemo<UsageWindow>(() => {
+    const dayStart = (d: Date) => {
+      const x = new Date(d)
+      x.setHours(0, 0, 0, 0)
+      return Math.floor(x.getTime() / 1000)
+    }
+    const today = dayStart(new Date())
+    if (usageRange === 'today') return { usage_start: today }
+    if (usageRange === '7d') return { usage_start: today - 6 * 86400 }
+    if (usageRange === '15d') return { usage_start: today - 14 * 86400 }
+    if (usageRange === '30d') return { usage_start: today - 29 * 86400 }
+    // 自定义范围：起止均可留空（留空一侧不限）
+    const w: UsageWindow = {}
+    if (usageStartDate)
+      w.usage_start = dayStart(new Date(`${usageStartDate}T00:00:00`))
+    if (usageEndDate)
+      w.usage_end = dayStart(new Date(`${usageEndDate}T00:00:00`)) + 86399
+    return w
+  }, [usageRange, usageStartDate, usageEndDate])
+
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
     if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
@@ -209,6 +234,7 @@ export function UserPage() {
     pageSize,
     filter: hasFilter ? filter : undefined,
     sort: sort.length ? sort : undefined,
+    ...usageWindow,
   }
 
   const { data, isLoading } = useQuery({
@@ -272,6 +298,7 @@ export function UserPage() {
         scope,
         user_ids: scope === 'selected' ? selected : undefined,
         filter: scope === 'filtered' && hasFilter ? filter : undefined,
+        ...(scope === 'filtered' ? usageWindow : {}),
       }),
     onSuccess: () => {
       toast.success('批量封禁成功')
@@ -312,6 +339,7 @@ export function UserPage() {
           scope,
           user_ids: scope === 'selected' ? selected : undefined,
           filter: scope === 'filtered' ? filter : undefined,
+          ...(scope === 'filtered' ? usageWindow : {}),
         },
         { responseType: 'blob' }
       )
@@ -417,6 +445,53 @@ export function UserPage() {
               </SelectContent>
             </Select>
           )}
+          {/* 使用记录统计窗口（订阅/连接异地列按此范围统计，默认今天） */}
+          <div className='flex items-center gap-1.5'>
+            <span className='text-muted-foreground text-sm whitespace-nowrap'>
+              使用记录
+            </span>
+            <Select
+              value={usageRange}
+              onValueChange={(v) => {
+                setUsageRange(v)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger className='h-9 w-[130px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='today'>今天</SelectItem>
+                <SelectItem value='7d'>最近7天</SelectItem>
+                <SelectItem value='15d'>最近15天</SelectItem>
+                <SelectItem value='30d'>最近30天</SelectItem>
+                <SelectItem value='custom'>自定义范围</SelectItem>
+              </SelectContent>
+            </Select>
+            {usageRange === 'custom' && (
+              <>
+                <Input
+                  type='date'
+                  className='h-9 w-[150px]'
+                  value={usageStartDate}
+                  onChange={(e) => {
+                    setUsageStartDate(e.target.value)
+                    setPage(1)
+                  }}
+                />
+                <span className='text-muted-foreground text-sm'>至</span>
+                <Input
+                  type='date'
+                  className='h-9 w-[150px]'
+                  value={usageEndDate}
+                  onChange={(e) => {
+                    setUsageEndDate(e.target.value)
+                    setPage(1)
+                  }}
+                />
+              </>
+            )}
+          </div>
           <Button variant='outline' onClick={() => setFilterOpen(true)}>
             <Filter className='size-4' /> 高级筛选
             {conditions.length > 0 && (
@@ -528,12 +603,8 @@ export function UserPage() {
                 {sortHead('balance', '余额')}
                 {sortHead('commission_balance', '佣金')}
                 {sortHead('online_count', '在线设备')}
-                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  订阅异地
-                </TableHead>
-                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  连接异地
-                </TableHead>
+                {sortHead('subscribe_remote', '订阅异地')}
+                {sortHead('connect_remote', '连接异地')}
                 {sortHead('banned', '状态')}
                 {sortHead('created_at', '注册时间')}
                 <TableHead className='h-11 bg-card px-4 text-end text-muted-foreground'>
@@ -888,6 +959,7 @@ export function UserPage() {
         filter={filter}
         selectedIds={selected}
         sort={sort}
+        usageWindow={usageWindow}
       />
       <UsageRecordsDialog
         open={usageOpen}
