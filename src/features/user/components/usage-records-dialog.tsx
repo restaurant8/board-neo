@@ -73,6 +73,30 @@ export function UsageRecordsDialog({
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
   const [confirmClear, setConfirmClear] = useState(false)
 
+  // 时间范围：默认今天，可切最近 7/15/30 天或自定义起止日期
+  const [rangeMode, setRangeMode] = useState('today')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
+
+  // 由范围模式派生 start_time/end_time（秒级时间戳；不限一侧则 undefined）
+  const timeRange = ((): { start_time?: number; end_time?: number } => {
+    const dayStart = (d: Date) => {
+      const x = new Date(d)
+      x.setHours(0, 0, 0, 0)
+      return Math.floor(x.getTime() / 1000)
+    }
+    const today = dayStart(new Date())
+    if (rangeMode === 'today') return { start_time: today }
+    if (rangeMode === '7d') return { start_time: today - 6 * 86400 }
+    if (rangeMode === '15d') return { start_time: today - 14 * 86400 }
+    if (rangeMode === '30d') return { start_time: today - 29 * 86400 }
+    if (rangeMode === 'all') return {}
+    const r: { start_time?: number; end_time?: number } = {}
+    if (customStart) r.start_time = dayStart(new Date(`${customStart}T00:00:00`))
+    if (customEnd) r.end_time = dayStart(new Date(`${customEnd}T00:00:00`)) + 86399
+    return r
+  })()
+
   // 打开时重置并应用预填：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
   const [loaded, setLoaded] = useState<{
     open: boolean
@@ -91,6 +115,9 @@ export function UsageRecordsDialog({
       setPageSize(DEFAULT_PAGE_SIZE)
       setOrderBy('record_at')
       setOrderDir('desc')
+      setRangeMode('today')
+      setCustomStart('')
+      setCustomEnd('')
     }
   }
 
@@ -98,6 +125,7 @@ export function UsageRecordsDialog({
     keyword: applied.keyword || undefined,
     ip: applied.ip || undefined,
     type: applied.type || undefined,
+    ...timeRange,
     order_by: orderBy,
     order_dir: orderDir,
     page,
@@ -111,6 +139,8 @@ export function UsageRecordsDialog({
   })
 
   const hasFilter = !!(applied.keyword || applied.ip || applied.type)
+  // 一键清除是否被限定范围（除关键词/IP/类型外，非「全部时间」也算限定）
+  const clearScoped = hasFilter || rangeMode !== 'all'
   const total = data?.total ?? 0
   const rows = data?.data ?? []
   const maxPage = Math.max(1, Math.ceil(total / pageSize))
@@ -144,6 +174,7 @@ export function UsageRecordsDialog({
         keyword: applied.keyword || undefined,
         ip: applied.ip || undefined,
         type: applied.type || undefined,
+        ...timeRange,
       }),
     onSuccess: (res) => {
       toast.success(`已清除 ${res.deleted} 条记录`)
@@ -180,6 +211,48 @@ export function UsageRecordsDialog({
               <Button variant='outline' size='sm' onClick={resetFilters}>
                 <ArrowLeft className='size-4' /> 返回全部
               </Button>
+            )}
+            <Select
+              value={rangeMode}
+              onValueChange={(v) => {
+                setRangeMode(v)
+                setPage(1)
+              }}
+            >
+              <SelectTrigger className='h-8 w-28'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='today'>今天</SelectItem>
+                <SelectItem value='7d'>最近7天</SelectItem>
+                <SelectItem value='15d'>最近15天</SelectItem>
+                <SelectItem value='30d'>最近30天</SelectItem>
+                <SelectItem value='all'>全部时间</SelectItem>
+                <SelectItem value='custom'>自定义范围</SelectItem>
+              </SelectContent>
+            </Select>
+            {rangeMode === 'custom' && (
+              <>
+                <Input
+                  type='date'
+                  className='h-8 w-[140px]'
+                  value={customStart}
+                  onChange={(e) => {
+                    setCustomStart(e.target.value)
+                    setPage(1)
+                  }}
+                />
+                <span className='text-sm text-muted-foreground'>至</span>
+                <Input
+                  type='date'
+                  className='h-8 w-[140px]'
+                  value={customEnd}
+                  onChange={(e) => {
+                    setCustomEnd(e.target.value)
+                    setPage(1)
+                  }}
+                />
+              </>
             )}
             <Input
               className='h-8 w-44'
@@ -368,8 +441,8 @@ export function UsageRecordsDialog({
         onOpenChange={setConfirmClear}
         title='清除使用记录'
         desc={
-          hasFilter
-            ? '确认清除【当前筛选条件】下的所有使用记录？此操作不可恢复。'
+          clearScoped
+            ? '确认清除【当前筛选条件（含所选时间范围）】下的所有使用记录？此操作不可恢复。'
             : '确认清除【全部】使用记录？此操作不可恢复！'
         }
         confirmText='清除'
