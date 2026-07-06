@@ -1,0 +1,1 @@
+import{p as e}from"./index-DbALIY3K.js";var t=e;export{t as component};
