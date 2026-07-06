@@ -17,6 +17,7 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
+import { Route as AuthenticatedWinbackIndexRouteImport } from './routes/_authenticated/winback/index'
 import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
 import { Route as AuthenticatedUpdateIndexRouteImport } from './routes/_authenticated/update/index'
 import { Route as AuthenticatedTrafficStatIndexRouteImport } from './routes/_authenticated/traffic-stat/index'
@@ -86,6 +87,12 @@ const authSignInRoute = authSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWinbackIndexRoute =
+  AuthenticatedWinbackIndexRouteImport.update({
+    id: '/winback/',
+    path: '/winback/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUserIndexRoute = AuthenticatedUserIndexRouteImport.update({
   id: '/user/',
   path: '/user/',
@@ -288,6 +295,7 @@ export interface FileRoutesByFullPath {
   '/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
   '/update/': typeof AuthenticatedUpdateIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
+  '/winback/': typeof AuthenticatedWinbackIndexRoute
   '/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns/': typeof AuthenticatedServerDnsIndexRoute
   '/server/group/': typeof AuthenticatedServerGroupIndexRoute
@@ -326,6 +334,7 @@ export interface FileRoutesByTo {
   '/traffic-stat': typeof AuthenticatedTrafficStatIndexRoute
   '/update': typeof AuthenticatedUpdateIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
+  '/winback': typeof AuthenticatedWinbackIndexRoute
   '/server/backend': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns': typeof AuthenticatedServerDnsIndexRoute
   '/server/group': typeof AuthenticatedServerGroupIndexRoute
@@ -366,6 +375,7 @@ export interface FileRoutesById {
   '/_authenticated/traffic-stat/': typeof AuthenticatedTrafficStatIndexRoute
   '/_authenticated/update/': typeof AuthenticatedUpdateIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
+  '/_authenticated/winback/': typeof AuthenticatedWinbackIndexRoute
   '/_authenticated/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/_authenticated/server/dns/': typeof AuthenticatedServerDnsIndexRoute
   '/_authenticated/server/group/': typeof AuthenticatedServerGroupIndexRoute
@@ -406,6 +416,7 @@ export interface FileRouteTypes {
     | '/traffic-stat/'
     | '/update/'
     | '/user/'
+    | '/winback/'
     | '/server/backend/'
     | '/server/dns/'
     | '/server/group/'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/traffic-stat'
     | '/update'
     | '/user'
+    | '/winback'
     | '/server/backend'
     | '/server/dns'
     | '/server/group'
@@ -483,6 +495,7 @@ export interface FileRouteTypes {
     | '/_authenticated/traffic-stat/'
     | '/_authenticated/update/'
     | '/_authenticated/user/'
+    | '/_authenticated/winback/'
     | '/_authenticated/server/backend/'
     | '/_authenticated/server/dns/'
     | '/_authenticated/server/group/'
@@ -558,6 +571,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-in'
       preLoaderRoute: typeof authSignInRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/winback/': {
+      id: '/_authenticated/winback/'
+      path: '/winback'
+      fullPath: '/winback/'
+      preLoaderRoute: typeof AuthenticatedWinbackIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/user/': {
       id: '/_authenticated/user/'
@@ -790,6 +810,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTrafficStatIndexRoute: typeof AuthenticatedTrafficStatIndexRoute
   AuthenticatedUpdateIndexRoute: typeof AuthenticatedUpdateIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
+  AuthenticatedWinbackIndexRoute: typeof AuthenticatedWinbackIndexRoute
   AuthenticatedServerBackendIndexRoute: typeof AuthenticatedServerBackendIndexRoute
   AuthenticatedServerDnsIndexRoute: typeof AuthenticatedServerDnsIndexRoute
   AuthenticatedServerGroupIndexRoute: typeof AuthenticatedServerGroupIndexRoute
@@ -824,6 +845,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTrafficStatIndexRoute: AuthenticatedTrafficStatIndexRoute,
   AuthenticatedUpdateIndexRoute: AuthenticatedUpdateIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
+  AuthenticatedWinbackIndexRoute: AuthenticatedWinbackIndexRoute,
   AuthenticatedServerBackendIndexRoute: AuthenticatedServerBackendIndexRoute,
   AuthenticatedServerDnsIndexRoute: AuthenticatedServerDnsIndexRoute,
   AuthenticatedServerGroupIndexRoute: AuthenticatedServerGroupIndexRoute,

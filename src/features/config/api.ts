@@ -6,6 +6,13 @@ export type CloudflareDnsZone = {
   remark: string
 }
 
+/** 流失召回层级配置。 */
+export type WinbackTier = {
+  days: number
+  discount: number
+  valid_hours: number
+}
+
 /**
  * Full config object returned by GET /config/fetch, grouped by section.
  * Mirrors ConfigController::getConfigMappings(). All fields optional on the
@@ -96,6 +103,15 @@ export type ConfigData = {
     remind_mail_enable?: boolean
     /** 群发邮件每秒发送上限；0 为不限速。 */
     email_mass_send_limit_per_second?: number
+  }
+  winback?: {
+    winback_enable?: boolean
+    /** 召回层级：过期 days 天 → discount% 折扣券，valid_hours 小时有效。 */
+    winback_tiers?: WinbackTier[]
+    winback_daily_limit?: number
+    winback_paid_only?: boolean
+    winback_backlog_enable?: boolean
+    winback_backlog_daily_limit?: number
   }
   telegram?: {
     telegram_bot_enable?: boolean

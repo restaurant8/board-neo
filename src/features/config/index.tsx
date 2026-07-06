@@ -5,11 +5,14 @@ import {
   FileText,
   Globe,
   Mail,
+  Plus,
   Save,
   Send,
   Server,
   ShieldCheck,
   Smartphone,
+  Trash2,
+  UserCheck,
   Users,
   Webhook,
 } from 'lucide-react'
@@ -25,13 +28,16 @@ import { Separator } from '@/components/ui/separator'
 import { MultiCheck } from '@/components/multi-check'
 import { fetchPlans } from '@/features/plan/api'
 import { fetchServerGroups } from '@/features/server-group/api'
+import { previewWinback } from '@/features/winback/api'
 import {
   type ConfigData,
+  type WinbackTier,
   fetchConfig,
   saveConfig,
   setTelegramWebhook,
   testSendMail,
 } from './api'
+import { Input } from '@/components/ui/input'
 import {
   FieldRow,
   SelectField,
@@ -63,6 +69,7 @@ const sectionItems: SectionNavItem[] = [
   { key: 'invite', title: '邀请&佣金设置', icon: <Users size={18} /> },
   { key: 'server', title: '节点配置', icon: <Server size={18} /> },
   { key: 'email', title: '邮件设置', icon: <Mail size={18} /> },
+  { key: 'winback', title: '流失召回', icon: <UserCheck size={18} /> },
   { key: 'telegram', title: 'Telegram设置', icon: <Send size={18} /> },
   { key: 'app', title: 'APP设置', icon: <Smartphone size={18} /> },
 ]
@@ -98,6 +105,11 @@ const sectionMeta: Record<string, { title: string; description: string }> = {
     title: '邮件设置',
     description:
       '配置系统邮件服务，用于发送验证码、密码重置、通知等邮件，支持多种SMTP服务商。',
+  },
+  winback: {
+    title: '流失召回',
+    description:
+      '自动给过期流失用户发送带专属优惠券的召回邮件。窗口触发只对「新鲜跨过过期天数边界」的用户生效，存量老用户需单独开启存量清洗按天限量处理。',
   },
   telegram: {
     title: 'Telegram设置',
@@ -182,6 +194,15 @@ export function ConfigPage() {
   const webhookMutation = useMutation({
     mutationFn: () => setTelegramWebhook(String(form.telegram_bot_token ?? '')),
     onSuccess: (r) => toast.success(`Webhook 已设置：${r.webhook_url}`),
+    onError: handleServerError,
+  })
+
+  const winbackPreviewMutation = useMutation({
+    mutationFn: previewWinback,
+    onSuccess: (r) =>
+      toast.success(
+        `预演结果：窗口触发 ${r.window_sent} 封，存量清洗 ${r.backlog_sent} 封（按已保存的配置估算，未实际发送）`
+      ),
     onError: handleServerError,
   })
 
@@ -530,6 +551,170 @@ export function ConfigPage() {
                       </Button>
                       <p className='text-muted-foreground text-sm'>
                         发送测试邮件以验证配置（请先保存邮件配置）。
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 流失召回 */}
+                {section === 'winback' && (
+                  <div className='space-y-4'>
+                    <SwitchField
+                      label='启用流失召回'
+                      description='开启后每天自动给刚跨过下方层级天数边界的过期用户发送带专属优惠券的召回邮件。历史存量用户不会命中，需单独开启存量清洗。'
+                      value={v('winback_enable') as boolean}
+                      onChange={(b) => set('winback_enable', b)}
+                    />
+                    <FieldRow
+                      label='召回层级'
+                      description='用户过期满 N 天时发送对应折扣的一次性专属券。层级只发一次；同一用户续费后再次流失会重新计算。'
+                    >
+                      <div className='space-y-2'>
+                        {((v('winback_tiers') as WinbackTier[]) ?? []).map(
+                          (tier, i, tiers) => (
+                            <div
+                              key={i}
+                              className='flex flex-wrap items-center gap-2'
+                            >
+                              <span className='text-muted-foreground text-sm'>
+                                过期满
+                              </span>
+                              <Input
+                                type='number'
+                                className='h-9 w-20'
+                                value={tier.days}
+                                onChange={(e) => {
+                                  const next = tiers.map((t, j) =>
+                                    j === i
+                                      ? { ...t, days: Number(e.target.value) || 0 }
+                                      : t
+                                  )
+                                  set('winback_tiers', next)
+                                }}
+                              />
+                              <span className='text-muted-foreground text-sm'>
+                                天，发
+                              </span>
+                              <Input
+                                type='number'
+                                className='h-9 w-20'
+                                value={tier.discount}
+                                onChange={(e) => {
+                                  const next = tiers.map((t, j) =>
+                                    j === i
+                                      ? {
+                                          ...t,
+                                          discount: Number(e.target.value) || 0,
+                                        }
+                                      : t
+                                  )
+                                  set('winback_tiers', next)
+                                }}
+                              />
+                              <span className='text-muted-foreground text-sm'>
+                                % 折扣券，
+                              </span>
+                              <Input
+                                type='number'
+                                className='h-9 w-20'
+                                value={tier.valid_hours}
+                                onChange={(e) => {
+                                  const next = tiers.map((t, j) =>
+                                    j === i
+                                      ? {
+                                          ...t,
+                                          valid_hours:
+                                            Number(e.target.value) || 0,
+                                        }
+                                      : t
+                                  )
+                                  set('winback_tiers', next)
+                                }}
+                              />
+                              <span className='text-muted-foreground text-sm'>
+                                小时内有效
+                              </span>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                className='text-muted-foreground'
+                                onClick={() =>
+                                  set(
+                                    'winback_tiers',
+                                    tiers.filter((_, j) => j !== i)
+                                  )
+                                }
+                              >
+                                <Trash2 className='size-4' />
+                              </Button>
+                            </div>
+                          )
+                        )}
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => {
+                            const tiers =
+                              (v('winback_tiers') as WinbackTier[]) ?? []
+                            const lastDays = tiers.length
+                              ? tiers[tiers.length - 1].days
+                              : 0
+                            set('winback_tiers', [
+                              ...tiers,
+                              {
+                                days: lastDays + 30 || 7,
+                                discount: 15,
+                                valid_hours: 72,
+                              },
+                            ])
+                          }}
+                        >
+                          <Plus className='size-4' /> 添加层级
+                        </Button>
+                      </div>
+                    </FieldRow>
+                    <TextField
+                      label='每日发送上限（窗口触发）'
+                      placeholder='200'
+                      description='每天窗口触发最多发送的召回邮件数，保护发信域名信誉。'
+                      type='number'
+                      value={v('winback_daily_limit') as number}
+                      onChange={(x) => set('winback_daily_limit', Number(x) || 0)}
+                    />
+                    <SwitchField
+                      label='仅召回曾付费用户'
+                      description='只给有过有效订单的用户发送召回邮件。纯注册未付费用户召回价值低且易被举报垃圾邮件，建议保持开启。'
+                      value={v('winback_paid_only') as boolean}
+                      onChange={(b) => set('winback_paid_only', b)}
+                    />
+                    <SwitchField
+                      label='存量清洗'
+                      description='开启后每天限量处理「功能上线前就已过期超过最深层级天数」的历史用户，按过期时间从新到旧发送最深层级的券，发完自动停止。'
+                      value={v('winback_backlog_enable') as boolean}
+                      onChange={(b) => set('winback_backlog_enable', b)}
+                    />
+                    {(v('winback_backlog_enable') as boolean) && (
+                      <TextField
+                        label='存量清洗每日额度'
+                        placeholder='100'
+                        description='每天从存量池处理的用户数。请勿设置过大，突发大量营销邮件会被邮件服务商判为垃圾并连累到期提醒等系统邮件。'
+                        type='number'
+                        value={v('winback_backlog_daily_limit') as number}
+                        onChange={(x) =>
+                          set('winback_backlog_daily_limit', Number(x) || 0)
+                        }
+                      />
+                    )}
+                    <div className='space-y-2'>
+                      <Button
+                        variant='outline'
+                        onClick={() => winbackPreviewMutation.mutate()}
+                        disabled={winbackPreviewMutation.isPending}
+                      >
+                        <UserCheck className='size-4' /> 预演影响范围
+                      </Button>
+                      <p className='text-muted-foreground text-sm'>
+                        按已保存的配置 dry-run 估算本轮将发送多少封邮件（不实际发送，请先保存配置）。
                       </p>
                     </div>
                   </div>

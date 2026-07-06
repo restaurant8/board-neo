@@ -28,6 +28,7 @@ import {
   Tag,
   Wallet,
   TrendingUp,
+  UserCheck,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -103,6 +104,7 @@ export const sidebarData: SidebarData = {
             { title: '用户管理', url: '/user', icon: Users },
             { title: '工单管理', url: '/ticket', icon: LifeBuoy },
             { title: '流量统计', url: '/traffic-stat', icon: BarChart3 },
+            { title: '流失召回', url: '/winback', icon: UserCheck },
           ],
         },
 
