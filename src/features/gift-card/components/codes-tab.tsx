@@ -528,7 +528,9 @@ export function CodesTab() {
                     </TableCell>
                   )}
                   {!hidden.has('template_name') && (
-                    <TableCell>{c.template_name}</TableCell>
+                    <TableCell className='whitespace-nowrap'>
+                      {c.template_name}
+                    </TableCell>
                   )}
                   {!hidden.has('status') && (
                     <TableCell>

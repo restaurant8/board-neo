@@ -164,7 +164,9 @@ export function ResellerApplicationsPage() {
                           {a.user_email ?? `#${a.user_id}`}
                         </span>
                       </TableCell>
-                      <TableCell>{a.desired_name}</TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {a.desired_name}
+                      </TableCell>
                       <TableCell>
                         <span className='font-mono text-xs text-muted-foreground'>
                           {a.desired_domain ?? '—'}
@@ -211,7 +213,7 @@ export function ResellerApplicationsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className='font-mono text-xs text-muted-foreground'>
+                        <span className='font-mono text-xs whitespace-nowrap text-muted-foreground'>
                           {a.contact ?? '—'}
                         </span>
                       </TableCell>
@@ -238,7 +240,10 @@ export function ResellerApplicationsPage() {
                             </Button>
                           </div>
                         ) : (
-                          <span className='text-xs text-muted-foreground'>
+                          <span
+                            className='inline-block max-w-40 truncate align-bottom text-xs text-muted-foreground'
+                            title={a.review_remark || undefined}
+                          >
                             {a.review_remark || '已处理'}
                           </span>
                         )}

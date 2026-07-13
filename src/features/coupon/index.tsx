@@ -133,7 +133,7 @@ export function CouponPage() {
                         onCheckedChange={() => toggleMutation.mutate(c.id)}
                       />
                     </TableCell>
-                    <TableCell>{c.name}</TableCell>
+                    <TableCell className='whitespace-nowrap'>{c.name}</TableCell>
                     <TableCell>
                       <Badge variant='outline'>
                         {COUPON_TYPE_BADGE_MAP[c.type] ?? c.type}

@@ -302,7 +302,7 @@ export function ServerRoutePage() {
                       </TableCell>
                       <TableCell>
                         <div className='flex flex-col space-y-1'>
-                          <span className='text-sm font-medium'>
+                          <span className='min-w-[8em] text-sm font-medium'>
                             {av.destructive ? (
                               <span className='text-destructive'>{av.text}</span>
                             ) : (

@@ -126,7 +126,7 @@ export function TemplatesTab() {
                   <TableCell>
                     <Badge>{t.id}</Badge>
                   </TableCell>
-                  <TableCell>{t.name}</TableCell>
+                  <TableCell className='whitespace-nowrap'>{t.name}</TableCell>
                   <TableCell>
                     <Badge variant='outline'>
                       {t.type_name ?? GIFT_CARD_TYPE_MAP[t.type] ?? t.type}

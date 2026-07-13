@@ -232,7 +232,7 @@ export function TrafficResetPage() {
                     <TableCell>
                       <Badge variant='secondary'>{log.reset_type_name}</Badge>
                     </TableCell>
-                    <TableCell className='text-xs'>
+                    <TableCell className='text-xs whitespace-nowrap'>
                       {log.trigger_source_name}
                     </TableCell>
                     <TableCell className='text-xs'>

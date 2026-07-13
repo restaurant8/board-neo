@@ -41,7 +41,9 @@ export function getAuditColumns(): ColumnDef<UserAuditRow>[] {
       accessorKey: 'server_name',
       header: () => <div>节点</div>,
       cell: ({ row }) => (
-        <div>{row.original.server_name || `#${row.original.server_id}`}</div>
+        <div className='whitespace-nowrap'>
+          {row.original.server_name || `#${row.original.server_id}`}
+        </div>
       ),
     },
     {

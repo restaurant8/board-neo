@@ -111,7 +111,9 @@ export function ResellerDashboardPage() {
                   top.map((s, i) => (
                     <TableRow key={s.site_id}>
                       <TableCell className='font-mono'>{i + 1}</TableCell>
-                      <TableCell className='font-medium'>{s.site_name}</TableCell>
+                      <TableCell className='font-medium whitespace-nowrap'>
+                        {s.site_name}
+                      </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
                         {s.owner_email ?? '—'}
                       </TableCell>

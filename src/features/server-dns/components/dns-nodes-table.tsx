@@ -154,7 +154,9 @@ export function DnsNodesTable({ nodes, isLoading, zones }: Props) {
                     mutation.isPending && mutation.variables?.id === n.id
                   return (
                     <TableRow key={n.id}>
-                      <TableCell className='font-medium'>{n.name}</TableCell>
+                      <TableCell className='font-medium whitespace-nowrap'>
+                        {n.name}
+                      </TableCell>
                       <TableCell className='font-mono text-xs'>
                         {n.host}
                       </TableCell>

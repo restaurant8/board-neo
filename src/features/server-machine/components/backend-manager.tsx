@@ -321,7 +321,7 @@ export function BackendManager() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className='font-medium'>{b.name}</div>
+                      <div className='font-medium whitespace-nowrap'>{b.name}</div>
                       <div className='text-xs text-muted-foreground'>
                         {b.type === 'machine' ? '机器' : '单节点'}
                         {b.nodes_count ? ` · ${b.nodes_count} 节点` : ''}

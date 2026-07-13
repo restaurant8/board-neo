@@ -140,7 +140,9 @@ export function ResellerSettlementsPage() {
                   rows.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className='font-mono'>#{s.order_id}</TableCell>
-                      <TableCell>{s.site_name ?? `#${s.site_id}`}</TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {s.site_name ?? `#${s.site_id}`}
+                      </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
                         {s.owner_email ?? '—'}
                       </TableCell>

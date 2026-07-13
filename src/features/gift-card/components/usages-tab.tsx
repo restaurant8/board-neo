@@ -66,7 +66,9 @@ export function UsagesTab() {
                   <TableCell>
                     <Badge variant='secondary'>{u.code}</Badge>
                   </TableCell>
-                  <TableCell>{u.template_name}</TableCell>
+                  <TableCell className='whitespace-nowrap'>
+                    {u.template_name}
+                  </TableCell>
                   <TableCell className='text-xs'>{u.user_email}</TableCell>
                   <TableCell className='text-xs'>
                     {u.invite_user_email ?? '-'}

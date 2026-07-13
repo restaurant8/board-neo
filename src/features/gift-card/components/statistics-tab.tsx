@@ -68,8 +68,12 @@ export function StatisticsTab() {
                 {data.type_stats.length > 0 ? (
                   data.type_stats.map((t, i) => (
                     <TableRow key={i}>
-                      <TableCell>{t.template_name}</TableCell>
-                      <TableCell>{t.type_name}</TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {t.template_name}
+                      </TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {t.type_name}
+                      </TableCell>
                       <TableCell className='text-end'>{t.count}</TableCell>
                     </TableRow>
                   ))

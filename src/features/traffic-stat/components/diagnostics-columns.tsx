@@ -14,7 +14,7 @@ export function getDiagnosticsColumns(opts: {
       accessorKey: 'server_name',
       header: () => <div>节点</div>,
       cell: ({ row }) => (
-        <div className='font-medium'>
+        <div className='font-medium whitespace-nowrap'>
           {row.original.server_name || `#${row.original.server_id}`}
         </div>
       ),

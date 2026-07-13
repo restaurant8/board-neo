@@ -81,7 +81,7 @@ export function UserHistoryDialog({ userId, onOpenChange }: Props) {
                     <TableCell>
                       <Badge variant='secondary'>{h.reset_type_name}</Badge>
                     </TableCell>
-                    <TableCell className='text-xs'>
+                    <TableCell className='text-xs whitespace-nowrap'>
                       {h.trigger_source_name}
                     </TableCell>
                     <TableCell className='text-xs'>
