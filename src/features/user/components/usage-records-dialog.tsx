@@ -1,9 +1,6 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowLeft, ArrowUp, RefreshCw, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { handleServerError } from '@/lib/handle-server-error'
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowDown, ArrowLeft, ArrowUp, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,14 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   type UsageOrderBy,
   type UsageOrderDir,
   type UsageRecordType,
-  clearUsageRecords,
   fetchUsageRecords,
 } from '../api'
-import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { formatTimestamp } from '../format'
 
 const DEFAULT_PAGE_SIZE = 50
@@ -53,8 +49,6 @@ export function UsageRecordsDialog({
   onOpenChange,
   prefillKeyword,
 }: Props) {
-  const queryClient = useQueryClient()
-
   // 表单输入（待提交）
   const [keywordInput, setKeywordInput] = useState('')
   const [ipInput, setIpInput] = useState('')
@@ -71,7 +65,6 @@ export function UsageRecordsDialog({
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [orderBy, setOrderBy] = useState<UsageOrderBy>('record_at')
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
-  const [confirmClear, setConfirmClear] = useState(false)
 
   // 时间范围：默认今天，可切最近 7/15/30 天或自定义起止日期
   const [rangeMode, setRangeMode] = useState('today')
@@ -92,8 +85,10 @@ export function UsageRecordsDialog({
     if (rangeMode === '30d') return { start_time: today - 29 * 86400 }
     if (rangeMode === 'all') return {}
     const r: { start_time?: number; end_time?: number } = {}
-    if (customStart) r.start_time = dayStart(new Date(`${customStart}T00:00:00`))
-    if (customEnd) r.end_time = dayStart(new Date(`${customEnd}T00:00:00`)) + 86399
+    if (customStart)
+      r.start_time = dayStart(new Date(`${customStart}T00:00:00`))
+    if (customEnd)
+      r.end_time = dayStart(new Date(`${customEnd}T00:00:00`)) + 86399
     return r
   })()
 
@@ -139,14 +134,16 @@ export function UsageRecordsDialog({
   })
 
   const hasFilter = !!(applied.keyword || applied.ip || applied.type)
-  // 一键清除是否被限定范围（除关键词/IP/类型外，非「全部时间」也算限定）
-  const clearScoped = hasFilter || rangeMode !== 'all'
   const total = data?.total ?? 0
   const rows = data?.data ?? []
   const maxPage = Math.max(1, Math.ceil(total / pageSize))
 
   const applyFilters = () => {
-    setApplied({ keyword: keywordInput.trim(), ip: ipInput.trim(), type: typeInput })
+    setApplied({
+      keyword: keywordInput.trim(),
+      ip: ipInput.trim(),
+      type: typeInput,
+    })
     setPage(1)
   }
 
@@ -167,23 +164,6 @@ export function UsageRecordsDialog({
     }
     setPage(1)
   }
-
-  const clearMutation = useMutation({
-    mutationFn: () =>
-      clearUsageRecords({
-        keyword: applied.keyword || undefined,
-        ip: applied.ip || undefined,
-        type: applied.type || undefined,
-        ...timeRange,
-      }),
-    onSuccess: (res) => {
-      toast.success(`已清除 ${res.deleted} 条记录`)
-      setConfirmClear(false)
-      setPage(1)
-      queryClient.invalidateQueries({ queryKey: ['usage-records'] })
-    },
-    onError: handleServerError,
-  })
 
   const sortIcon = (key: UsageOrderBy) => {
     if (orderBy !== key) return null
@@ -281,6 +261,7 @@ export function UsageRecordsDialog({
                 <SelectItem value='all'>全部类型</SelectItem>
                 <SelectItem value='connect'>连接</SelectItem>
                 <SelectItem value='subscribe'>订阅</SelectItem>
+                <SelectItem value='subscribe_failed'>订阅失败</SelectItem>
               </SelectContent>
             </Select>
             <Button size='sm' onClick={applyFilters}>
@@ -289,26 +270,19 @@ export function UsageRecordsDialog({
             <Button variant='outline' size='sm' onClick={() => refetch()}>
               <RefreshCw className='size-4' /> 刷新
             </Button>
-            <div className='ms-auto'>
-              <Button
-                variant='outline'
-                size='sm'
-                className='text-destructive'
-                onClick={() => setConfirmClear(true)}
-              >
-                <Trash2 className='size-4' /> 一键清除
-              </Button>
-            </div>
+            <Badge variant='outline' className='ms-auto text-muted-foreground'>
+              取证记录按系统保留策略自动清理
+            </Badge>
           </div>
 
           {/* 表格 */}
-          <div className='flex-1 overflow-y-auto overflow-x-auto rounded-md border'>
+          <div className='flex-1 overflow-x-auto overflow-y-auto rounded-md border'>
             <Table className='w-max min-w-full'>
               <TableHeader className='sticky top-0 z-10 bg-background'>
                 <TableRow>
                   <TableHead className='w-[180px]'>用户</TableHead>
                   <TableHead
-                    className='w-[72px] cursor-pointer select-none whitespace-nowrap'
+                    className='w-[72px] cursor-pointer whitespace-nowrap select-none'
                     onClick={() => toggleSort('online')}
                   >
                     在线IP{sortIcon('online')}
@@ -319,13 +293,13 @@ export function UsageRecordsDialog({
                   <TableHead className='whitespace-nowrap'>节点</TableHead>
                   <TableHead className='max-w-[280px]'>User-Agent</TableHead>
                   <TableHead
-                    className='w-[64px] cursor-pointer select-none whitespace-nowrap'
+                    className='w-[64px] cursor-pointer whitespace-nowrap select-none'
                     onClick={() => toggleSort('count')}
                   >
                     次数{sortIcon('count')}
                   </TableHead>
                   <TableHead
-                    className='w-[170px] cursor-pointer select-none whitespace-nowrap'
+                    className='w-[170px] cursor-pointer whitespace-nowrap select-none'
                     onClick={() => toggleSort('record_at')}
                   >
                     时间{sortIcon('record_at')}
@@ -369,8 +343,13 @@ export function UsageRecordsDialog({
                           <Badge variant='secondary' className='text-blue-600'>
                             订阅
                           </Badge>
+                        ) : r.type === 'subscribe_failed' ? (
+                          <Badge variant='destructive'>订阅失败</Badge>
                         ) : (
-                          <Badge variant='secondary' className='text-emerald-600'>
+                          <Badge
+                            variant='secondary'
+                            className='text-emerald-600'
+                          >
                             连接
                           </Badge>
                         )}
@@ -435,21 +414,6 @@ export function UsageRecordsDialog({
           />
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={confirmClear}
-        onOpenChange={setConfirmClear}
-        title='清除使用记录'
-        desc={
-          clearScoped
-            ? '确认清除【当前筛选条件（含所选时间范围）】下的所有使用记录？此操作不可恢复。'
-            : '确认清除【全部】使用记录？此操作不可恢复！'
-        }
-        confirmText='清除'
-        destructive
-        isLoading={clearMutation.isPending}
-        handleConfirm={() => clearMutation.mutate()}
-      />
     </>
   )
 }
