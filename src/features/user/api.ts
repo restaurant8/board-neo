@@ -210,12 +210,11 @@ export type BanUsersResult = {
   audit_logged: boolean
 }
 
-/** POST /user/ban — 封禁（按范围）。 */
+/** POST /user/ban — 封禁（按范围）。后端已无条件拒绝 scope='all'。 */
 export function banUsers(params: {
   scope: BulkScope
   user_ids?: number[]
   filter?: UserFilter[]
-  confirm_all?: boolean
 }) {
   return post<BanUsersResult>('/user/ban', params)
 }

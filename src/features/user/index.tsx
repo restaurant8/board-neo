@@ -62,6 +62,7 @@ import { SimplePagination } from '@/features/gift-card/components/simple-paginat
 import { fetchResellerSites } from '@/features/reseller/api'
 import {
   type SubscriptionRiskInfo,
+  type SubscriptionRiskType,
   type User,
   type UserFilter,
   type UserRiskMeta,
@@ -92,11 +93,12 @@ import {
 
 const route = getRouteApi('/_authenticated/user/')
 
-const riskTypeLabels = {
+/** Partial：后端新增规则类型时旧前端回退展示原始标识，不渲染空白徽章。 */
+const riskTypeLabels: Partial<Record<SubscriptionRiskType, string>> = {
   frequent: '高频订阅',
   low_usage: '低使用',
   multi_source: '多来源',
-} as const
+}
 
 function SubscriptionRiskCell({
   risk,
@@ -169,7 +171,7 @@ function SubscriptionRiskCell({
             variant='outline'
             className='bg-background/70 text-[11px] whitespace-nowrap'
           >
-            {riskTypeLabels[type]}
+            {riskTypeLabels[type] ?? type}
           </Badge>
         ))}
         {risk.eligible === false && (
@@ -223,14 +225,15 @@ function RiskStatusBanner({ meta }: { meta?: UserRiskMeta }) {
     )
   }
 
-  const tone =
-    meta.last_write_failure_at || !meta.data_healthy
-      ? 'border-destructive/35 bg-destructive/5 text-destructive'
-      : !meta.full_window_ready || !meta.traffic_fresh
-        ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
-        : 'border-emerald-500/35 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-  const message = meta.last_write_failure_at
-    ? '风险采集最近发生写入失败，高频与低使用规则已自动关闭；多来源结果仍可用于人工排查。'
+  // 以 data_healthy 为主信号：last_write_failure_at 是永久保留的历史水位，
+  // 故障恢复后仍有值，单独用它判断会让横幅在一次瞬时故障后永久变红。
+  const tone = !meta.data_healthy
+    ? 'border-destructive/35 bg-destructive/5 text-destructive'
+    : !meta.full_window_ready || !meta.traffic_fresh
+      ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+      : 'border-emerald-500/35 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+  const message = !meta.data_healthy
+    ? '风险采集写入异常且尚未恢复，高频与低使用规则已自动关闭；多来源结果仍可用于人工排查。'
     : meta.activity_coverage_days === 0
       ? '风险数据等待首条有效订阅，当前仅多来源规则可用。'
       : !meta.traffic_fresh
@@ -388,7 +391,7 @@ export function UserPage() {
     sort: sort.length ? sort : undefined,
   }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['users', params],
     queryFn: () => fetchUsers(params),
   })
@@ -451,13 +454,19 @@ export function UserPage() {
         filter: scope === 'filtered' && hasFilter ? filter : undefined,
       }),
     onSuccess: (result) => {
-      toast.success(
-        `已封禁 ${result.banned_count} 个用户${result.protected_count > 0 ? `，保护并跳过 ${result.protected_count} 个管理员/员工` : ''}`
-      )
-      if (!result.audit_logged) {
-        toast.warning(
-          `封禁已完成，但结果审计写入失败；操作编号 ${result.action_id}`
+      // 旧后端返回 boolean 而非结构化结果；仅在字段确实存在时展示明细，
+      // 避免「已封禁 undefined 个用户」和误报审计失败。
+      if (typeof result?.banned_count === 'number') {
+        toast.success(
+          `已封禁 ${result.banned_count} 个用户${result.protected_count > 0 ? `，保护并跳过 ${result.protected_count} 个管理员/员工` : ''}`
         )
+        if (result.audit_logged === false) {
+          toast.warning(
+            `封禁已完成，但结果审计写入失败；操作编号 ${result.action_id}`
+          )
+        }
+      } else {
+        toast.success('批量封禁成功')
       }
       setBatchBanScope(null)
       setSelected([])
@@ -637,7 +646,8 @@ export function UserPage() {
           </div>
         )}
 
-        {!isLoading && <RiskStatusBanner meta={riskMeta} />}
+        {/* 请求失败时不渲染：此时 riskMeta 缺失是网络/服务问题，不代表后端无能力 */}
+        {!isLoading && !isError && <RiskStatusBanner meta={riskMeta} />}
 
         {/* 批量操作栏 */}
         <div className='flex flex-wrap items-center gap-2'>

@@ -195,11 +195,7 @@ export function UserAdvancedFilter({
     riskAvailable?: boolean
   } | null>(null)
 
-  if (
-    loaded?.open !== open ||
-    loaded?.initial !== initial ||
-    loaded?.riskAvailable !== riskAvailable
-  ) {
+  if (loaded?.open !== open || loaded?.initial !== initial) {
     setLoaded({ open, initial, riskAvailable })
     if (open) {
       const safeInitial = riskAvailable
@@ -212,6 +208,18 @@ export function UserAdvancedFilter({
           ? safeInitial.map((c) => ({ ...c }))
           : [emptyCondition()]
       )
+    }
+  } else if (loaded.riskAvailable !== riskAvailable) {
+    // 面板打开期间后台刷新可能让 risk_meta 从无到有（或反之）：
+    // 只剔除失效的风险条件，不整体重置，保住用户正在编辑的其他条件。
+    setLoaded({ open, initial, riskAvailable })
+    if (open && !riskAvailable) {
+      setConditions((current) => {
+        const kept = current.filter(
+          (condition) => condition.column !== 'subscription_risk'
+        )
+        return kept.length > 0 ? kept : [emptyCondition()]
+      })
     }
   }
 
