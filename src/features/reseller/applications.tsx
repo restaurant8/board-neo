@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   type ResellerApplication,
   fetchResellerApplications,
@@ -27,11 +28,15 @@ import { ApplicationReviewDialog } from './components/application-review-dialog'
 
 const STATUS_MAP: Record<
   ResellerApplication['status'],
-  { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
+  {
+    label: string
+    variant: 'default' | 'secondary' | 'outline' | 'destructive'
+    empty: string
+  }
 > = {
-  pending: { label: '待审批', variant: 'default' },
-  approved: { label: '已通过', variant: 'secondary' },
-  rejected: { label: '已拒绝', variant: 'destructive' },
+  pending: { label: '待审批', variant: 'default', empty: '暂无待审批申请' },
+  approved: { label: '已通过', variant: 'secondary', empty: '暂无已通过申请' },
+  rejected: { label: '已拒绝', variant: 'destructive', empty: '暂无已拒绝申请' },
 }
 
 const yuan = (cents: number) => (cents / 100).toFixed(2)
@@ -40,6 +45,7 @@ export function ResellerApplicationsPage() {
   const queryClient = useQueryClient()
   const [reviewing, setReviewing] = useState<ResellerApplication | null>(null)
   const [action, setAction] = useState<'approve' | 'reject'>('approve')
+  const [tab, setTab] = useState<ResellerApplication['status']>('pending')
 
   const { data } = useQuery({
     queryKey: ['reseller-applications'],
@@ -56,7 +62,13 @@ export function ResellerApplicationsPage() {
     onError: handleServerError,
   })
 
-  const rows = data ?? []
+  const all = data ?? []
+  const counts = {
+    pending: all.filter((a) => a.status === 'pending').length,
+    approved: all.filter((a) => a.status === 'approved').length,
+    rejected: all.filter((a) => a.status === 'rejected').length,
+  }
+  const rows = all.filter((a) => a.status === tab)
 
   const openReview = (app: ResellerApplication, act: 'approve' | 'reject') => {
     setReviewing(app)
@@ -84,6 +96,39 @@ export function ResellerApplicationsPage() {
             </p>
           </div>
         </div>
+
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as ResellerApplication['status'])}
+          className='mb-2'
+        >
+          <TabsList className='w-fit'>
+            <TabsTrigger value='pending'>
+              待审批
+              {counts.pending > 0 && (
+                <Badge variant='secondary' className='ms-1 px-1.5'>
+                  {counts.pending}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value='approved'>
+              已通过
+              {counts.approved > 0 && (
+                <Badge variant='secondary' className='ms-1 px-1.5'>
+                  {counts.approved}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value='rejected'>
+              已拒绝
+              {counts.rejected > 0 && (
+                <Badge variant='secondary' className='ms-1 px-1.5'>
+                  {counts.rejected}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <div className='-mx-4 flex-1 overflow-auto px-4 py-1'>
           <div className='overflow-hidden rounded-md border'>
@@ -203,7 +248,7 @@ export function ResellerApplicationsPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={8} className='h-24 text-center'>
-                      暂无申请
+                      {STATUS_MAP[tab].empty}
                     </TableCell>
                   </TableRow>
                 )}
