@@ -34,12 +34,12 @@ const ALL = '__all__'
 
 // 与 TrafficResetLog 常量一致；用于筛选下拉。展示用列已有后端返回的 *_name。
 const RESET_TYPES: { value: string; label: string }[] = [
-  { value: 'monthly', label: '月度重置' },
-  { value: 'first_day_month', label: '每月一号' },
-  { value: 'yearly', label: '年度重置' },
-  { value: 'first_day_year', label: '每年一号' },
+  { value: 'monthly', label: '按月重置' },
+  { value: 'first_day_month', label: '每月1号' },
+  { value: 'yearly', label: '按年重置' },
+  { value: 'first_day_year', label: '每年1月1日' },
   { value: 'manual', label: '手动' },
-  { value: 'purchase', label: '购买' },
+  { value: 'purchase', label: '购买重置包' },
 ]
 const SOURCES: { value: string; label: string }[] = [
   { value: 'auto', label: '自动' },
@@ -47,6 +47,8 @@ const SOURCES: { value: string; label: string }[] = [
   { value: 'api', label: 'API' },
   { value: 'cron', label: '定时任务' },
   { value: 'user_access', label: '用户访问' },
+  { value: 'order', label: '订单触发' },
+  { value: 'gift_card', label: '礼品卡' },
 ]
 
 export function TrafficResetPage() {
