@@ -225,17 +225,22 @@ function RiskStatusBanner({ meta }: { meta?: UserRiskMeta }) {
     )
   }
 
+  // 冷启动（尚无首条数据）时后端同样报 data_healthy=false，但并非故障，
+  // 必须先于异常分支判断，否则部署当天会误报「写入异常」。
+  const coldStart = meta.collecting_since == null
   // 以 data_healthy 为主信号：last_write_failure_at 是永久保留的历史水位，
   // 故障恢复后仍有值，单独用它判断会让横幅在一次瞬时故障后永久变红。
-  const tone = !meta.data_healthy
-    ? 'border-destructive/35 bg-destructive/5 text-destructive'
-    : !meta.full_window_ready || !meta.traffic_fresh
-      ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
-      : 'border-emerald-500/35 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-  const message = !meta.data_healthy
-    ? '风险采集写入异常且尚未恢复，高频与低使用规则已自动关闭；多来源结果仍可用于人工排查。'
-    : meta.activity_coverage_days === 0
-      ? '风险数据等待首条有效订阅，当前仅多来源规则可用。'
+  const tone = coldStart
+    ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+    : !meta.data_healthy
+      ? 'border-destructive/35 bg-destructive/5 text-destructive'
+      : !meta.full_window_ready || !meta.traffic_fresh
+        ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+        : 'border-emerald-500/35 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+  const message = coldStart
+    ? '风险数据等待首条有效订阅，当前仅多来源规则可用。'
+    : !meta.data_healthy
+      ? '风险采集写入异常且尚未恢复，高频与低使用规则已自动关闭；多来源结果仍可用于人工排查。'
       : !meta.traffic_fresh
         ? `行为日报已覆盖 ${meta.activity_coverage_days} 天，但流量统计超过新鲜度 SLA，低使用规则已关闭。`
         : !meta.frequent_ready
@@ -391,7 +396,7 @@ export function UserPage() {
     sort: sort.length ? sort : undefined,
   }
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['users', params],
     queryFn: () => fetchUsers(params),
   })
@@ -400,6 +405,24 @@ export function UserPage() {
   const rows = data?.data ?? []
   const riskMeta = data?.risk_meta
   const maxPage = Math.max(1, Math.ceil(total / pageSize))
+
+  // 后端降级（成功响应但无风险能力）时，同步剔除已应用的风险筛选：
+  // 旧后端会把未知筛选字段 fail-closed 成空列表，不清理的话列表恒空且无解释。
+  // 渲染期间派生重置（同高级筛选面板的模式）；缘由由 RiskStatusBanner 的
+  // 「后端未声明风险分析能力」分支向用户解释。
+  const riskCapable = (data?.risk_meta?.capability_version ?? 0) >= 1
+  if (
+    data &&
+    !riskCapable &&
+    advancedFilter.some((f) => f.id === 'subscription_risk')
+  ) {
+    setAdvancedFilter((prev) =>
+      prev.filter((f) => f.id !== 'subscription_risk')
+    )
+    setConditions((prev) =>
+      prev.filter((c) => c.column !== 'subscription_risk')
+    )
+  }
 
   const allOnPageSelected =
     rows.length > 0 && rows.every((u) => selected.includes(u.id))
@@ -454,9 +477,9 @@ export function UserPage() {
         filter: scope === 'filtered' && hasFilter ? filter : undefined,
       }),
     onSuccess: (result) => {
-      // 旧后端返回 boolean 而非结构化结果；仅在字段确实存在时展示明细，
+      // 旧后端返回 boolean 而非结构化结果；按类型收窄后再展示明细，
       // 避免「已封禁 undefined 个用户」和误报审计失败。
-      if (typeof result?.banned_count === 'number') {
+      if (typeof result === 'object' && result !== null) {
         toast.success(
           `已封禁 ${result.banned_count} 个用户${result.protected_count > 0 ? `，保护并跳过 ${result.protected_count} 个管理员/员工` : ''}`
         )
@@ -649,6 +672,27 @@ export function UserPage() {
         {/* 请求失败时不渲染：此时 riskMeta 缺失是网络/服务问题，不代表后端无能力 */}
         {!isLoading && !isError && <RiskStatusBanner meta={riskMeta} />}
 
+        {/* 请求失败必须显式可见：react-query 会保留上次成功数据，
+            不提示的话陈旧列表会被当成当前状态 */}
+        {isError && (
+          <div className='flex items-center gap-2 rounded-md border border-destructive/35 bg-destructive/5 px-3 py-2 text-sm text-destructive'>
+            <ShieldAlert className='size-4 shrink-0' />
+            <span>
+              用户列表加载失败
+              {rows.length > 0 ? '，以下为上次成功加载的结果，可能已过期' : ''}
+              ；批量封禁已暂时禁用。
+            </span>
+            <Button
+              variant='outline'
+              size='sm'
+              className='ms-auto'
+              onClick={() => refetch()}
+            >
+              <RotateCw className='size-4' /> 重试
+            </Button>
+          </div>
+        )}
+
         {/* 批量操作栏 */}
         <div className='flex flex-wrap items-center gap-2'>
           <span className='text-sm text-muted-foreground'>
@@ -657,7 +701,7 @@ export function UserPage() {
           <Button
             variant='destructive'
             size='sm'
-            disabled={selected.length === 0}
+            disabled={selected.length === 0 || isError}
             onClick={() => setBatchBanScope('selected')}
           >
             <Ban className='size-4' /> 批量封禁（选中）
@@ -665,7 +709,7 @@ export function UserPage() {
           <Button
             variant='outline'
             size='sm'
-            disabled={!hasFilter || hasRiskFilter}
+            disabled={!hasFilter || hasRiskFilter || isError}
             title={
               hasRiskFilter ? '风险结果必须逐个复核并勾选后才能封禁' : undefined
             }
@@ -1031,6 +1075,15 @@ export function UserPage() {
                     </TableRow>
                   )
                 })
+              ) : isError ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={18}
+                    className='h-24 text-center text-destructive'
+                  >
+                    加载失败，请点击上方「重试」
+                  </TableCell>
+                </TableRow>
               ) : (
                 <TableRow>
                   <TableCell colSpan={18} className='h-24 text-center'>

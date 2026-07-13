@@ -210,13 +210,16 @@ export type BanUsersResult = {
   audit_logged: boolean
 }
 
-/** POST /user/ban — 封禁（按范围）。后端已无条件拒绝 scope='all'。 */
+/**
+ * POST /user/ban — 封禁（按范围）。scope='all' 已被后端无条件拒绝，类型层面直接排除。
+ * 旧后端返回 boolean，新后端返回结构化结果；调用方需按类型收窄。
+ */
 export function banUsers(params: {
-  scope: BulkScope
+  scope: Exclude<BulkScope, 'all'>
   user_ids?: number[]
   filter?: UserFilter[]
 }) {
-  return post<BanUsersResult>('/user/ban', params)
+  return post<BanUsersResult | boolean>('/user/ban', params)
 }
 
 /** POST /user/resetSecret — 重置订阅 token/uuid。 */
