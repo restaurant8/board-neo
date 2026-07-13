@@ -577,7 +577,7 @@ export function UserPage() {
                                 : 'bg-gray-300 ring-gray-300/20'
                             )}
                           />
-                          <span className='inline-flex cursor-pointer flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
+                          <span className='inline-flex min-w-[14em] cursor-pointer flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
                             <span className='break-all'>{u.email}</span>
                           </span>
                           {!!u.is_admin && (
