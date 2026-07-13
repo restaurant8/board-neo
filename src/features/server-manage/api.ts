@@ -182,6 +182,18 @@ export function batchUpdateNodes(payload: {
   return post<boolean>('/server/manage/batchUpdate', payload)
 }
 
+/**
+ * POST /server/manage/batchUpdateGroups — 批量调整节点权限组。
+ * mode: replace 覆盖 / add 追加 / remove 移除。
+ */
+export function batchUpdateNodeGroups(payload: {
+  ids: number[]
+  mode: 'replace' | 'add' | 'remove'
+  group_ids: number[]
+}) {
+  return post<boolean>('/server/manage/batchUpdateGroups', payload)
+}
+
 /** POST /server/manage/resetTraffic — 重置单节点流量。 */
 export function resetTraffic(id: number) {
   return post<boolean>('/server/manage/resetTraffic', { id })

@@ -83,6 +83,7 @@ import {
   type Server,
   batchDeleteNodes,
   batchResetTraffic,
+  batchUpdateNodeGroups,
   batchUpdateNodes,
   copyNode,
   dropNode,
@@ -91,6 +92,7 @@ import {
   sortNodes,
   updateNode,
 } from './api'
+import { BatchGroupsDialog } from './components/batch-groups-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
 
@@ -223,6 +225,7 @@ export function ServerManagePage() {
   const [selected, setSelected] = useState<number[]>([])
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
   const [batchResetOpen, setBatchResetOpen] = useState(false)
+  const [batchGroupsOpen, setBatchGroupsOpen] = useState(false)
 
   // 筛选（胶囊多选）
   const [keyword, setKeyword] = useState('')
@@ -339,6 +342,20 @@ export function ServerManagePage() {
       toast.success(vars.successMsg)
       invalidate()
       setSelected([])
+    },
+    onError: handleServerError,
+  })
+
+  const batchGroupsMutation = useMutation({
+    mutationFn: (payload: {
+      mode: 'replace' | 'add' | 'remove'
+      group_ids: number[]
+    }) => batchUpdateNodeGroups({ ids: selected, ...payload }),
+    onSuccess: () => {
+      toast.success(`成功调整 ${selected.length} 个节点的权限组`)
+      invalidate()
+      setSelected([])
+      setBatchGroupsOpen(false)
     },
     onError: handleServerError,
   })
@@ -677,6 +694,9 @@ export function ServerManagePage() {
                       禁用节点
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setBatchGroupsOpen(true)}>
+                      调整权限组
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setBatchResetOpen(true)}>
                       重置流量
                     </DropdownMenuItem>
@@ -1392,6 +1412,15 @@ export function ServerManagePage() {
         destructive
         isLoading={batchDeleteMutation.isPending}
         handleConfirm={() => batchDeleteMutation.mutate(selected)}
+      />
+
+      <BatchGroupsDialog
+        open={batchGroupsOpen}
+        onOpenChange={setBatchGroupsOpen}
+        count={selected.length}
+        options={groupOptions}
+        isLoading={batchGroupsMutation.isPending}
+        onConfirm={(payload) => batchGroupsMutation.mutate(payload)}
       />
 
       <ConfirmDialog
