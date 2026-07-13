@@ -1221,13 +1221,13 @@ export function ServerManagePage() {
                         </Badge>
                       </TableCell>
                       <TableCell className='bg-card px-4'>
-                        <div className='flex flex-wrap gap-1.5'>
+                        <div className='flex flex-nowrap items-center gap-1.5'>
                           {(n.groups ?? []).length > 0 ? (
                             (n.groups ?? []).map((g) => (
                               <Badge
                                 key={g.id}
                                 variant='secondary'
-                                className='bg-secondary/50 hover:bg-secondary/70 border-border/50 flex cursor-default items-center gap-1.5 border px-2 py-0.5 font-medium transition-all duration-200 select-none'
+                                className='bg-secondary/50 hover:bg-secondary/70 border-border/50 flex cursor-default items-center gap-1.5 border px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none'
                               >
                                 {g.name}
                               </Badge>
