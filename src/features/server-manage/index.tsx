@@ -1113,7 +1113,7 @@ export function ServerManagePage() {
                                   : '未运行'}
                             </TooltipContent>
                           </Tooltip>
-                          <span className='hover:text-primary cursor-default text-left font-medium transition-colors'>
+                          <span className='hover:text-primary cursor-default text-left font-medium whitespace-nowrap transition-colors'>
                             {n.name}
                           </span>
                           {n.parent_id ? (
