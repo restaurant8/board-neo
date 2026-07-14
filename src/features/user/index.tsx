@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
@@ -18,18 +18,24 @@ import {
   RotateCw,
   ScrollText,
   Search,
-  ShieldAlert,
   Trash2,
   X,
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminApi } from '@/lib/api-client'
-import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
+import { handleServerError } from '@/lib/handle-server-error'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { fetchResellerSites } from '@/features/reseller/api'
 import {
   Table,
   TableBody,
@@ -52,20 +59,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
-import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
-import { fetchResellerSites } from '@/features/reseller/api'
 import {
-  type SubscriptionRiskInfo,
-  type SubscriptionRiskType,
   type User,
   type UserFilter,
-  type UserRiskMeta,
   type UserSort,
   banUsers,
   destroyUser,
@@ -74,16 +70,16 @@ import {
   resetSecret,
   resetUserTraffic,
 } from './api'
+import { UserEditDialog } from './components/user-edit-dialog'
+import { UserGenerateDialog } from './components/user-generate-dialog'
+import { UserSendMailDialog } from './components/user-send-mail-dialog'
 import { UsageRecordsDialog } from './components/usage-records-dialog'
+import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
+import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   UserAdvancedFilter,
   type FilterCondition,
 } from './components/user-advanced-filter'
-import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
-import { UserEditDialog } from './components/user-edit-dialog'
-import { UserGenerateDialog } from './components/user-generate-dialog'
-import { UserSendMailDialog } from './components/user-send-mail-dialog'
-import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   formatBytes,
   formatDeviceLimit,
@@ -92,177 +88,6 @@ import {
 } from './format'
 
 const route = getRouteApi('/_authenticated/user/')
-
-/** Partial：后端新增规则类型时旧前端回退展示原始标识，不渲染空白徽章。 */
-const riskTypeLabels: Partial<Record<SubscriptionRiskType, string>> = {
-  frequent: '高频订阅',
-  low_usage: '低使用',
-  multi_source: '多来源',
-}
-
-function SubscriptionRiskCell({
-  risk,
-}: {
-  risk?: SubscriptionRiskInfo | null
-}) {
-  if (risk === undefined) {
-    return (
-      <div className='min-w-[17rem] rounded-md border border-dashed bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground'>
-        当前后端暂未提供风险数据
-      </div>
-    )
-  }
-
-  if (risk === null) {
-    return (
-      <div className='min-w-[17rem] rounded-md border border-dashed bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground'>
-        暂无可用的风险数据
-      </div>
-    )
-  }
-
-  if (risk.level === 'none' || risk.types.length === 0) {
-    const coverageDays = risk.activity_coverage_days ?? 0
-    const message =
-      risk.data_healthy === false
-        ? coverageDays > 0
-          ? '统计链路异常，当前暂停判定'
-          : '风险数据开始采集中'
-        : risk.frequent_ready === false
-          ? `数据采集中 · 已覆盖 ${coverageDays} 天`
-          : risk.low_usage_ready === false
-            ? `高频规则已启用 · 低使用采集中（${coverageDays}/30 天）`
-            : risk.eligible !== false
-              ? '未命中当前已启用的风险规则'
-              : '账号当前不可用 · 历史风险未命中'
-    return (
-      <div className='min-w-[17rem] rounded-md border border-dashed bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground'>
-        {message}
-      </div>
-    )
-  }
-
-  const high = risk.level === 'high'
-
-  return (
-    <div
-      className={cn(
-        'min-w-[17rem] space-y-1.5 rounded-md border px-2.5 py-2',
-        high
-          ? 'border-destructive/35 bg-destructive/5'
-          : 'border-amber-500/40 bg-amber-500/5'
-      )}
-    >
-      <div className='flex flex-wrap items-center gap-1'>
-        <Badge
-          className={cn(
-            'gap-1 whitespace-nowrap',
-            high
-              ? 'bg-destructive/15 text-destructive hover:bg-destructive/20'
-              : 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400'
-          )}
-        >
-          <ShieldAlert className='size-3' />
-          {high ? '高风险' : '需关注'}
-        </Badge>
-        {risk.types.map((type) => (
-          <Badge
-            key={type}
-            variant='outline'
-            className='bg-background/70 text-[11px] whitespace-nowrap'
-          >
-            {riskTypeLabels[type] ?? type}
-          </Badge>
-        ))}
-        {risk.eligible === false && (
-          <Badge
-            variant='outline'
-            className='border-dashed bg-background/70 text-[10px] whitespace-nowrap text-muted-foreground'
-          >
-            历史证据
-          </Badge>
-        )}
-        {risk.data_healthy === false && (
-          <Badge
-            variant='outline'
-            className='border-destructive/40 text-[10px] text-destructive'
-          >
-            采集异常
-          </Badge>
-        )}
-        {risk.low_usage_ready === false && risk.data_healthy !== false && (
-          <Badge
-            variant='outline'
-            className='border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400'
-          >
-            部分规则采集中
-          </Badge>
-        )}
-      </div>
-      <div className='text-[11px] leading-4 whitespace-nowrap text-muted-foreground tabular-nums'>
-        {(risk.activity_coverage_days ?? 0) >= 30
-          ? '近30日'
-          : `已采集${risk.activity_coverage_days ?? 0}日`}
-        订阅 {risk.subscribe_count_30d} 次 / {risk.subscribe_days_30d} 活跃日
-      </div>
-      <div className='text-[11px] leading-4 whitespace-nowrap text-muted-foreground tabular-nums'>
-        IP 订 {risk.subscribe_ip_count} / 连 {risk.connect_ip_count_30d} · 连接{' '}
-        {risk.connect_days_30d} 天 · 流量 {formatBytes(risk.traffic_bytes_30d)}{' '}
-        / {risk.traffic_days_30d} 天 · 套餐占比{' '}
-        {((risk.traffic_usage_ratio ?? 0) * 100).toFixed(1)}%
-      </div>
-    </div>
-  )
-}
-
-function RiskStatusBanner({ meta }: { meta?: UserRiskMeta }) {
-  if (!meta) {
-    return (
-      <div className='flex items-start gap-2 rounded-md border border-dashed bg-muted/20 px-3 py-2 text-sm text-muted-foreground'>
-        <ShieldAlert className='mt-0.5 size-4 shrink-0' />
-        当前后端未声明风险分析能力，订阅风险筛选已隐藏。请先发布并迁移后端。
-      </div>
-    )
-  }
-
-  // 冷启动（尚无首条数据）时后端同样报 data_healthy=false，但并非故障，
-  // 必须先于异常分支判断，否则部署当天会误报「写入异常」。
-  const coldStart = meta.collecting_since == null
-  // 以 data_healthy 为主信号：last_write_failure_at 是永久保留的历史水位，
-  // 故障恢复后仍有值，单独用它判断会让横幅在一次瞬时故障后永久变红。
-  const tone = coldStart
-    ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
-    : !meta.data_healthy
-      ? 'border-destructive/35 bg-destructive/5 text-destructive'
-      : !meta.full_window_ready || !meta.traffic_fresh
-        ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
-        : 'border-emerald-500/35 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
-  const message = coldStart
-    ? '风险数据等待首条有效订阅，当前仅多来源规则可用。'
-    : !meta.data_healthy
-      ? '风险采集写入异常且尚未恢复，高频与低使用规则已自动关闭；多来源结果仍可用于人工排查。'
-      : !meta.traffic_fresh
-        ? `行为日报已覆盖 ${meta.activity_coverage_days} 天，但流量统计超过新鲜度 SLA，低使用规则已关闭。`
-        : !meta.frequent_ready
-          ? `行为日报已覆盖 ${meta.activity_coverage_days}/${meta.thresholds.frequent_window_days} 天；当前仅多来源规则可用。`
-          : !meta.low_usage_ready
-            ? `高频规则已启用；低使用规则仍在采集（${meta.activity_coverage_days}/${meta.thresholds.low_usage_coverage_days} 天）。`
-            : !meta.full_window_ready
-              ? `高频和低使用规则已启用，当前日报覆盖 ${meta.activity_coverage_days} 天；30 天展示窗口仍在积累。`
-              : `风险统计健康，规则版本 ${meta.rule_version}；所有命中仅作为人工复核线索。`
-
-  return (
-    <div
-      className={cn(
-        'flex items-start gap-2 rounded-md border px-3 py-2 text-sm',
-        tone
-      )}
-    >
-      <ShieldAlert className='mt-0.5 size-4 shrink-0' />
-      <span>{message}</span>
-    </div>
-  )
-}
 
 export function UserPage() {
   const queryClient = useQueryClient()
@@ -308,16 +133,14 @@ export function UserPage() {
         <ArrowUpDown className='h-4 w-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
       )
     return (
-      <TableHead
-        className={cn('h-11 bg-card px-4 text-muted-foreground', className)}
-      >
+      <TableHead className={cn('h-11 bg-card px-4 text-muted-foreground', className)}>
         <div className='flex items-center gap-1'>
           <div className='flex items-center gap-2'>
             <Button
               variant='ghost'
               size='default'
               onClick={() => toggleSort(field)}
-              className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
+              className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
             >
               <span>{label}</span>
               {icon}
@@ -349,25 +172,18 @@ export function UserPage() {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [mailOpen, setMailOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
-  const [usagePrefill, setUsagePrefill] = useState<string | undefined>(
-    undefined
-  )
+  const [usagePrefill, setUsagePrefill] = useState<string | undefined>(undefined)
   const [deleting, setDeleting] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
   const [trafficTarget, setTrafficTarget] = useState<User | null>(null)
-  const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(
-    null
-  )
+  const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(null)
   // 批量封禁范围：'selected' | 'filtered' | 'all'
   const [batchBanScope, setBatchBanScope] = useState<
-    'selected' | 'filtered' | null
+    'selected' | 'filtered' | 'all' | null
   >(null)
 
-  const { data: plans } = useQuery({
-    queryKey: ['plans-brief'],
-    queryFn: fetchPlans,
-  })
+  const { data: plans } = useQuery({ queryKey: ['plans-brief'], queryFn: fetchPlans })
 
   // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串
   const [siteFilter, setSiteFilter] = useState('')
@@ -387,7 +203,6 @@ export function UserPage() {
   }, [appliedEmail, inviteUserId, siteFilter, advancedFilter])
 
   const hasFilter = filter.length > 0
-  const hasRiskFilter = filter.some((item) => item.id === 'subscription_risk')
 
   const params = {
     current: page,
@@ -396,33 +211,14 @@ export function UserPage() {
     sort: sort.length ? sort : undefined,
   }
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['users', params],
     queryFn: () => fetchUsers(params),
   })
 
   const total = data?.total ?? 0
   const rows = data?.data ?? []
-  const riskMeta = data?.risk_meta
   const maxPage = Math.max(1, Math.ceil(total / pageSize))
-
-  // 后端降级（成功响应但无风险能力）时，同步剔除已应用的风险筛选：
-  // 旧后端会把未知筛选字段 fail-closed 成空列表，不清理的话列表恒空且无解释。
-  // 渲染期间派生重置（同高级筛选面板的模式）；缘由由 RiskStatusBanner 的
-  // 「后端未声明风险分析能力」分支向用户解释。
-  const riskCapable = (data?.risk_meta?.capability_version ?? 0) >= 1
-  if (
-    data &&
-    !riskCapable &&
-    advancedFilter.some((f) => f.id === 'subscription_risk')
-  ) {
-    setAdvancedFilter((prev) =>
-      prev.filter((f) => f.id !== 'subscription_risk')
-    )
-    setConditions((prev) =>
-      prev.filter((c) => c.column !== 'subscription_risk')
-    )
-  }
 
   const allOnPageSelected =
     rows.length > 0 && rows.every((u) => selected.includes(u.id))
@@ -434,9 +230,7 @@ export function UserPage() {
     }
   }
   const toggleOne = (id: number) =>
-    setSelected((s) =>
-      s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
-    )
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   const applyQuickSearch = () => {
     setAppliedEmail(emailInput.trim())
@@ -445,7 +239,10 @@ export function UserPage() {
   }
 
   // 应用高级筛选：保存条件与生成的 filter 项
-  const applyAdvancedFilter = (f: UserFilter[], conds: FilterCondition[]) => {
+  const applyAdvancedFilter = (
+    f: UserFilter[],
+    conds: FilterCondition[]
+  ) => {
     setAdvancedFilter(f)
     setConditions(conds)
     setSelected([])
@@ -470,27 +267,14 @@ export function UserPage() {
   })
 
   const batchBanMutation = useMutation({
-    mutationFn: (scope: 'selected' | 'filtered') =>
+    mutationFn: (scope: 'selected' | 'filtered' | 'all') =>
       banUsers({
         scope,
         user_ids: scope === 'selected' ? selected : undefined,
         filter: scope === 'filtered' && hasFilter ? filter : undefined,
       }),
-    onSuccess: (result) => {
-      // 旧后端返回 boolean 而非结构化结果；按类型收窄后再展示明细，
-      // 避免「已封禁 undefined 个用户」和误报审计失败。
-      if (typeof result === 'object' && result !== null) {
-        toast.success(
-          `已封禁 ${result.banned_count} 个用户${result.protected_count > 0 ? `，保护并跳过 ${result.protected_count} 个管理员/员工` : ''}`
-        )
-        if (result.audit_logged === false) {
-          toast.warning(
-            `封禁已完成，但结果审计写入失败；操作编号 ${result.action_id}`
-          )
-        }
-      } else {
-        toast.success('批量封禁成功')
-      }
+    onSuccess: () => {
+      toast.success('批量封禁成功')
       setBatchBanScope(null)
       setSelected([])
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -642,7 +426,11 @@ export function UserPage() {
             )}
           </Button>
           {conditions.length > 0 && (
-            <Button variant='ghost' size='sm' onClick={resetAdvancedFilter}>
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={resetAdvancedFilter}
+            >
               <X className='size-4' /> 清除筛选
             </Button>
           )}
@@ -652,7 +440,9 @@ export function UserPage() {
         {inviteUserId != null && (
           <div className='flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm'>
             <Users className='size-4 text-muted-foreground' />
-            <span>仅显示 邀请人 #{inviteUserId} 邀请的用户</span>
+            <span>
+              仅显示 邀请人 #{inviteUserId} 邀请的用户
+            </span>
             <Button
               variant='ghost'
               size='sm'
@@ -669,39 +459,15 @@ export function UserPage() {
           </div>
         )}
 
-        {/* 请求失败时不渲染：此时 riskMeta 缺失是网络/服务问题，不代表后端无能力 */}
-        {!isLoading && !isError && <RiskStatusBanner meta={riskMeta} />}
-
-        {/* 请求失败必须显式可见：react-query 会保留上次成功数据，
-            不提示的话陈旧列表会被当成当前状态 */}
-        {isError && (
-          <div className='flex items-center gap-2 rounded-md border border-destructive/35 bg-destructive/5 px-3 py-2 text-sm text-destructive'>
-            <ShieldAlert className='size-4 shrink-0' />
-            <span>
-              用户列表加载失败
-              {rows.length > 0 ? '，以下为上次成功加载的结果，可能已过期' : ''}
-              ；批量封禁已暂时禁用。
-            </span>
-            <Button
-              variant='outline'
-              size='sm'
-              className='ms-auto'
-              onClick={() => refetch()}
-            >
-              <RotateCw className='size-4' /> 重试
-            </Button>
-          </div>
-        )}
-
         {/* 批量操作栏 */}
         <div className='flex flex-wrap items-center gap-2'>
-          <span className='text-sm text-muted-foreground'>
+          <span className='text-muted-foreground text-sm'>
             已选择 {selected.length} 项
           </span>
           <Button
             variant='destructive'
             size='sm'
-            disabled={selected.length === 0 || isError}
+            disabled={selected.length === 0}
             onClick={() => setBatchBanScope('selected')}
           >
             <Ban className='size-4' /> 批量封禁（选中）
@@ -709,16 +475,24 @@ export function UserPage() {
           <Button
             variant='outline'
             size='sm'
-            disabled={!hasFilter || hasRiskFilter || isError}
-            title={
-              hasRiskFilter ? '风险结果必须逐个复核并勾选后才能封禁' : undefined
-            }
+            disabled={!hasFilter}
             onClick={() => setBatchBanScope('filtered')}
           >
             封禁筛选结果
           </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => setBatchBanScope('all')}
+          >
+            封禁全部
+          </Button>
           {selected.length > 0 && (
-            <Button variant='ghost' size='sm' onClick={() => setSelected([])}>
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={() => setSelected([])}
+            >
               清除选择
             </Button>
           )}
@@ -754,15 +528,8 @@ export function UserPage() {
                 {sortHead('balance', '余额')}
                 {sortHead('commission_balance', '佣金')}
                 {sortHead('online_count', '在线设备')}
-                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  订阅异地
-                </TableHead>
-                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  连接异地
-                </TableHead>
-                <TableHead className='h-11 min-w-[18rem] bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  风险分析
-                </TableHead>
+                {sortHead('subscribe_remote', '订阅异地')}
+                {sortHead('connect_remote', '连接异地')}
                 {sortHead('banned', '状态')}
                 {sortHead('created_at', '注册时间')}
                 <TableHead className='h-11 bg-card px-4 text-end text-muted-foreground'>
@@ -773,7 +540,7 @@ export function UserPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={18} className='h-24 text-center'>
+                  <TableCell colSpan={16} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -785,9 +552,7 @@ export function UserPage() {
                     <TableRow
                       key={u.id}
                       className='animate-fade-in hover:bg-muted/50'
-                      data-state={
-                        selected.includes(u.id) ? 'selected' : undefined
-                      }
+                      data-state={selected.includes(u.id) ? 'selected' : undefined}
                     >
                       <TableCell className='bg-card'>
                         <Checkbox
@@ -898,13 +663,13 @@ export function UserPage() {
                         const pct = total > 0 ? (used / total) * 100 : 0
                         return (
                           <>
-                            <TableCell className='min-w-[7rem] bg-card'>
+                            <TableCell className='bg-card min-w-[7rem]'>
                               <div className='w-full space-y-1'>
                                 <div className='flex justify-between text-sm'>
                                   <span className='text-muted-foreground'>
                                     {formatBytes(used)}
                                   </span>
-                                  <span className='text-xs text-muted-foreground'>
+                                  <span className='text-muted-foreground text-xs'>
                                     {pct.toFixed(1)}%
                                   </span>
                                 </div>
@@ -930,7 +695,7 @@ export function UserPage() {
                           <span className='text-sm text-muted-foreground'>
                             ¥
                           </span>
-                          <span className='text-foreground tabular-nums'>
+                          <span className='tabular-nums text-foreground'>
                             {Number(u.balance ?? 0).toFixed(2)}
                           </span>
                         </div>
@@ -940,7 +705,7 @@ export function UserPage() {
                           <span className='text-sm text-muted-foreground'>
                             ¥
                           </span>
-                          <span className='text-foreground tabular-nums'>
+                          <span className='tabular-nums text-foreground'>
                             {Number(u.commission_balance ?? 0).toFixed(2)}
                           </span>
                         </div>
@@ -972,9 +737,6 @@ export function UserPage() {
                         {remoteCell(u.connect_locations)}
                       </TableCell>
                       <TableCell className='bg-card'>
-                        <SubscriptionRiskCell risk={u.subscription_risk} />
-                      </TableCell>
-                      <TableCell className='bg-card'>
                         <div className='flex justify-center'>
                           <Badge
                             className={cn(
@@ -988,7 +750,7 @@ export function UserPage() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className='bg-card text-sm whitespace-nowrap text-muted-foreground'>
+                      <TableCell className='bg-card whitespace-nowrap text-sm text-muted-foreground'>
                         <div className='truncate'>
                           {new Date(u.created_at * 1000).toLocaleDateString()}
                         </div>
@@ -1075,18 +837,9 @@ export function UserPage() {
                     </TableRow>
                   )
                 })
-              ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={18}
-                    className='h-24 text-center text-destructive'
-                  >
-                    加载失败，请点击上方「重试」
-                  </TableCell>
-                </TableRow>
               ) : (
                 <TableRow>
-                  <TableCell colSpan={18} className='h-24 text-center'>
+                  <TableCell colSpan={16} className='h-24 text-center'>
                     未找到结果
                   </TableCell>
                 </TableRow>
@@ -1118,17 +871,12 @@ export function UserPage() {
         open={filterOpen}
         onOpenChange={setFilterOpen}
         plans={plans}
-        riskMeta={riskMeta}
         initial={conditions}
         onApply={applyAdvancedFilter}
         onReset={resetAdvancedFilter}
       />
 
-      <UserEditDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        current={editing}
-      />
+      <UserEditDialog open={editOpen} onOpenChange={setEditOpen} current={editing} />
       <UserGenerateDialog open={generateOpen} onOpenChange={setGenerateOpen} />
       <UserSendMailDialog
         open={mailOpen}
@@ -1175,7 +923,9 @@ export function UserPage() {
         desc={
           batchBanScope === 'selected'
             ? `此操作将封禁选中的 ${selected.length} 个用户。此操作无法撤销。`
-            : '此操作将封禁所有符合当前筛选条件的用户。此操作无法撤销。'
+            : batchBanScope === 'filtered'
+              ? '此操作将封禁所有符合当前筛选条件的用户。此操作无法撤销。'
+              : '此操作将封禁系统中的所有用户。此操作无法撤销。'
         }
         confirmText='确认封禁'
         destructive

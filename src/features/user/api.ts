@@ -11,70 +11,6 @@ export type UserBrief = {
   email: string
 }
 
-export type SubscriptionRiskLevel = 'none' | 'medium' | 'high'
-export type SubscriptionRiskType = 'frequent' | 'low_usage' | 'multi_source'
-
-export type SubscriptionRiskInfo = {
-  level: SubscriptionRiskLevel
-  types: SubscriptionRiskType[]
-  basis: 'daily' | 'estimated'
-  rule_version: string
-  eligible: boolean
-  activity_coverage_days: number
-  data_healthy: boolean
-  traffic_fresh: boolean
-  frequent_ready: boolean
-  low_usage_ready: boolean
-  full_window_ready: boolean
-  subscribe_count: number
-  subscribe_avg_per_day: number
-  subscribe_span_days: number
-  subscribe_count_30d: number
-  subscribe_days_30d: number
-  subscribe_ip_count: number
-  subscribe_location_count: number
-  last_subscribe_at: number | null
-  connect_count_30d: number
-  connect_days_30d: number
-  connect_ip_count_30d: number
-  last_connect_at: number | null
-  traffic_bytes_30d: number
-  traffic_days_30d: number
-  traffic_usage_ratio: number
-}
-
-export type UserRiskMeta = {
-  capability_version: number
-  rule_version: string
-  activity_coverage_days: number
-  collecting_since: number | null
-  frequent_ready: boolean
-  low_usage_ready: boolean
-  full_window_ready: boolean
-  data_healthy: boolean
-  traffic_fresh: boolean
-  last_write_failure_at: number | null
-  last_write_success_at: number | null
-  traffic_pipeline_last_write_at: number | null
-  thresholds: {
-    frequent_window_days: number
-    frequent_min_active_days: number
-    frequent_min_daily_pulls: number
-    low_usage_window_days: number
-    low_usage_coverage_days: number
-    low_usage_min_subscribe_days: number
-    low_usage_max_active_days: number
-    low_usage_max_traffic_bytes: number
-    low_usage_max_traffic_ratio: number
-    multi_source_min_locations: number
-  }
-}
-
-export type UserPageResult = Paginated<User> & {
-  /** 旧后端没有该字段；前端会隐藏风险筛选，确保后端先行滚动发布。 */
-  risk_meta?: UserRiskMeta
-}
-
 /**
  * v2_user 行（经 UserController::transformUserData 转换）：
  * - balance / commission_balance 已 /100（元）
@@ -135,8 +71,6 @@ export type User = {
   subscribe_locations?: number
   /** 连接类记录的去重归属地数量（>1 视为异地）。fetch 注入。 */
   connect_locations?: number
-  /** 订阅拉取、连接来源和近 30 天流量综合得到的风险信息。 */
-  subscription_risk?: SubscriptionRiskInfo | null
 }
 
 /** 过滤条件项：value 支持 "eq:1"、"like" 默认模糊、数组（in）。 */
@@ -152,7 +86,7 @@ export type UserFetchParams = {
 
 /** GET/POST /user/fetch — 分页用户列表（路由 any）。 */
 export function fetchUsers(params: UserFetchParams) {
-  return get<UserPageResult>('/user/fetch', params as Record<string, unknown>)
+  return getPaginated<User>('/user/fetch', params as Record<string, unknown>)
 }
 
 /** GET /user/getUserInfoById — 单用户详情（含 invite_user）。 */
@@ -199,27 +133,13 @@ export function updateUser(payload: UserUpdatePayload) {
 /** 批量操作范围。 */
 export type BulkScope = 'selected' | 'filtered' | 'all'
 
-export type BanUsersResult = {
-  matched_count: number
-  banned_count: number
-  protected_count: number
-  already_banned_count: number
-  banned_ids_preview: number[]
-  protected_ids_preview: number[]
-  action_id: string
-  audit_logged: boolean
-}
-
-/**
- * POST /user/ban — 封禁（按范围）。scope='all' 已被后端无条件拒绝，类型层面直接排除。
- * 旧后端返回 boolean，新后端返回结构化结果；调用方需按类型收窄。
- */
+/** POST /user/ban — 封禁（按范围）。 */
 export function banUsers(params: {
-  scope: Exclude<BulkScope, 'all'>
+  scope?: BulkScope
   user_ids?: number[]
   filter?: UserFilter[]
 }) {
-  return post<BanUsersResult | boolean>('/user/ban', params)
+  return post<boolean>('/user/ban', params)
 }
 
 /** POST /user/resetSecret — 重置订阅 token/uuid。 */
@@ -280,7 +200,7 @@ export function sendMail(payload: SendMailPayload) {
 
 // ----- 使用记录（usageRecords / clearUsageRecords）-----
 
-export type UsageRecordType = 'connect' | 'subscribe' | 'subscribe_failed'
+export type UsageRecordType = 'connect' | 'subscribe'
 export type UsageOrderBy = 'record_at' | 'online' | 'count'
 export type UsageOrderDir = 'asc' | 'desc'
 
@@ -327,6 +247,24 @@ export function fetchUsageRecords(params: UsageRecordsParams) {
     if (v !== undefined && v !== '' && v !== null) clean[k] = v
   })
   return get<UsageRecordsResult>('/user/usageRecords', clean)
+}
+
+export type ClearUsageParams = {
+  user_id?: number
+  keyword?: string
+  type?: UsageRecordType | ''
+  ip?: string
+  start_time?: number
+  end_time?: number
+}
+
+/** POST /user/clearUsageRecords — 按筛选清除使用记录，无条件则清空全部。 */
+export function clearUsageRecords(params: ClearUsageParams) {
+  const clean: Record<string, unknown> = {}
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v
+  })
+  return post<{ deleted: number }>('/user/clearUsageRecords', clean)
 }
 
 // ----- 分配订单（OrderController::assign，复用 order 模块语义）-----
@@ -451,10 +389,10 @@ export function fetchUserTraffic(userId: number, page = 1, pageSize = 20) {
 
 /** POST /traffic-reset/reset-user — 手动重置用户流量。 */
 export function resetUserTraffic(userId: number, reason?: string) {
-  return post<{ user_id: number; email: string }>('/traffic-reset/reset-user', {
-    user_id: userId,
-    reason: reason || undefined,
-  })
+  return post<{ user_id: number; email: string }>(
+    '/traffic-reset/reset-user',
+    { user_id: userId, reason: reason || undefined }
+  )
 }
 
 // ----- 套餐下拉（来自 PlanController::fetch）-----

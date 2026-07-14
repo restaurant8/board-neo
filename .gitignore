@@ -32,7 +32,6 @@ deploy
 # Build/dev caches (auto-generated, never commit)
 .vite/
 .tanstack/
-.pnpm-store/
 
 # Test coverage
 /coverage

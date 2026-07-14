@@ -19,8 +19,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { type PlanBrief, type UserFilter, type UserRiskMeta } from '../api'
 import { giBToBytes } from '../format'
+import { type PlanBrief, type UserFilter } from '../api'
 
 /** 字段值类型，决定可用操作符与值输入控件。 */
 type FieldType =
@@ -31,7 +31,6 @@ type FieldType =
   | 'banned'
   | 'plan'
   | 'remote'
-  | 'subscription-risk'
 
 type FieldDef = {
   /** 后端列名（filter.id）。 */
@@ -59,11 +58,6 @@ const FIELD_DEFS: FieldDef[] = [
   { column: 'remarks', label: '备注', type: 'text' },
   { column: 'subscribe_remote', label: '订阅异地', type: 'remote' },
   { column: 'connect_remote', label: '连接异地', type: 'remote' },
-  {
-    column: 'subscription_risk',
-    label: '订阅风险',
-    type: 'subscription-risk',
-  },
 ]
 
 type OperatorDef = { op: string; label: string }
@@ -95,7 +89,6 @@ const OPERATORS: Record<FieldType, OperatorDef[]> = {
   banned: [{ op: 'eq', label: '等于' }],
   plan: [{ op: 'eq', label: '等于' }],
   remote: [{ op: 'eq', label: '等于' }],
-  'subscription-risk': [{ op: 'eq', label: '属于' }],
 }
 
 /** 一条筛选条件的本地编辑态。 */
@@ -126,8 +119,6 @@ type Props = {
   onOpenChange: (open: boolean) => void
   /** 套餐下拉数据（订阅字段用）。 */
   plans?: PlanBrief[]
-  /** 后端风险能力与当前规则；缺失时隐藏该字段，支持后端先行滚动发布。 */
-  riskMeta?: UserRiskMeta
   /** 初始条件（用于回显已应用筛选）。 */
   initial: FilterCondition[]
   /** 应用：把条件转成后端 filter 数组并附带原始条件回传。 */
@@ -160,9 +151,6 @@ function toFilterItem(cond: FilterCondition): UserFilter | null {
     raw = String(Math.floor(ms / 1000))
   } else if (field.type === 'banned' || field.type === 'remote') {
     if (raw !== '0' && raw !== '1') return null
-  } else if (field.type === 'subscription-risk') {
-    if (!['any', 'frequent', 'low_usage', 'multi_source'].includes(raw))
-      return null
   } else if (field.type === 'plan') {
     if (raw.trim() === '') return null
   } else {
@@ -177,53 +165,29 @@ export function UserAdvancedFilter({
   open,
   onOpenChange,
   plans,
-  riskMeta,
   initial,
   onApply,
   onReset,
 }: Props) {
   const [conditions, setConditions] = useState<FilterCondition[]>([])
-  const riskAvailable = (riskMeta?.capability_version ?? 0) >= 1
-  const availableFields = riskAvailable
-    ? FIELD_DEFS
-    : FIELD_DEFS.filter((field) => field.type !== 'subscription-risk')
 
   // 每次打开时用已应用条件回显（无则给一条空白）：渲染期间派生重置，避免 effect 里同步 setState
   const [loaded, setLoaded] = useState<{
     open: boolean
     initial?: typeof initial
-    riskAvailable?: boolean
   } | null>(null)
 
   if (loaded?.open !== open || loaded?.initial !== initial) {
-    setLoaded({ open, initial, riskAvailable })
+    setLoaded({ open, initial })
     if (open) {
-      const safeInitial = riskAvailable
-        ? initial
-        : initial.filter(
-            (condition) => condition.column !== 'subscription_risk'
-          )
       setConditions(
-        safeInitial.length > 0
-          ? safeInitial.map((c) => ({ ...c }))
-          : [emptyCondition()]
+        initial.length > 0 ? initial.map((c) => ({ ...c })) : [emptyCondition()]
       )
-    }
-  } else if (loaded.riskAvailable !== riskAvailable) {
-    // 面板打开期间后台刷新可能让 risk_meta 从无到有（或反之）：
-    // 只剔除失效的风险条件，不整体重置，保住用户正在编辑的其他条件。
-    setLoaded({ open, initial, riskAvailable })
-    if (open && !riskAvailable) {
-      setConditions((current) => {
-        const kept = current.filter(
-          (condition) => condition.column !== 'subscription_risk'
-        )
-        return kept.length > 0 ? kept : [emptyCondition()]
-      })
     }
   }
 
-  const addCondition = () => setConditions((s) => [...s, emptyCondition()])
+  const addCondition = () =>
+    setConditions((s) => [...s, emptyCondition()])
 
   const removeCondition = (key: string) =>
     setConditions((s) => s.filter((c) => c.key !== key))
@@ -235,18 +199,13 @@ export function UserAdvancedFilter({
   const onPickField = (key: string, column: string) => {
     const field = fieldByColumn(column)
     const firstOp = field ? OPERATORS[field.type][0].op : ''
-    patch(key, {
-      column,
-      op: firstOp,
-      value: field?.type === 'subscription-risk' ? 'any' : '',
-    })
+    patch(key, { column, op: firstOp, value: '' })
   }
 
   const handleApply = () => {
     const filter: UserFilter[] = []
     const valid: FilterCondition[] = []
     for (const cond of conditions) {
-      if (!riskAvailable && cond.column === 'subscription_risk') continue
       const item = toFilterItem(cond)
       if (item) {
         filter.push(item)
@@ -268,9 +227,7 @@ export function UserAdvancedFilter({
       <SheetContent className='flex w-full flex-col gap-0 sm:max-w-md'>
         <SheetHeader>
           <SheetTitle>高级筛选</SheetTitle>
-          <SheetDescription>
-            添加一个或多个筛选条件来精确查找用户
-          </SheetDescription>
+          <SheetDescription>添加一个或多个筛选条件来精确查找用户</SheetDescription>
         </SheetHeader>
 
         <div className='flex items-center justify-between px-4 py-3'>
@@ -283,7 +240,7 @@ export function UserAdvancedFilter({
         <ScrollArea className='flex-1 px-4'>
           <div className='flex flex-col gap-3 pb-4'>
             {conditions.length === 0 ? (
-              <p className='py-8 text-center text-sm text-muted-foreground'>
+              <p className='text-muted-foreground py-8 text-center text-sm'>
                 暂无筛选条件，点击「添加条件」开始。
               </p>
             ) : (
@@ -295,7 +252,7 @@ export function UserAdvancedFilter({
                     className='relative rounded-md border p-3'
                   >
                     <div className='mb-2 flex items-center justify-between'>
-                      <span className='text-xs font-medium text-muted-foreground'>
+                      <span className='text-muted-foreground text-xs font-medium'>
                         条件 {idx + 1}
                       </span>
                       <Button
@@ -320,7 +277,7 @@ export function UserAdvancedFilter({
                             <SelectValue placeholder='选择字段' />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableFields.map((f) => (
+                            {FIELD_DEFS.map((f) => (
                               <SelectItem key={f.column} value={f.column}>
                                 {f.label}
                               </SelectItem>
@@ -354,32 +311,7 @@ export function UserAdvancedFilter({
                             <Label className='text-xs'>
                               {field.type === 'bytes' ? '值（GB）' : '值'}
                             </Label>
-                            {field.type === 'subscription-risk' ? (
-                              <Select
-                                value={cond.value}
-                                onValueChange={(v) =>
-                                  patch(cond.key, { value: v })
-                                }
-                              >
-                                <SelectTrigger className='h-9'>
-                                  <SelectValue placeholder='选择风险类型' />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value='any'>
-                                    全部可疑用户
-                                  </SelectItem>
-                                  <SelectItem value='frequent'>
-                                    高频拉取订阅
-                                  </SelectItem>
-                                  <SelectItem value='low_usage'>
-                                    持续拉取但低使用
-                                  </SelectItem>
-                                  <SelectItem value='multi_source'>
-                                    多来源拉取订阅
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            ) : field.type === 'remote' ? (
+                            {field.type === 'remote' ? (
                               <Select
                                 value={cond.value}
                                 onValueChange={(v) =>
@@ -390,12 +322,8 @@ export function UserAdvancedFilter({
                                   <SelectValue placeholder='选择' />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value='1'>
-                                    异地（多地区）
-                                  </SelectItem>
-                                  <SelectItem value='0'>
-                                    正常（单地区）
-                                  </SelectItem>
+                                  <SelectItem value='1'>异地（多地区）</SelectItem>
+                                  <SelectItem value='0'>正常（单地区）</SelectItem>
                                 </SelectContent>
                               </Select>
                             ) : field.type === 'banned' ? (
@@ -462,16 +390,6 @@ export function UserAdvancedFilter({
                             )}
                           </div>
                         </div>
-                      )}
-                      {field?.type === 'subscription-risk' && (
-                        <p className='rounded-md bg-muted/50 px-2.5 py-2 text-xs leading-5 text-muted-foreground'>
-                          综合订阅频率、持续时间、来源地区、近 30
-                          天流量及套餐占比判定。高频规则采集满{' '}
-                          {riskMeta?.thresholds.frequent_window_days ?? 7}{' '}
-                          天、低使用规则采集满{' '}
-                          {riskMeta?.thresholds.low_usage_coverage_days ?? 30}{' '}
-                          天后启用；结果仅供人工复核。
-                        </p>
                       )}
                     </div>
                   </div>
