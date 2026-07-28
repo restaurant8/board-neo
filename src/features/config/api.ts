@@ -51,6 +51,8 @@ export type ConfigData = {
   }
   subscribe?: {
     plan_change_enable?: boolean
+    /** 当前套餐过期后仍可续费的天数；0 表示到期即关闭。 */
+    renew_grace_days?: number
     reset_traffic_method?: number
     surplus_enable?: boolean
     new_order_event_id?: number

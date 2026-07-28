@@ -346,6 +346,21 @@ export function ConfigPage() {
                 {section === 'subscribe' && (
                   <div className='space-y-4'>
                     <TextField label='订阅路径' description='订阅路径，修改后将会改变原有的subscribe路径' value={v('subscribe_path') as string} onChange={(x) => set('subscribe_path', x)} />
+                    <TextField
+                      label='续费宽限期（天）'
+                      description='套餐到期后，开启了“允许续费”的套餐还可以续费多少天。0 表示到期后立即停止续费。'
+                      type='number'
+                      value={num('renew_grace_days')}
+                      onChange={(x) => {
+                        const days = Number(x)
+                        set(
+                          'renew_grace_days',
+                          Number.isFinite(days)
+                            ? Math.max(0, Math.min(365, Math.floor(days)))
+                            : 0
+                        )
+                      }}
+                    />
                     <SelectField
                       label='月流量重置方式'
                       description='全局流量重置方式，默认每月1号。可以在订阅管理为订阅单独设置。'
