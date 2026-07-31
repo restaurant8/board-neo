@@ -13,6 +13,7 @@ import {
   MousePointerClick,
   Pencil,
   Plus,
+  Replace,
   RotateCcw,
   Save,
   Search,
@@ -82,6 +83,7 @@ import {
   SERVER_TYPE_LABEL,
   type Server,
   batchDeleteNodes,
+  batchReplaceNodes,
   batchResetTraffic,
   batchUpdateNodeGroups,
   batchUpdateNodes,
@@ -93,6 +95,7 @@ import {
   updateNode,
 } from './api'
 import { BatchGroupsDialog } from './components/batch-groups-dialog'
+import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
 
@@ -226,12 +229,16 @@ export function ServerManagePage() {
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
   const [batchResetOpen, setBatchResetOpen] = useState(false)
   const [batchGroupsOpen, setBatchGroupsOpen] = useState(false)
+  const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
 
   // 筛选（胶囊多选）
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState<string[]>([])
   const [machineFilter, setMachineFilter] = useState<string[]>([])
   const [groupFilter, setGroupFilter] = useState<string[]>([])
+  const [hostFilter, setHostFilter] = useState<string[]>([])
+  const [portFilter, setPortFilter] = useState<string[]>([])
+  const [serverPortFilter, setServerPortFilter] = useState<string[]>([])
 
   // 节点ID 排序（点击表头）
   const [idSort, setIdSort] = useState<'asc' | 'desc' | null>(null)
@@ -254,7 +261,7 @@ export function ServerManagePage() {
     queryFn: fetchMachines,
   })
 
-  const nodes = data ?? []
+  const nodes = useMemo(() => data ?? [], [data])
 
   const machineNameById = useMemo(() => {
     const m = new Map<number, string>()
@@ -346,6 +353,26 @@ export function ServerManagePage() {
     onError: handleServerError,
   })
 
+  const batchReplaceMutation = useMutation({
+    mutationFn: batchReplaceNodes,
+    onSuccess: (result) => {
+      if (result.updated_count > 0) {
+        toast.success(`成功替换 ${result.updated_count} 个节点`)
+      } else {
+        toast.warning('没有节点发生变化，请检查原值和作用范围')
+      }
+      if (result.dns_jobs_failed > 0) {
+        toast.warning(
+          `${result.dns_jobs_failed} 个节点的 DNS 同步任务提交失败，请稍后在 DNS 管理中重试`
+        )
+      }
+      invalidate()
+      setSelected([])
+      setBatchReplaceOpen(false)
+    },
+    onError: handleServerError,
+  })
+
   const batchGroupsMutation = useMutation({
     mutationFn: (payload: {
       mode: 'replace' | 'add' | 'remove'
@@ -383,8 +410,18 @@ export function ServerManagePage() {
     const typeSet = new Set(typeFilter)
     const machineSet = new Set(machineFilter)
     const groupSet = new Set(groupFilter.map(Number))
+    const hostSet = new Set(hostFilter)
+    const portSet = new Set(portFilter)
+    const serverPortSet = new Set(serverPortFilter)
     return nodes.filter((n) => {
       if (typeSet.size > 0 && !typeSet.has(n.type)) return false
+      if (hostSet.size > 0 && !hostSet.has(n.host)) return false
+      if (portSet.size > 0 && !portSet.has(String(n.port))) return false
+      if (
+        serverPortSet.size > 0 &&
+        !serverPortSet.has(String(n.server_port ?? ''))
+      )
+        return false
       if (machineSet.size > 0) {
         const key =
           n.machine_id != null ? String(n.machine_id) : '__standalone__'
@@ -396,12 +433,21 @@ export function ServerManagePage() {
       }
       if (kw) {
         const hay =
-          `${n.name} ${n.host} ${SERVER_TYPE_LABEL[n.type] ?? n.type}`.toLowerCase()
+          `${n.name} ${n.host} ${n.port} ${n.server_port ?? ''} ${SERVER_TYPE_LABEL[n.type] ?? n.type}`.toLowerCase()
         if (!hay.includes(kw)) return false
       }
       return true
     })
-  }, [nodes, keyword, typeFilter, machineFilter, groupFilter])
+  }, [
+    nodes,
+    keyword,
+    typeFilter,
+    machineFilter,
+    groupFilter,
+    hostFilter,
+    portFilter,
+    serverPortFilter,
+  ])
 
   // 节点ID 排序（非拖拽态生效）
   const sorted = useMemo(() => {
@@ -486,14 +532,15 @@ export function ServerManagePage() {
         const a = byId.get(ia)
         const b = byId.get(ib)
         if (!a || !b) return 0
-        let r = 0
-        if (key === 'name') r = byName(a, b)
-        else if (key === 'type')
-          r =
-            SERVER_TYPES.indexOf(a.type) - SERVER_TYPES.indexOf(b.type) ||
-            byName(a, b)
-        else if (key === 'rate') r = Number(a.rate) - Number(b.rate) || byName(a, b)
-        else r = a.id - b.id
+        const r =
+          key === 'name'
+            ? byName(a, b)
+            : key === 'type'
+              ? SERVER_TYPES.indexOf(a.type) - SERVER_TYPES.indexOf(b.type) ||
+                byName(a, b)
+              : key === 'rate'
+                ? Number(a.rate) - Number(b.rate) || byName(a, b)
+                : a.id - b.id
         return dir === 'asc' ? r : -r
       })
       return next
@@ -509,13 +556,19 @@ export function ServerManagePage() {
     setTypeFilter([])
     setMachineFilter([])
     setGroupFilter([])
+    setHostFilter([])
+    setPortFilter([])
+    setServerPortFilter([])
   }
 
   const hasFilter =
     keyword !== '' ||
     typeFilter.length > 0 ||
     machineFilter.length > 0 ||
-    groupFilter.length > 0
+    groupFilter.length > 0 ||
+    hostFilter.length > 0 ||
+    portFilter.length > 0 ||
+    serverPortFilter.length > 0
 
   /* ----------------------------- 筛选选项 ----------------------------- */
 
@@ -531,6 +584,26 @@ export function ServerManagePage() {
     label: g.name,
     value: String(g.id),
   }))
+  const hostOptions: FacetOption[] = Array.from(
+    new Set(nodes.map((node) => node.host))
+  )
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((value) => ({ label: value, value }))
+  const portOptions: FacetOption[] = Array.from(
+    new Set(nodes.map((node) => String(node.port)))
+  )
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((value) => ({ label: value, value }))
+  const serverPortOptions: FacetOption[] = Array.from(
+    new Set(
+      nodes
+        .map((node) => node.server_port)
+        .filter((value): value is number => value != null)
+        .map(String)
+    )
+  )
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((value) => ({ label: value, value }))
 
   return (
     <>
@@ -622,6 +695,40 @@ export function ServerManagePage() {
                 selected={groupFilter}
                 onChange={setGroupFilter}
               />
+              <FacetFilter
+                title='地址'
+                options={hostOptions}
+                selected={hostFilter}
+                onChange={setHostFilter}
+                searchPlaceholder='搜索节点地址...'
+                emptyText='未找到节点地址'
+              />
+              <FacetFilter
+                title='连接端口'
+                options={portOptions}
+                selected={portFilter}
+                onChange={setPortFilter}
+                searchPlaceholder='搜索连接端口...'
+                emptyText='未找到连接端口'
+              />
+              <FacetFilter
+                title='服务端口'
+                options={serverPortOptions}
+                selected={serverPortFilter}
+                onChange={setServerPortFilter}
+                searchPlaceholder='搜索服务端口...'
+                emptyText='未找到服务端口'
+              />
+              <Button
+                variant='outline'
+                size='sm'
+                className='h-8'
+                disabled={nodes.length === 0}
+                onClick={() => setBatchReplaceOpen(true)}
+              >
+                <Replace className='size-4' />
+                批量替换
+              </Button>
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1422,6 +1529,18 @@ export function ServerManagePage() {
         isLoading={batchGroupsMutation.isPending}
         onConfirm={(payload) => batchGroupsMutation.mutate(payload)}
       />
+
+      {batchReplaceOpen && (
+        <BatchReplaceDialog
+          open
+          onOpenChange={setBatchReplaceOpen}
+          nodes={nodes}
+          filteredIds={filtered.map((node) => node.id)}
+          selectedIds={selected}
+          isLoading={batchReplaceMutation.isPending}
+          onConfirm={(payload) => batchReplaceMutation.mutate(payload)}
+        />
+      )}
 
       <ConfirmDialog
         open={batchResetOpen}

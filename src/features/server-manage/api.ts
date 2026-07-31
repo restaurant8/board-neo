@@ -182,6 +182,29 @@ export function batchUpdateNodes(payload: {
   return post<boolean>('/server/manage/batchUpdate', payload)
 }
 
+export type BatchReplaceField = 'host' | 'port' | 'server_port'
+
+export type BatchReplaceNodesPayload = {
+  ids: number[]
+  updates: Partial<Record<BatchReplaceField, string | number>>
+  matches?: Partial<Record<BatchReplaceField, string | number>>
+  update_related_host_fields?: boolean
+}
+
+export type BatchReplaceNodesResult = {
+  requested_count: number
+  matched_count: number
+  updated_count: number
+  related_fields_updated_count: number
+  dns_jobs_dispatched: number
+  dns_jobs_failed: number
+}
+
+/** POST /server/manage/batchReplace — 按可选原值批量替换节点地址或端口。 */
+export function batchReplaceNodes(payload: BatchReplaceNodesPayload) {
+  return post<BatchReplaceNodesResult>('/server/manage/batchReplace', payload)
+}
+
 /**
  * POST /server/manage/batchUpdateGroups — 批量调整节点权限组。
  * mode: replace 覆盖 / add 追加 / remove 移除。
