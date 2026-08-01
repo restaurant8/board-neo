@@ -714,11 +714,11 @@ export function ExternalNodeSourceDialog({
             <div className='mb-4 rounded-md border border-dashed p-3'>
               <RuleEditor
                 title='连接地址前缀名称映射'
-                description='配合 {host_label} 使用；例如 jp1.baidu.com 的前缀 jp1 映射为“日本01”，未配置的前缀保持原样。'
+                description='配合 {host_label} 使用；精确映射优先。写一条 jp → 日本，可自动得到 jp1 → 日本1、jp02 → 日本02，但不会匹配 jpx。'
                 rules={form.host_label_mappings}
                 onChange={(rules) => setRules('host_label_mappings', rules)}
-                fromPlaceholder='地址前缀，如：jp1'
-                toPlaceholder='显示名称，如：日本01'
+                fromPlaceholder='地址前缀，如：jp'
+                toPlaceholder='显示名称，如：日本'
               />
             </div>
             <RuleEditor

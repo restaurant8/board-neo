@@ -23,6 +23,20 @@ export type ExternalPullProxySettings = {
 
 export type ExternalProxyMode = 'inherit' | 'direct' | 'socks5'
 
+export type ExternalSubscriptionInfo = {
+  upload?: number
+  download?: number
+  total?: number
+  expire?: number | null
+  profile_title?: string
+  update_interval_hours?: number
+  fetched_at?: number
+  filtered_info_nodes?: number
+  remaining_text?: string
+  expire_text?: string
+  reset_text?: string
+}
+
 export type ExternalNodeSource = {
   id: number
   name: string
@@ -36,6 +50,7 @@ export type ExternalNodeSource = {
   proxy_port: number | null
   proxy_username: string | null
   proxy_password_configured: boolean
+  subscription_info: ExternalSubscriptionInfo | null
   group_ids: number[]
   enabled: boolean
   dns_alias_enabled: boolean

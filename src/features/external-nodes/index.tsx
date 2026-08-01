@@ -64,9 +64,16 @@ export function ExternalNodesPage() {
   const [deleting, setDeleting] = useState<ExternalNodeSource | null>(null)
   const [proxyDialogOpen, setProxyDialogOpen] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetching,
+    refetch: refetchSources,
+  } = useQuery({
     queryKey: ['external-node-sources'],
     queryFn: fetchExternalNodeSources,
+    retry: false,
     refetchInterval: (query) =>
       query.state.data?.sources.some(
         (source) =>
@@ -189,6 +196,7 @@ export function ExternalNodesPage() {
                 <TableHead>来源</TableHead>
                 <TableHead>类型</TableHead>
                 <TableHead>节点数</TableHead>
+                <TableHead>上游套餐</TableHead>
                 <TableHead>权限组</TableHead>
                 <TableHead>User-Agent</TableHead>
                 <TableHead>同步状态</TableHead>
@@ -200,14 +208,37 @@ export function ExternalNodesPage() {
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, index) => (
                   <TableRow key={index}>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={9}>
                       <Skeleton className='h-8 w-full' />
                     </TableCell>
                   </TableRow>
                 ))
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={9} className='h-40 text-center'>
+                    <div className='font-medium text-destructive'>
+                      外部节点来源加载失败
+                    </div>
+                    <div className='mt-1 text-sm text-muted-foreground'>
+                      这不代表已有订阅被删除，请检查后端日志或完成数据库迁移。
+                    </div>
+                    <Button
+                      className='mt-3'
+                      size='sm'
+                      variant='outline'
+                      disabled={isFetching}
+                      onClick={() => refetchSources()}
+                    >
+                      <RefreshCw
+                        className={`mr-1 size-4 ${isFetching ? 'animate-spin' : ''}`}
+                      />
+                      重新加载
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ) : !data?.sources.length ? (
                 <TableRow>
-                  <TableCell colSpan={8} className='h-40 text-center'>
+                  <TableCell colSpan={9} className='h-40 text-center'>
                     <div className='text-muted-foreground'>
                       尚未添加外部节点来源
                     </div>
@@ -281,12 +312,26 @@ export function ExternalNodesPage() {
                         >
                           {source.node_count}
                         </button>
-                        {source.last_skipped_count > 0 && (
+                        {source.last_skipped_count -
+                          (source.subscription_info?.filtered_info_nodes ?? 0) >
+                          0 && (
                           <div className='text-xs text-amber-600'>
-                            跳过 {source.last_skipped_count}
+                            跳过{' '}
+                            {source.last_skipped_count -
+                              (source.subscription_info?.filtered_info_nodes ??
+                                0)}
+                          </div>
+                        )}
+                        {!!source.subscription_info?.filtered_info_nodes && (
+                          <div className='text-xs text-sky-600'>
+                            过滤上游提示{' '}
+                            {source.subscription_info.filtered_info_nodes}
                           </div>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <UpstreamSubscriptionInfo source={source} />
                     </TableCell>
                     <TableCell>
                       <div className='flex max-w-48 flex-wrap gap-1'>
@@ -374,6 +419,7 @@ export function ExternalNodesPage() {
 
         <div className='rounded-md border border-dashed p-4 text-sm text-muted-foreground'>
           外部节点只参与订阅下发，不会出现在本站后端机器中，也不会接收本站流量上报。下发内容不包含来源标记；用户看到的名称、地址和协议格式与本站节点一致。
+          “上游套餐”来自对方订阅响应头，仅供管理员掌握外部账号余量和到期时间。
         </div>
       </Main>
 
@@ -422,6 +468,62 @@ function proxyModeLabel(source: ExternalNodeSource, globalEnabled: boolean) {
   if (source.proxy_mode === 'direct') return '强制直连'
   if (source.proxy_mode === 'socks5') return '独立 SOCKS5'
   return globalEnabled ? '统一 SOCKS5' : '直连（继承统一设置）'
+}
+
+function UpstreamSubscriptionInfo({ source }: { source: ExternalNodeSource }) {
+  if (source.type !== 'subscription') {
+    return <span className='text-muted-foreground'>—</span>
+  }
+  const info = source.subscription_info
+  if (!info) {
+    return <span className='text-xs text-muted-foreground'>上游未提供</span>
+  }
+
+  const upload = info.upload ?? 0
+  const download = info.download ?? 0
+  const used = upload + download
+  const hasTraffic = info.total !== undefined
+  const remaining = hasTraffic ? Math.max(0, info.total! - used) : null
+
+  return (
+    <div className='min-w-32 text-xs'>
+      {info.profile_title && (
+        <div
+          className='max-w-40 truncate font-medium'
+          title={info.profile_title}
+        >
+          {info.profile_title}
+        </div>
+      )}
+      {hasTraffic && (
+        <>
+          <div className='text-muted-foreground'>
+            已用 {formatBytes(used)} / {formatBytes(info.total!)}
+          </div>
+          <div className='text-muted-foreground'>
+            剩余 {formatBytes(remaining!)}
+          </div>
+        </>
+      )}
+      {'expire' in info && (
+        <div className='text-muted-foreground'>
+          到期：{info.expire ? formatDate(info.expire) : '长期有效'}
+        </div>
+      )}
+      {!hasTraffic && info.remaining_text && (
+        <div className='text-muted-foreground'>剩余 {info.remaining_text}</div>
+      )}
+      {!('expire' in info) && info.expire_text && (
+        <div className='text-muted-foreground'>到期：{info.expire_text}</div>
+      )}
+      {info.reset_text && (
+        <div className='text-muted-foreground'>重置：{info.reset_text}</div>
+      )}
+      {!hasTraffic && !('expire' in info) && !info.profile_title && (
+        <span className='text-muted-foreground'>已读取订阅信息</span>
+      )}
+    </div>
+  )
 }
 
 function SyncStatus({ source }: { source: ExternalNodeSource }) {
@@ -531,6 +633,21 @@ function formatTime(timestamp: number | null) {
   return new Date(timestamp * 1000).toLocaleString('zh-CN', {
     hour12: false,
   })
+}
+
+function formatDate(timestamp: number) {
+  return new Date(timestamp * 1000).toLocaleDateString('zh-CN')
+}
+
+function formatBytes(bytes: number) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+  let value = Math.max(0, bytes)
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${value >= 100 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
 }
 
 function formatInterval(minutes: number) {
