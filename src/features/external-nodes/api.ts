@@ -73,6 +73,7 @@ export type ExternalNodeSource = {
   consecutive_failures: number
   last_sync_error: string | null
   node_count: number
+  enabled_node_count: number
   last_skipped_count: number
   created_at: number
   updated_at: number
@@ -81,6 +82,7 @@ export type ExternalNodeSource = {
 export type ExternalNode = {
   id: number
   source_id: number
+  enabled: boolean
   type: string
   name: string
   host: string
@@ -157,6 +159,16 @@ export function fetchExternalNodes(sourceId: number) {
   return get<ExternalNode[]>('/server/external/nodes', {
     source_id: sourceId,
   })
+}
+
+export function saveExternalNodeSelection(sourceId: number, nodeIds: number[]) {
+  return post<{ node_count: number; enabled_node_count: number }>(
+    '/server/external/saveNodeSelection',
+    {
+      source_id: sourceId,
+      node_ids: nodeIds,
+    }
+  )
 }
 
 export function saveExternalNodeSource(payload: ExternalNodeSourcePayload) {

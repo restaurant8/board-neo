@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -42,6 +44,7 @@ import {
   dropExternalNodeSource,
   fetchExternalNodeSources,
   fetchExternalNodes,
+  saveExternalNodeSelection,
   syncAllExternalNodeSources,
   syncExternalNodeSource,
 } from './api'
@@ -310,8 +313,11 @@ export function ExternalNodesPage() {
                           disabled={source.node_count === 0}
                           onClick={() => setPreview(source)}
                         >
-                          {source.node_count}
+                          {source.enabled_node_count} / {source.node_count}
                         </button>
+                        <div className='text-xs text-muted-foreground'>
+                          下发 / 拉取
+                        </div>
                         {source.last_skipped_count -
                           (source.subscription_info?.filtered_info_nodes ?? 0) >
                           0 && (
@@ -558,7 +564,11 @@ function ExternalNodesPreview({
   source: ExternalNodeSource | null
   onOpenChange: (open: boolean) => void
 }) {
-  const { data: nodes = [], isLoading } = useQuery({
+  const {
+    data: nodes = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['external-nodes', source?.id],
     queryFn: () => fetchExternalNodes(source!.id),
     enabled: !!source,
@@ -570,61 +580,207 @@ function ExternalNodesPreview({
         <DialogHeader>
           <DialogTitle>{source?.name} · 已导入节点</DialogTitle>
           <DialogDescription>
-            这里显示规则应用后的最终名称和连接地址，密码等凭据不会在管理接口中返回。
+            取消勾选的节点仍会保留在后台，但不会进入用户订阅。同步时会保留已有选择；上游真正新增的节点默认下发。
           </DialogDescription>
         </DialogHeader>
-        <div className='overflow-hidden rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>协议</TableHead>
-                <TableHead>最终名称</TableHead>
-                <TableHead>最终地址</TableHead>
-                <TableHead>原名称 / 原地址</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className='h-24 text-center'>
-                    加载中…
-                  </TableCell>
-                </TableRow>
-              ) : nodes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className='h-24 text-center'>
-                    没有节点
-                  </TableCell>
-                </TableRow>
-              ) : (
-                nodes.map((node) => (
-                  <TableRow key={node.id}>
-                    <TableCell>
-                      <Badge variant='outline'>{node.type}</Badge>
-                    </TableCell>
-                    <TableCell className='font-medium'>{node.name}</TableCell>
-                    <TableCell className='font-mono text-xs'>
-                      <div>
-                        {node.host}:{node.port}
-                      </div>
-                      {node.dns_target && (
-                        <div className='text-muted-foreground'>
-                          → {node.dns_target}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className='text-xs text-muted-foreground'>
-                      <div>{node.original_name}</div>
-                      <div className='font-mono'>{node.original_host}</div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {isLoading ? (
+          <div className='flex h-28 items-center justify-center text-sm text-muted-foreground'>
+            加载节点…
+          </div>
+        ) : isError ? (
+          <div className='flex h-28 items-center justify-center text-sm text-destructive'>
+            节点列表加载失败，请关闭后重试。
+          </div>
+        ) : nodes.length === 0 ? (
+          <div className='flex h-28 items-center justify-center text-sm text-muted-foreground'>
+            没有节点
+          </div>
+        ) : (
+          <ExternalNodeSelectionEditor
+            key={`${source?.id}:${nodes[0]?.id}:${nodes[nodes.length - 1]?.id}:${nodes.length}`}
+            source={source!}
+            nodes={nodes}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ExternalNodeSelectionEditor({
+  source,
+  nodes,
+}: {
+  source: ExternalNodeSource
+  nodes: Awaited<ReturnType<typeof fetchExternalNodes>>
+}) {
+  const queryClient = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState(
+    () => new Set(nodes.filter((node) => node.enabled).map((node) => node.id))
+  )
+  const filteredNodes = useMemo(() => {
+    const keyword = search.trim().toLocaleLowerCase()
+    if (!keyword) return nodes
+    return nodes.filter((node) =>
+      [
+        node.name,
+        node.original_name,
+        node.host,
+        node.original_host,
+        node.type,
+      ].some((value) => value.toLocaleLowerCase().includes(keyword))
+    )
+  }, [nodes, search])
+  const originalIds = nodes
+    .filter((node) => node.enabled)
+    .map((node) => node.id)
+    .sort((left, right) => left - right)
+  const selectedIds = Array.from(selected).sort((left, right) => left - right)
+  const dirty =
+    originalIds.length !== selectedIds.length ||
+    originalIds.some((id, index) => id !== selectedIds[index])
+  const allSelected = selected.size === nodes.length
+
+  const saveMutation = useMutation({
+    mutationFn: () => saveExternalNodeSelection(source.id, selectedIds),
+    onSuccess: (result) => {
+      toast.success(
+        `已保存，下发 ${result.enabled_node_count} / ${result.node_count} 个节点`
+      )
+      queryClient.setQueryData(
+        ['external-nodes', source.id],
+        nodes.map((node) => ({ ...node, enabled: selected.has(node.id) }))
+      )
+      queryClient.invalidateQueries({ queryKey: ['external-node-sources'] })
+      queryClient.invalidateQueries({ queryKey: ['external-nodes', source.id] })
+    },
+    onError: handleServerError,
+  })
+
+  const toggleNode = (id: number, enabled: boolean) => {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (enabled) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  return (
+    <div className='grid gap-3'>
+      <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='flex items-center gap-2'>
+          <Badge variant='secondary'>
+            当前选择 {selected.size} / {nodes.length}
+          </Badge>
+          <span className='text-xs text-muted-foreground'>
+            只有勾选项会下发
+          </span>
+        </div>
+        <div className='flex flex-wrap gap-2'>
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={() => setSelected(new Set(nodes.map((node) => node.id)))}
+          >
+            全部下发
+          </Button>
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={() => setSelected(new Set())}
+          >
+            全部停发
+          </Button>
+          <Button
+            size='sm'
+            disabled={!dirty || saveMutation.isPending}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? '保存中…' : '保存下发选择'}
+          </Button>
+        </div>
+      </div>
+
+      <Input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder='搜索名称、地址或协议'
+      />
+
+      <div className='max-h-[52vh] overflow-auto rounded-md border'>
+        <Table>
+          <TableHeader className='sticky top-0 z-10 bg-background'>
+            <TableRow>
+              <TableHead className='w-12'>
+                <Checkbox
+                  checked={
+                    allSelected || (selected.size > 0 && 'indeterminate')
+                  }
+                  onCheckedChange={(checked) =>
+                    setSelected(
+                      checked
+                        ? new Set(nodes.map((node) => node.id))
+                        : new Set()
+                    )
+                  }
+                  aria-label='选择全部节点'
+                />
+              </TableHead>
+              <TableHead>协议</TableHead>
+              <TableHead>最终名称</TableHead>
+              <TableHead>最终地址</TableHead>
+              <TableHead>原名称 / 原地址</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredNodes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className='h-24 text-center'>
+                  没有匹配的节点
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredNodes.map((node) => (
+                <TableRow
+                  key={node.id}
+                  className={selected.has(node.id) ? '' : 'opacity-55'}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(node.id)}
+                      onCheckedChange={(checked) =>
+                        toggleNode(node.id, checked === true)
+                      }
+                      aria-label={`下发 ${node.name}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant='outline'>{node.type}</Badge>
+                  </TableCell>
+                  <TableCell className='font-medium'>{node.name}</TableCell>
+                  <TableCell className='font-mono text-xs'>
+                    <div>
+                      {node.host}:{node.port}
+                    </div>
+                    {node.dns_target && (
+                      <div className='text-muted-foreground'>
+                        → {node.dns_target}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className='text-xs text-muted-foreground'>
+                    <div>{node.original_name}</div>
+                    <div className='font-mono'>{node.original_host}</div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   )
 }
 
