@@ -264,7 +264,10 @@ export function clearUsageRecords(params: ClearUsageParams) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== undefined && v !== '' && v !== null) clean[k] = v
   })
-  return post<{ deleted: number }>('/user/clearUsageRecords', clean)
+  return post<{ deleted: number; event_deleted: number }>(
+    '/user/clearUsageRecords',
+    clean
+  )
 }
 
 // ----- 订阅记录（按用户汇总 + 逐次时间）-----

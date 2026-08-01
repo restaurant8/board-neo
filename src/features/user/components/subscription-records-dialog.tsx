@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowLeft,
@@ -7,7 +7,10 @@ import {
   History,
   RefreshCw,
   Search,
+  Trash2,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { handleServerError } from '@/lib/handle-server-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,17 +29,23 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   type SubscriptionRecord,
   type SubscriptionRecordOrderBy,
   type UsageOrderDir,
+  clearUsageRecords,
   fetchSubscriptionRecordEvents,
   fetchSubscriptionRecords,
 } from '../api'
 import { formatTimestamp } from '../format'
 
 const DEFAULT_PAGE_SIZE = 50
+
+type ClearTarget =
+  | { kind: 'filtered'; keyword: string }
+  | { kind: 'user'; record: SubscriptionRecord }
 
 type Props = {
   open: boolean
@@ -49,6 +58,7 @@ export function SubscriptionRecordsDialog({
   onOpenChange,
   prefillKeyword,
 }: Props) {
+  const queryClient = useQueryClient()
   const [keywordInput, setKeywordInput] = useState('')
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
@@ -58,6 +68,7 @@ export function SubscriptionRecordsDialog({
   const [selected, setSelected] = useState<SubscriptionRecord | null>(null)
   const [eventPage, setEventPage] = useState(1)
   const [eventPageSize, setEventPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null)
 
   const [loaded, setLoaded] = useState<{
     open: boolean
@@ -107,6 +118,36 @@ export function SubscriptionRecordsDialog({
         page_size: eventPageSize,
       }),
     enabled: open && !!selected,
+  })
+
+  const clearMutation = useMutation({
+    mutationFn: (target: ClearTarget) =>
+      clearUsageRecords({
+        type: 'subscribe',
+        user_id: target.kind === 'user' ? target.record.user_id : undefined,
+        keyword:
+          target.kind === 'filtered' && target.keyword
+            ? target.keyword
+            : undefined,
+      }),
+    onSuccess: (result, target) => {
+      toast.success(
+        `已清理 ${result.deleted} 条订阅汇总、${result.event_deleted} 条时间明细`
+      )
+      setClearTarget(null)
+      if (target.kind === 'user') {
+        setSelected(null)
+        setEventPage(1)
+      }
+      setPage(1)
+      queryClient.invalidateQueries({ queryKey: ['subscription-records'] })
+      queryClient.invalidateQueries({
+        queryKey: ['subscription-record-events'],
+      })
+      queryClient.invalidateQueries({ queryKey: ['usage-records'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: handleServerError,
   })
 
   const toggleSort = (key: SubscriptionRecordOrderBy) => {
@@ -176,9 +217,18 @@ export function SubscriptionRecordsDialog({
                 {formatTimestamp(selected.record_at)}
               </span>
               <Button
-                variant='outline'
+                variant='destructive'
                 size='sm'
                 className='ms-auto'
+                onClick={() =>
+                  setClearTarget({ kind: 'user', record: selected })
+                }
+              >
+                <Trash2 className='size-4' /> 清理此用户
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
                 onClick={() => eventQuery.refetch()}
               >
                 <RefreshCw className='size-4' /> 刷新
@@ -277,9 +327,18 @@ export function SubscriptionRecordsDialog({
                 </Button>
               )}
               <Button
-                variant='outline'
+                variant='destructive'
                 size='sm'
                 className='ms-auto'
+                disabled={summaryTotal === 0}
+                onClick={() => setClearTarget({ kind: 'filtered', keyword })}
+              >
+                <Trash2 className='size-4' />
+                {keyword ? '清理筛选结果' : '清空全部'}
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
                 onClick={() => summaryQuery.refetch()}
               >
                 <RefreshCw className='size-4' /> 刷新
@@ -364,13 +423,24 @@ export function SubscriptionRecordsDialog({
                         <TableCell className='whitespace-nowrap'>
                           {formatTimestamp(record.record_at)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className='whitespace-nowrap'>
                           <Button
                             variant='outline'
                             size='sm'
                             onClick={() => openEvents(record)}
                           >
                             <History className='size-4' /> 明细
+                          </Button>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='ms-1'
+                            title='清理此用户的订阅记录'
+                            onClick={() =>
+                              setClearTarget({ kind: 'user', record })
+                            }
+                          >
+                            <Trash2 className='size-4 text-destructive' />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -400,6 +470,29 @@ export function SubscriptionRecordsDialog({
           </>
         )}
       </DialogContent>
+      <ConfirmDialog
+        open={!!clearTarget}
+        onOpenChange={(nextOpen) => !nextOpen && setClearTarget(null)}
+        title={
+          clearTarget?.kind === 'user'
+            ? '清理此用户的订阅记录？'
+            : keyword
+              ? '清理当前筛选结果？'
+              : '清空全部订阅记录？'
+        }
+        desc={
+          clearTarget?.kind === 'user'
+            ? `将永久删除 ${clearTarget.record.user_email || `用户 #${clearTarget.record.user_id}`} 的订阅统计和逐次时间明细。`
+            : keyword
+              ? `将永久删除与“${keyword}”匹配用户的订阅统计和逐次时间明细。`
+              : '将永久删除所有用户的订阅统计和逐次时间明细，此操作不可撤销。'
+        }
+        destructive
+        confirmText='确认清理'
+        cancelBtnText='取消'
+        isLoading={clearMutation.isPending}
+        handleConfirm={() => clearTarget && clearMutation.mutate(clearTarget)}
+      />
     </Dialog>
   )
 }
