@@ -208,6 +208,20 @@ export function ExternalNodesPage() {
                           DNS 套壳：{source.dns_alias_domain}
                         </div>
                       )}
+                      {(source.subscription_url || source.manual_uri) && (
+                        <div
+                          className='mt-1 max-w-72 truncate font-mono text-xs text-muted-foreground'
+                          title={
+                            source.type === 'subscription'
+                              ? source.subscription_url || ''
+                              : source.manual_uri || ''
+                          }
+                        >
+                          {source.type === 'subscription'
+                            ? source.subscription_url
+                            : source.manual_uri}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant='outline'>

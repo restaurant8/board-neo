@@ -42,7 +42,20 @@ type Props = {
   dnsZones: ExternalDnsZone[]
 }
 
-const EMPTY_RULE: ExternalNodeRule = { from: '', to: '' }
+/** 逐节点变化的模板变量，模板必须至少含一个，否则同来源下所有节点会重名。 */
+const NAME_TEMPLATE_DISTINGUISHING = [
+  '{name}',
+  '{index}',
+  '{host_label}',
+  '{host}',
+]
+
+const EMPTY_RULE: ExternalNodeRule = {
+  from: '',
+  to: '',
+  mode: 'text',
+  case_sensitive: true,
+}
 
 const defaultForm = (
   current?: ExternalNodeSource | null
@@ -50,8 +63,8 @@ const defaultForm = (
   id: current?.id,
   name: current?.name ?? '',
   type: current?.type ?? 'subscription',
-  subscription_url: '',
-  manual_uri: '',
+  subscription_url: current?.subscription_url ?? '',
+  manual_uri: current?.manual_uri ?? '',
   user_agent: current?.user_agent ?? 'clash-verge-rev',
   group_ids: current?.group_ids.map(Number) ?? [],
   enabled: current?.enabled ?? true,
@@ -63,6 +76,7 @@ const defaultForm = (
   sort: current?.sort ?? 0,
   name_prefix: current?.name_prefix ?? '',
   name_suffix: current?.name_suffix ?? '',
+  name_template: current?.name_template ?? '',
   name_override: current?.name_override ?? '',
   host_override: current?.host_override ?? '',
   name_rules: current?.name_rules ?? [],
@@ -129,6 +143,17 @@ export function ExternalNodeSourceDialog({
       return
     }
     if (
+      form.name_template?.trim() &&
+      !NAME_TEMPLATE_DISTINGUISHING.some((token) =>
+        form.name_template!.includes(token)
+      )
+    ) {
+      toast.error(
+        `名称模板至少需要包含 ${NAME_TEMPLATE_DISTINGUISHING.join(' / ')} 之一，否则节点会重名`
+      )
+      return
+    }
+    if (
       form.dns_alias_enabled &&
       (!form.dns_cloudflare_zone_id || !form.dns_alias_domain)
     ) {
@@ -142,9 +167,12 @@ export function ExternalNodeSourceDialog({
       user_agent: form.user_agent.trim(),
       subscription_url: form.subscription_url?.trim(),
       manual_uri: form.manual_uri?.trim(),
+      name_template: form.name_template?.trim(),
       name_rules: form.name_rules.map((rule) => ({
         from: rule.from,
         to: rule.to,
+        mode: rule.mode ?? 'text',
+        case_sensitive: rule.case_sensitive ?? true,
       })),
       host_rules: form.host_rules.map((rule) => ({
         from: rule.from.trim(),
@@ -202,12 +230,9 @@ export function ExternalNodeSourceDialog({
           {form.type === 'subscription' ? (
             <Field
               label='订阅地址'
-              hint={
-                current ? '留空表示继续使用已加密保存的原地址。' : undefined
-              }
+              hint='以明文保存，编辑时会直接显示完整地址。'
             >
               <Input
-                type='password'
                 autoComplete='off'
                 value={form.subscription_url}
                 onChange={(event) =>
@@ -216,19 +241,13 @@ export function ExternalNodeSourceDialog({
                     subscription_url: event.target.value,
                   }))
                 }
-                placeholder={
-                  current
-                    ? '留空不修改'
-                    : 'https://example.com/api/v1/client/subscribe?...'
-                }
+                placeholder='https://example.com/api/v1/client/subscribe?...'
               />
             </Field>
           ) : (
             <Field
               label='节点链接'
-              hint={
-                current ? '留空表示继续使用已加密保存的原节点链接。' : undefined
-              }
+              hint='以明文保存，编辑时会直接显示完整节点链接和凭据。'
             >
               <Textarea
                 className='min-h-24 font-mono text-xs'
@@ -432,7 +451,7 @@ export function ExternalNodeSourceDialog({
             <div className='mb-4'>
               <h4 className='font-medium'>节点名称规则</h4>
               <p className='text-xs text-muted-foreground'>
-                先按顺序替换文字，再添加前缀和后缀。
+                先按顺序执行文本或正则替换，再应用名称模板，最后添加前缀和后缀。
               </p>
             </div>
             <div className='mb-4 grid gap-3 sm:grid-cols-2'>
@@ -461,12 +480,68 @@ export function ExternalNodeSourceDialog({
                 />
               </Field>
             </div>
+            <div className='mb-4 rounded-md border border-dashed p-3'>
+              <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+                <div>
+                  <Label>强制名称模板</Label>
+                  <p className='text-xs text-muted-foreground'>
+                    支持 {'{name}'}、{'{index}'}、{'{host_label}'}、{'{host}'}、
+                    {'{type}'}、{'{source}'}。不使用 {'{name}'}{' '}
+                    即可彻底隔离上游广告和机场信息。
+                  </p>
+                  <p className='text-xs text-muted-foreground'>
+                    {'{host_label}'} 取连接地址的域名前缀，例如 hk1.baidu.com →
+                    hk1；地址为 IP 时取完整 IP。
+                  </p>
+                </div>
+                <div className='flex shrink-0 gap-2'>
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='outline'
+                    onClick={() =>
+                      setForm((value) => ({
+                        ...value,
+                        name_template: '本站-{host_label}',
+                      }))
+                    }
+                  >
+                    按连接地址命名
+                  </Button>
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='outline'
+                    onClick={() =>
+                      setForm((value) => ({
+                        ...value,
+                        name_template: '本站-{type}-{index}',
+                      }))
+                    }
+                  >
+                    一键隔离上游名称
+                  </Button>
+                </div>
+              </div>
+              <Input
+                value={form.name_template}
+                onChange={(event) =>
+                  setForm((value) => ({
+                    ...value,
+                    name_template: event.target.value,
+                  }))
+                }
+                placeholder='例如：本站-{type}-{index}'
+              />
+            </div>
             <RuleEditor
-              title='名称文字替换'
+              title='名称清理与替换'
+              description='文本规则适合固定广告；正则规则可以持续清理变化的网址、群号和推广内容。'
               rules={form.name_rules}
               onChange={(rules) => setRules('name_rules', rules)}
-              fromPlaceholder='原文字，如：香港'
+              fromPlaceholder='文字或正则，如：https?://\S+'
               toPlaceholder='新文字，如：HK'
+              advancedName
             />
           </div>
 
@@ -574,6 +649,7 @@ function RuleEditor({
   onChange,
   fromPlaceholder,
   toPlaceholder,
+  advancedName = false,
 }: {
   title: string
   description?: string
@@ -581,8 +657,13 @@ function RuleEditor({
   onChange: (rules: ExternalNodeRule[]) => void
   fromPlaceholder: string
   toPlaceholder: string
+  advancedName?: boolean
 }) {
-  const update = (index: number, key: keyof ExternalNodeRule, value: string) =>
+  const update = <Key extends keyof ExternalNodeRule>(
+    index: number,
+    key: Key,
+    value: ExternalNodeRule[Key]
+  ) =>
     onChange(
       rules.map((rule, ruleIndex) =>
         ruleIndex === index ? { ...rule, [key]: value } : rule
@@ -609,7 +690,42 @@ function RuleEditor({
         </Button>
       </div>
       {rules.map((rule, index) => (
-        <div key={index} className='grid grid-cols-[1fr_1fr_auto] gap-2'>
+        <div
+          key={index}
+          className={`grid gap-2 ${advancedName ? 'sm:grid-cols-[150px_1fr_1fr_auto]' : 'sm:grid-cols-[1fr_1fr_auto]'}`}
+        >
+          {advancedName && (
+            <Select
+              value={`${rule.mode ?? 'text'}:${rule.case_sensitive === false ? 'i' : 's'}`}
+              onValueChange={(value) => {
+                const [mode, sensitivity] = value.split(':') as [
+                  'text' | 'regex',
+                  'i' | 's',
+                ]
+                onChange(
+                  rules.map((item, ruleIndex) =>
+                    ruleIndex === index
+                      ? {
+                          ...item,
+                          mode,
+                          case_sensitive: sensitivity === 's',
+                        }
+                      : item
+                  )
+                )
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='text:s'>文字（区分大小写）</SelectItem>
+                <SelectItem value='text:i'>文字（忽略大小写）</SelectItem>
+                <SelectItem value='regex:s'>正则（区分大小写）</SelectItem>
+                <SelectItem value='regex:i'>正则（忽略大小写）</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Input
             value={rule.from}
             onChange={(event) => update(index, 'from', event.target.value)}

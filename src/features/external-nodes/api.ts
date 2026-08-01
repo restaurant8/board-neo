@@ -1,6 +1,11 @@
 import { get, post } from '@/lib/api-client'
 
-export type ExternalNodeRule = { from: string; to: string }
+export type ExternalNodeRule = {
+  from: string
+  to: string
+  mode?: 'text' | 'regex'
+  case_sensitive?: boolean
+}
 
 export type ExternalDnsZone = {
   zone_id: string
@@ -13,6 +18,8 @@ export type ExternalNodeSource = {
   name: string
   type: 'subscription' | 'manual'
   secret_configured: boolean
+  subscription_url: string | null
+  manual_uri: string | null
   user_agent: string
   group_ids: number[]
   enabled: boolean
@@ -25,6 +32,7 @@ export type ExternalNodeSource = {
   sort: number
   name_prefix: string | null
   name_suffix: string | null
+  name_template: string | null
   name_override: string | null
   host_override: string | null
   name_rules: ExternalNodeRule[]
@@ -71,6 +79,7 @@ export type ExternalNodeSourcePayload = {
   sort: number
   name_prefix?: string
   name_suffix?: string
+  name_template?: string
   name_override?: string
   host_override?: string
   name_rules: ExternalNodeRule[]
