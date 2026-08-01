@@ -29,6 +29,7 @@ import {
   Wallet,
   TrendingUp,
   UserCheck,
+  CloudDownload,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -77,6 +78,11 @@ export const sidebarData: SidebarData = {
           items: [
             { title: '服务器管理', url: '/server/machine', icon: Cpu },
             { title: '节点管理', url: '/server/manage', icon: Server },
+            {
+              title: '外部节点来源',
+              url: '/server/external',
+              icon: CloudDownload,
+            },
             { title: '权限组管理', url: '/server/group', icon: Network },
             { title: '路由管理', url: '/server/route', icon: RouteIcon },
             { title: '后端管理', url: '/server/backend', icon: Terminal },
@@ -115,7 +121,11 @@ export const sidebarData: SidebarData = {
           items: [
             { title: '分销看板', url: '/reseller/dashboard', icon: BarChart3 },
             { title: '分站管理', url: '/reseller', icon: Store },
-            { title: '站长申请', url: '/reseller/applications', icon: UserPlus },
+            {
+              title: '站长申请',
+              url: '/reseller/applications',
+              icon: UserPlus,
+            },
             { title: '分站定价', url: '/reseller/pricing', icon: Tag },
             { title: '销量阶梯', url: '/reseller/tiers', icon: TrendingUp },
             { title: '结算总览', url: '/reseller/settlements', icon: Wallet },

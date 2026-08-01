@@ -34,6 +34,13 @@ const formSchema = z.object({
     z.object({
       zone_id: z.string(),
       remark: z.string().optional(),
+      domain: z
+        .string()
+        .regex(
+          /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/,
+          '请输入有效根域名，如 example.com'
+        )
+        .or(z.literal('')),
     })
   ),
 })
@@ -83,6 +90,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
           .map((z) => ({
             zone_id: z.zone_id.trim(),
             remark: (z.remark ?? '').trim(),
+            domain: z.domain.trim().toLowerCase().replace(/\.$/, ''),
           }))
           .filter((z) => z.zone_id),
       }),
@@ -135,7 +143,9 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                   type='button'
                   variant='outline'
                   size='sm'
-                  onClick={() => append({ zone_id: '', remark: '' })}
+                  onClick={() =>
+                    append({ zone_id: '', remark: '', domain: '' })
+                  }
                 >
                   <Plus className='size-4' /> 添加 Zone
                 </Button>
@@ -148,7 +158,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
               {fields.map((f, index) => (
                 <div
                   key={f.id}
-                  className='grid grid-cols-[1fr_2fr_auto] items-start gap-2'
+                  className='grid gap-2 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-start'
                 >
                   <FormField
                     control={form.control}
@@ -156,8 +166,23 @@ export function DnsConfigForm({ config, isLoading }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Input placeholder='如 主域名 example.com' {...field} />
+                          <Input placeholder='备注，如 主线路' {...field} />
                         </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`zones.${index}.domain`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            placeholder='根域名，如 example.com'
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -225,10 +250,7 @@ export function DnsConfigForm({ config, isLoading }: Props) {
             </div>
 
             <div>
-              <Button
-                type='submit'
-                disabled={mutation.isPending || isLoading}
-              >
+              <Button type='submit' disabled={mutation.isPending || isLoading}>
                 保存全局配置
               </Button>
             </div>

@@ -4,6 +4,7 @@ import { get, post } from '@/lib/api-client'
 export type CloudflareDnsZone = {
   zone_id: string
   remark: string
+  domain: string
 }
 
 /** 流失召回层级配置。 */

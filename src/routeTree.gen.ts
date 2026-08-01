@@ -45,6 +45,7 @@ import { Route as AuthenticatedServerRouteIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedServerManageIndexRouteImport } from './routes/_authenticated/server/manage/index'
 import { Route as AuthenticatedServerMachineIndexRouteImport } from './routes/_authenticated/server/machine/index'
 import { Route as AuthenticatedServerGroupIndexRouteImport } from './routes/_authenticated/server/group/index'
+import { Route as AuthenticatedServerExternalIndexRouteImport } from './routes/_authenticated/server/external/index'
 import { Route as AuthenticatedServerDnsIndexRouteImport } from './routes/_authenticated/server/dns/index'
 import { Route as AuthenticatedServerBackendIndexRouteImport } from './routes/_authenticated/server/backend/index'
 
@@ -251,6 +252,12 @@ const AuthenticatedServerGroupIndexRoute =
     path: '/server/group/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedServerExternalIndexRoute =
+  AuthenticatedServerExternalIndexRouteImport.update({
+    id: '/server/external/',
+    path: '/server/external/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedServerDnsIndexRoute =
   AuthenticatedServerDnsIndexRouteImport.update({
     id: '/server/dns/',
@@ -298,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/winback/': typeof AuthenticatedWinbackIndexRoute
   '/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns/': typeof AuthenticatedServerDnsIndexRoute
+  '/server/external/': typeof AuthenticatedServerExternalIndexRoute
   '/server/group/': typeof AuthenticatedServerGroupIndexRoute
   '/server/machine/': typeof AuthenticatedServerMachineIndexRoute
   '/server/manage/': typeof AuthenticatedServerManageIndexRoute
@@ -337,6 +345,7 @@ export interface FileRoutesByTo {
   '/winback': typeof AuthenticatedWinbackIndexRoute
   '/server/backend': typeof AuthenticatedServerBackendIndexRoute
   '/server/dns': typeof AuthenticatedServerDnsIndexRoute
+  '/server/external': typeof AuthenticatedServerExternalIndexRoute
   '/server/group': typeof AuthenticatedServerGroupIndexRoute
   '/server/machine': typeof AuthenticatedServerMachineIndexRoute
   '/server/manage': typeof AuthenticatedServerManageIndexRoute
@@ -378,6 +387,7 @@ export interface FileRoutesById {
   '/_authenticated/winback/': typeof AuthenticatedWinbackIndexRoute
   '/_authenticated/server/backend/': typeof AuthenticatedServerBackendIndexRoute
   '/_authenticated/server/dns/': typeof AuthenticatedServerDnsIndexRoute
+  '/_authenticated/server/external/': typeof AuthenticatedServerExternalIndexRoute
   '/_authenticated/server/group/': typeof AuthenticatedServerGroupIndexRoute
   '/_authenticated/server/machine/': typeof AuthenticatedServerMachineIndexRoute
   '/_authenticated/server/manage/': typeof AuthenticatedServerManageIndexRoute
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/winback/'
     | '/server/backend/'
     | '/server/dns/'
+    | '/server/external/'
     | '/server/group/'
     | '/server/machine/'
     | '/server/manage/'
@@ -458,6 +469,7 @@ export interface FileRouteTypes {
     | '/winback'
     | '/server/backend'
     | '/server/dns'
+    | '/server/external'
     | '/server/group'
     | '/server/machine'
     | '/server/manage'
@@ -498,6 +510,7 @@ export interface FileRouteTypes {
     | '/_authenticated/winback/'
     | '/_authenticated/server/backend/'
     | '/_authenticated/server/dns/'
+    | '/_authenticated/server/external/'
     | '/_authenticated/server/group/'
     | '/_authenticated/server/machine/'
     | '/_authenticated/server/manage/'
@@ -768,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServerGroupIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server/external/': {
+      id: '/_authenticated/server/external/'
+      path: '/server/external'
+      fullPath: '/server/external/'
+      preLoaderRoute: typeof AuthenticatedServerExternalIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/server/dns/': {
       id: '/_authenticated/server/dns/'
       path: '/server/dns'
@@ -813,6 +833,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedWinbackIndexRoute: typeof AuthenticatedWinbackIndexRoute
   AuthenticatedServerBackendIndexRoute: typeof AuthenticatedServerBackendIndexRoute
   AuthenticatedServerDnsIndexRoute: typeof AuthenticatedServerDnsIndexRoute
+  AuthenticatedServerExternalIndexRoute: typeof AuthenticatedServerExternalIndexRoute
   AuthenticatedServerGroupIndexRoute: typeof AuthenticatedServerGroupIndexRoute
   AuthenticatedServerMachineIndexRoute: typeof AuthenticatedServerMachineIndexRoute
   AuthenticatedServerManageIndexRoute: typeof AuthenticatedServerManageIndexRoute
@@ -848,6 +869,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWinbackIndexRoute: AuthenticatedWinbackIndexRoute,
   AuthenticatedServerBackendIndexRoute: AuthenticatedServerBackendIndexRoute,
   AuthenticatedServerDnsIndexRoute: AuthenticatedServerDnsIndexRoute,
+  AuthenticatedServerExternalIndexRoute: AuthenticatedServerExternalIndexRoute,
   AuthenticatedServerGroupIndexRoute: AuthenticatedServerGroupIndexRoute,
   AuthenticatedServerMachineIndexRoute: AuthenticatedServerMachineIndexRoute,
   AuthenticatedServerManageIndexRoute: AuthenticatedServerManageIndexRoute,

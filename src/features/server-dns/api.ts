@@ -3,6 +3,7 @@ import { get, post } from '@/lib/api-client'
 export type DnsZone = {
   zone_id: string
   remark: string
+  domain: string
 }
 
 /** GET /server/dns/config 返回的全局 Cloudflare 配置。 */
