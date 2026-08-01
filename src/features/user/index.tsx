@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Filter,
+  History,
   Mail,
   MoreHorizontal,
   Pencil,
@@ -73,6 +74,7 @@ import {
 import { UserEditDialog } from './components/user-edit-dialog'
 import { UserGenerateDialog } from './components/user-generate-dialog'
 import { UserSendMailDialog } from './components/user-send-mail-dialog'
+import { SubscriptionRecordsDialog } from './components/subscription-records-dialog'
 import { UsageRecordsDialog } from './components/usage-records-dialog'
 import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
 import { UserTrafficDialog } from './components/user-traffic-dialog'
@@ -173,6 +175,10 @@ export function UserPage() {
   const [mailOpen, setMailOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
   const [usagePrefill, setUsagePrefill] = useState<string | undefined>(undefined)
+  const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
+  const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] = useState<
+    string | undefined
+  >(undefined)
   const [deleting, setDeleting] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
@@ -332,6 +338,11 @@ export function UserPage() {
     setUsageOpen(true)
   }
 
+  const openSubscriptionRecordsForUser = (u: User) => {
+    setSubscriptionRecordsPrefill(u.email)
+    setSubscriptionRecordsOpen(true)
+  }
+
   const copyUrl = (u: User) => {
     if (!u.subscribe_url) {
       toast.error('暂无订阅地址')
@@ -362,6 +373,15 @@ export function UserPage() {
             </p>
           </div>
           <div className='flex flex-wrap gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => {
+                setSubscriptionRecordsPrefill(undefined)
+                setSubscriptionRecordsOpen(true)
+              }}
+            >
+              <History className='size-4' /> 订阅记录
+            </Button>
             <Button
               variant='outline'
               onClick={() => {
@@ -816,6 +836,11 @@ export function UserPage() {
                               <Clock className='size-4' /> TA的流量记录
                             </DropdownMenuItem>
                             <DropdownMenuItem
+                              onClick={() => openSubscriptionRecordsForUser(u)}
+                            >
+                              <History className='size-4' /> 订阅记录
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               onClick={() => openUsageForUser(u)}
                             >
                               <ScrollText className='size-4' /> 使用记录
@@ -889,6 +914,11 @@ export function UserPage() {
         open={usageOpen}
         onOpenChange={setUsageOpen}
         prefillKeyword={usagePrefill}
+      />
+      <SubscriptionRecordsDialog
+        open={subscriptionRecordsOpen}
+        onOpenChange={setSubscriptionRecordsOpen}
+        prefillKeyword={subscriptionRecordsPrefill}
       />
 
       <UserAssignOrderDialog

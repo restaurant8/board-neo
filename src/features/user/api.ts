@@ -267,6 +267,76 @@ export function clearUsageRecords(params: ClearUsageParams) {
   return post<{ deleted: number }>('/user/clearUsageRecords', clean)
 }
 
+// ----- 订阅记录（按用户汇总 + 逐次时间）-----
+
+export type SubscriptionRecordOrderBy = 'count' | 'first_at' | 'record_at'
+
+export type SubscriptionRecord = {
+  user_id: number
+  user_email: string | null
+  subscribe_count: number
+  ip_count: number
+  first_at: number
+  record_at: number
+  last_ip: string
+  last_location: string
+  last_ua: string
+  event_count: number
+}
+
+export type SubscriptionRecordsResult = {
+  data: SubscriptionRecord[]
+  total: number
+  page: number
+  page_size: number
+  event_history_available: boolean
+}
+
+export type SubscriptionRecordsParams = {
+  keyword?: string
+  order_by?: SubscriptionRecordOrderBy
+  order_dir?: UsageOrderDir
+  page?: number
+  page_size?: number
+}
+
+/** GET /user/subscriptionRecords — 按用户汇总订阅次数和时间。 */
+export function fetchSubscriptionRecords(params: SubscriptionRecordsParams) {
+  const clean: Record<string, unknown> = {}
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v
+  })
+  return get<SubscriptionRecordsResult>('/user/subscriptionRecords', clean)
+}
+
+export type SubscriptionRecordEvent = {
+  id: number
+  user_id: number
+  ip: string
+  location: string
+  ua: string
+  record_at: number
+}
+
+export type SubscriptionRecordEventsResult = {
+  data: SubscriptionRecordEvent[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/** GET /user/subscriptionRecordEvents — 某个用户升级后的逐次订阅时间。 */
+export function fetchSubscriptionRecordEvents(params: {
+  user_id: number
+  page?: number
+  page_size?: number
+}) {
+  return get<SubscriptionRecordEventsResult>(
+    '/user/subscriptionRecordEvents',
+    params
+  )
+}
+
 // ----- 分配订单（OrderController::assign，复用 order 模块语义）-----
 
 /**
