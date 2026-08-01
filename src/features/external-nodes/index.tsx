@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, Pencil, Plus, RefreshCw, RotateCw, Trash2 } from 'lucide-react'
+import {
+  Eye,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCw,
+  Settings2,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Badge } from '@/components/ui/badge'
@@ -30,13 +38,23 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { fetchServerGroups } from '@/features/server-group/api'
 import {
   type ExternalNodeSource,
+  type ExternalPullProxySettings,
   dropExternalNodeSource,
   fetchExternalNodeSources,
   fetchExternalNodes,
   syncAllExternalNodeSources,
   syncExternalNodeSource,
 } from './api'
+import { ExternalPullProxyDialog } from './components/proxy-dialog'
 import { ExternalNodeSourceDialog } from './components/source-dialog'
+
+const EMPTY_PULL_PROXY: ExternalPullProxySettings = {
+  enabled: false,
+  host: '',
+  port: 1080,
+  username: '',
+  password_configured: false,
+}
 
 export function ExternalNodesPage() {
   const queryClient = useQueryClient()
@@ -44,10 +62,19 @@ export function ExternalNodesPage() {
   const [current, setCurrent] = useState<ExternalNodeSource | null>(null)
   const [preview, setPreview] = useState<ExternalNodeSource | null>(null)
   const [deleting, setDeleting] = useState<ExternalNodeSource | null>(null)
+  const [proxyDialogOpen, setProxyDialogOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['external-node-sources'],
     queryFn: fetchExternalNodeSources,
+    refetchInterval: (query) =>
+      query.state.data?.sources.some(
+        (source) =>
+          source.last_sync_status === 'pending' &&
+          Date.now() / 1000 - source.updated_at < 16 * 60
+      )
+        ? 2000
+        : false,
   })
   const { data: groups = [] } = useQuery({
     queryKey: ['server-groups'],
@@ -62,9 +89,13 @@ export function ExternalNodesPage() {
   const syncMutation = useMutation({
     mutationFn: syncExternalNodeSource,
     onSuccess: (result) => {
-      toast.success(
-        `更新完成，共 ${result.node_count} 个节点${result.skipped_count > 0 ? `，跳过 ${result.skipped_count} 个异常节点` : ''}`
-      )
+      if (result.queued) {
+        toast.success('更新任务已提交到后台')
+      } else {
+        toast.success(
+          `更新完成，共 ${result.node_count} 个节点${result.skipped_count > 0 ? `，跳过 ${result.skipped_count} 个异常节点` : ''}`
+        )
+      }
       queryClient.invalidateQueries({ queryKey: ['external-node-sources'] })
       queryClient.invalidateQueries({ queryKey: ['external-nodes'] })
     },
@@ -122,6 +153,13 @@ export function ExternalNodesPage() {
             </p>
           </div>
           <div className='flex gap-2'>
+            <Button variant='outline' onClick={() => setProxyDialogOpen(true)}>
+              <Settings2 className='mr-2 size-4' />
+              拉取代理
+              {data?.pull_proxy.enabled && (
+                <span className='ml-1 text-xs text-emerald-600'>已启用</span>
+              )}
+            </Button>
             <Button
               variant='outline'
               onClick={() => syncAllMutation.mutate()}
@@ -201,6 +239,12 @@ export function ExternalNodesPage() {
                         <div className='text-xs text-muted-foreground'>
                           自动更新：
                           {formatInterval(source.sync_interval_minutes)}
+                        </div>
+                      )}
+                      {source.type === 'subscription' && (
+                        <div className='text-xs text-muted-foreground'>
+                          拉取：
+                          {proxyModeLabel(source, !!data.pull_proxy?.enabled)}
                         </div>
                       )}
                       {source.dns_alias_enabled && source.dns_alias_domain && (
@@ -292,8 +336,9 @@ export function ExternalNodesPage() {
                         >
                           <RotateCw
                             className={`size-4 ${
-                              syncMutation.isPending &&
-                              syncMutation.variables === source.id
+                              (syncMutation.isPending &&
+                                syncMutation.variables === source.id) ||
+                              source.last_sync_status === 'pending'
                                 ? 'animate-spin'
                                 : ''
                             }`}
@@ -340,6 +385,18 @@ export function ExternalNodesPage() {
           groups={groups}
           userAgentPresets={data?.user_agent_presets ?? {}}
           dnsZones={data?.dns_zones ?? []}
+          pullProxy={data?.pull_proxy ?? EMPTY_PULL_PROXY}
+        />
+      )}
+      {proxyDialogOpen && (
+        <ExternalPullProxyDialog
+          open
+          onOpenChange={setProxyDialogOpen}
+          current={data?.pull_proxy ?? EMPTY_PULL_PROXY}
+          testSource={data?.sources.find(
+            (source) =>
+              source.type === 'subscription' && !!source.subscription_url
+          )}
         />
       )}
       <ExternalNodesPreview
@@ -361,7 +418,16 @@ export function ExternalNodesPage() {
   )
 }
 
+function proxyModeLabel(source: ExternalNodeSource, globalEnabled: boolean) {
+  if (source.proxy_mode === 'direct') return '强制直连'
+  if (source.proxy_mode === 'socks5') return '独立 SOCKS5'
+  return globalEnabled ? '统一 SOCKS5' : '直连（继承统一设置）'
+}
+
 function SyncStatus({ source }: { source: ExternalNodeSource }) {
+  if (source.last_sync_status === 'pending') {
+    return <Badge variant='secondary'>同步中</Badge>
+  }
   if (source.last_sync_status === 'success') {
     return (
       <Badge className='border-emerald-200 bg-emerald-50 text-emerald-700'>

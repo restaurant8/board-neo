@@ -30,7 +30,9 @@ import {
   type ExternalNodeRule,
   type ExternalNodeSource,
   type ExternalNodeSourcePayload,
+  type ExternalPullProxySettings,
   saveExternalNodeSource,
+  testExternalPullProxy,
 } from '../api'
 
 type Props = {
@@ -40,15 +42,14 @@ type Props = {
   groups: ServerGroup[]
   userAgentPresets: Record<string, string>
   dnsZones: ExternalDnsZone[]
+  pullProxy: ExternalPullProxySettings
 }
 
-/** 逐节点变化的模板变量，模板必须至少含一个，否则同来源下所有节点会重名。 */
-const NAME_TEMPLATE_DISTINGUISHING = [
-  '{name}',
-  '{index}',
-  '{host_label}',
-  '{host}',
-]
+/**
+ * 逐节点必定不同的模板变量，模板必须至少含一个。
+ * {host_label} 与 {host} 不算：同一台上游主机的多个节点会取到相同值。
+ */
+const NAME_TEMPLATE_DISTINGUISHING = ['{name}', '{index}']
 
 const EMPTY_RULE: ExternalNodeRule = {
   from: '',
@@ -66,6 +67,11 @@ const defaultForm = (
   subscription_url: current?.subscription_url ?? '',
   manual_uri: current?.manual_uri ?? '',
   user_agent: current?.user_agent ?? 'clash-verge-rev',
+  proxy_mode: current?.proxy_mode ?? 'inherit',
+  proxy_host: current?.proxy_host ?? '',
+  proxy_port: current?.proxy_port ?? 1080,
+  proxy_username: current?.proxy_username ?? '',
+  proxy_password: '',
   group_ids: current?.group_ids.map(Number) ?? [],
   enabled: current?.enabled ?? true,
   dns_alias_enabled: current?.dns_alias_enabled ?? false,
@@ -80,6 +86,7 @@ const defaultForm = (
   name_override: current?.name_override ?? '',
   host_override: current?.host_override ?? '',
   name_rules: current?.name_rules ?? [],
+  host_label_mappings: current?.host_label_mappings ?? [],
   host_rules: current?.host_rules ?? [],
 })
 
@@ -90,6 +97,7 @@ export function ExternalNodeSourceDialog({
   groups,
   userAgentPresets,
   dnsZones,
+  pullProxy,
 }: Props) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<ExternalNodeSourcePayload>(() =>
@@ -105,14 +113,52 @@ export function ExternalNodeSourceDialog({
   const mutation = useMutation({
     mutationFn: saveExternalNodeSource,
     onSuccess: (result) => {
-      toast.success(
-        `已保存并同步 ${result.sync.node_count} 个节点${result.sync.skipped_count > 0 ? `，跳过 ${result.sync.skipped_count} 个异常节点` : ''}`
-      )
+      if (result.sync.queued) {
+        toast.success('已保存，节点同步任务已在后台开始')
+      } else {
+        toast.success(
+          `已保存并同步 ${result.sync.node_count} 个节点${result.sync.skipped_count > 0 ? `，跳过 ${result.sync.skipped_count} 个异常节点` : ''}`
+        )
+      }
       queryClient.invalidateQueries({ queryKey: ['external-node-sources'] })
       onOpenChange(false)
     },
     onError: handleServerError,
   })
+
+  const proxyTestMutation = useMutation({
+    mutationFn: testExternalPullProxy,
+    onSuccess: (result) => {
+      toast.success(
+        `${result.via_proxy ? '代理' : '直连'}拉取成功，收到 ${formatBytes(result.bytes)}，耗时 ${result.elapsed_ms}ms`
+      )
+    },
+    onError: handleServerError,
+  })
+
+  const validateProxy = () => {
+    if (form.type !== 'subscription' || form.proxy_mode !== 'socks5') {
+      return true
+    }
+    if (!form.proxy_host?.trim()) {
+      toast.error('请输入 SOCKS5 代理地址')
+      return false
+    }
+    if (!form.proxy_port || form.proxy_port < 1 || form.proxy_port > 65535) {
+      toast.error('请输入有效的 SOCKS5 代理端口')
+      return false
+    }
+    if (!!form.proxy_username?.trim() !== !!form.proxy_password?.trim()) {
+      const keepingExistingPassword =
+        !!current?.proxy_password_configured &&
+        form.proxy_username?.trim() === current.proxy_username
+      if (!keepingExistingPassword) {
+        toast.error('SOCKS5 代理用户名和密码必须同时填写')
+        return false
+      }
+    }
+    return true
+  }
 
   const submit = () => {
     if (!form.name.trim()) {
@@ -123,6 +169,7 @@ export function ExternalNodeSourceDialog({
       toast.error('请输入拉取订阅使用的 User-Agent')
       return
     }
+    if (!validateProxy()) return
     if (form.group_ids.length === 0) {
       toast.error('至少选择一个权限组')
       return
@@ -137,6 +184,9 @@ export function ExternalNodeSourceDialog({
     }
     if (
       form.name_rules.some((rule) => !rule.from.trim()) ||
+      form.host_label_mappings.some(
+        (rule) => !rule.from.trim() || !rule.to.trim()
+      ) ||
       form.host_rules.some((rule) => !rule.from.trim() || !rule.to.trim())
     ) {
       toast.error('请补全或删除空的替换规则')
@@ -154,6 +204,13 @@ export function ExternalNodeSourceDialog({
       return
     }
     if (
+      form.host_label_mappings.length > 0 &&
+      !form.name_template?.includes('{host_label}')
+    ) {
+      toast.error('使用地址前缀映射时，名称模板必须包含 {host_label}')
+      return
+    }
+    if (
       form.dns_alias_enabled &&
       (!form.dns_cloudflare_zone_id || !form.dns_alias_domain)
     ) {
@@ -163,6 +220,7 @@ export function ExternalNodeSourceDialog({
 
     mutation.mutate({
       ...form,
+      async_sync: true,
       name: form.name.trim(),
       user_agent: form.user_agent.trim(),
       subscription_url: form.subscription_url?.trim(),
@@ -182,9 +240,27 @@ export function ExternalNodeSourceDialog({
   }
 
   const setRules = (
-    key: 'name_rules' | 'host_rules',
+    key: 'name_rules' | 'host_label_mappings' | 'host_rules',
     rules: ExternalNodeRule[]
   ) => setForm((value) => ({ ...value, [key]: rules }))
+
+  const testProxy = () => {
+    if (!form.subscription_url?.trim()) {
+      toast.error('请先输入订阅地址')
+      return
+    }
+    if (!form.user_agent.trim() || !validateProxy()) return
+    proxyTestMutation.mutate({
+      source_id: current?.id,
+      subscription_url: form.subscription_url.trim(),
+      user_agent: form.user_agent.trim(),
+      proxy_mode: form.proxy_mode,
+      proxy_host: form.proxy_host?.trim(),
+      proxy_port: form.proxy_port,
+      proxy_username: form.proxy_username?.trim(),
+      proxy_password: form.proxy_password,
+    })
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,7 +378,7 @@ export function ExternalNodeSourceDialog({
             </Field>
             <Field
               label='排序值'
-              hint='数值越小越靠前；外部节点整体排在本站节点之后。'
+              hint='与本站节点共用同一排序空间，数值越小越靠前；同一来源内保持上游顺序。'
             >
               <Input
                 type='number'
@@ -354,48 +430,147 @@ export function ExternalNodeSourceDialog({
           </Field>
 
           {form.type === 'subscription' && (
-            <div className='grid gap-4 rounded-md border p-4 sm:grid-cols-[1fr_220px] sm:items-center'>
-              <div className='flex items-center justify-between gap-4 sm:justify-start'>
-                <Switch
-                  id='external-source-auto-sync'
-                  checked={form.auto_sync}
-                  onCheckedChange={(auto_sync) =>
-                    setForm((value) => ({ ...value, auto_sync }))
-                  }
-                />
-                <div>
-                  <Label htmlFor='external-source-auto-sync'>
-                    自动拉取上游订阅
-                  </Label>
-                  <p className='text-xs text-muted-foreground'>
-                    到期后由后台队列更新，并重新应用全部名称和地址规则。
-                  </p>
+            <>
+              <div className='grid gap-4 rounded-md border p-4 sm:grid-cols-[1fr_220px] sm:items-center'>
+                <div className='flex items-center justify-between gap-4 sm:justify-start'>
+                  <Switch
+                    id='external-source-auto-sync'
+                    checked={form.auto_sync}
+                    onCheckedChange={(auto_sync) =>
+                      setForm((value) => ({ ...value, auto_sync }))
+                    }
+                  />
+                  <div>
+                    <Label htmlFor='external-source-auto-sync'>
+                      自动拉取上游订阅
+                    </Label>
+                    <p className='text-xs text-muted-foreground'>
+                      到期后由后台队列更新，并重新应用全部名称和地址规则。
+                    </p>
+                  </div>
                 </div>
+                <Select
+                  disabled={!form.auto_sync}
+                  value={String(form.sync_interval_minutes)}
+                  onValueChange={(value) =>
+                    setForm((formValue) => ({
+                      ...formValue,
+                      sync_interval_minutes: Number(value),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='15'>每 15 分钟</SelectItem>
+                    <SelectItem value='30'>每 30 分钟</SelectItem>
+                    <SelectItem value='60'>每 1 小时</SelectItem>
+                    <SelectItem value='180'>每 3 小时</SelectItem>
+                    <SelectItem value='360'>每 6 小时</SelectItem>
+                    <SelectItem value='720'>每 12 小时</SelectItem>
+                    <SelectItem value='1440'>每天</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                disabled={!form.auto_sync}
-                value={String(form.sync_interval_minutes)}
-                onValueChange={(value) =>
-                  setForm((formValue) => ({
-                    ...formValue,
-                    sync_interval_minutes: Number(value),
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='15'>每 15 分钟</SelectItem>
-                  <SelectItem value='30'>每 30 分钟</SelectItem>
-                  <SelectItem value='60'>每 1 小时</SelectItem>
-                  <SelectItem value='180'>每 3 小时</SelectItem>
-                  <SelectItem value='360'>每 6 小时</SelectItem>
-                  <SelectItem value='720'>每 12 小时</SelectItem>
-                  <SelectItem value='1440'>每天</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+              <div className='rounded-md border p-4'>
+                <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
+                  <Field
+                    label='订阅拉取方式'
+                    hint={`只影响这个来源；统一代理当前${pullProxy.enabled ? '已启用' : '未启用'}。`}
+                  >
+                    <Select
+                      value={form.proxy_mode}
+                      onValueChange={(proxy_mode: typeof form.proxy_mode) =>
+                        setForm((value) => ({ ...value, proxy_mode }))
+                      }
+                    >
+                      <SelectTrigger className='sm:w-64'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='inherit'>使用统一设置</SelectItem>
+                        <SelectItem value='direct'>强制直连</SelectItem>
+                        <SelectItem value='socks5'>独立 SOCKS5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    disabled={proxyTestMutation.isPending}
+                    onClick={testProxy}
+                  >
+                    {proxyTestMutation.isPending ? '测试中…' : '测试拉取'}
+                  </Button>
+                </div>
+
+                {form.proxy_mode === 'socks5' && (
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    <Field label='代理地址'>
+                      <Input
+                        value={form.proxy_host}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            proxy_host: event.target.value,
+                          }))
+                        }
+                        placeholder='127.0.0.1 或 proxy.example.com'
+                      />
+                    </Field>
+                    <Field label='代理端口'>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={65535}
+                        value={form.proxy_port}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            proxy_port: Number(event.target.value),
+                          }))
+                        }
+                        placeholder='1080'
+                      />
+                    </Field>
+                    <Field label='用户名（可选）'>
+                      <Input
+                        autoComplete='off'
+                        value={form.proxy_username}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            proxy_username: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                    <Field
+                      label='密码（可选）'
+                      hint={
+                        current?.proxy_password_configured
+                          ? '已保存；留空保持原密码。清空用户名可移除认证。'
+                          : undefined
+                      }
+                    >
+                      <Input
+                        type='password'
+                        autoComplete='new-password'
+                        value={form.proxy_password}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            proxy_password: event.target.value,
+                          }))
+                        }
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           <div className='grid gap-4 rounded-md border p-4 sm:grid-cols-[1fr_260px] sm:items-center'>
@@ -491,7 +666,9 @@ export function ExternalNodeSourceDialog({
                   </p>
                   <p className='text-xs text-muted-foreground'>
                     {'{host_label}'} 取连接地址的域名前缀，例如 hk1.baidu.com →
-                    hk1；地址为 IP 时取完整 IP。
+                    hk1；地址为 IP 时取完整
+                    IP。它在同一台上游主机的多个节点上取值相同，需搭配{' '}
+                    {'{index}'} 才能区分。
                   </p>
                 </div>
                 <div className='flex shrink-0 gap-2'>
@@ -502,7 +679,7 @@ export function ExternalNodeSourceDialog({
                     onClick={() =>
                       setForm((value) => ({
                         ...value,
-                        name_template: '本站-{host_label}',
+                        name_template: '本站-{host_label}-{index}',
                       }))
                     }
                   >
@@ -532,6 +709,16 @@ export function ExternalNodeSourceDialog({
                   }))
                 }
                 placeholder='例如：本站-{type}-{index}'
+              />
+            </div>
+            <div className='mb-4 rounded-md border border-dashed p-3'>
+              <RuleEditor
+                title='连接地址前缀名称映射'
+                description='配合 {host_label} 使用；例如 jp1.baidu.com 的前缀 jp1 映射为“日本01”，未配置的前缀保持原样。'
+                rules={form.host_label_mappings}
+                onChange={(rules) => setRules('host_label_mappings', rules)}
+                fromPlaceholder='地址前缀，如：jp1'
+                toPlaceholder='显示名称，如：日本01'
               />
             </div>
             <RuleEditor
@@ -640,6 +827,12 @@ function Field({
       {hint && <p className='text-xs text-muted-foreground'>{hint}</p>}
     </div>
   )
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 function RuleEditor({

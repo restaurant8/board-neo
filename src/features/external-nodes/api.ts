@@ -13,6 +13,16 @@ export type ExternalDnsZone = {
   domain: string
 }
 
+export type ExternalPullProxySettings = {
+  enabled: boolean
+  host: string
+  port: number
+  username: string
+  password_configured: boolean
+}
+
+export type ExternalProxyMode = 'inherit' | 'direct' | 'socks5'
+
 export type ExternalNodeSource = {
   id: number
   name: string
@@ -21,6 +31,11 @@ export type ExternalNodeSource = {
   subscription_url: string | null
   manual_uri: string | null
   user_agent: string
+  proxy_mode: ExternalProxyMode
+  proxy_host: string | null
+  proxy_port: number | null
+  proxy_username: string | null
+  proxy_password_configured: boolean
   group_ids: number[]
   enabled: boolean
   dns_alias_enabled: boolean
@@ -36,9 +51,10 @@ export type ExternalNodeSource = {
   name_override: string | null
   host_override: string | null
   name_rules: ExternalNodeRule[]
+  host_label_mappings: ExternalNodeRule[]
   host_rules: ExternalNodeRule[]
   last_sync_at: number | null
-  last_sync_status: 'success' | 'failed' | null
+  last_sync_status: 'pending' | 'success' | 'failed' | null
   consecutive_failures: number
   last_sync_error: string | null
   node_count: number
@@ -64,11 +80,17 @@ export type ExternalNode = {
 
 export type ExternalNodeSourcePayload = {
   id?: number
+  async_sync?: boolean
   name: string
   type: 'subscription' | 'manual'
   subscription_url?: string
   manual_uri?: string
   user_agent: string
+  proxy_mode: ExternalProxyMode
+  proxy_host?: string
+  proxy_port?: number
+  proxy_username?: string
+  proxy_password?: string
   group_ids: number[]
   enabled: boolean
   dns_alias_enabled: boolean
@@ -83,19 +105,33 @@ export type ExternalNodeSourcePayload = {
   name_override?: string
   host_override?: string
   name_rules: ExternalNodeRule[]
+  host_label_mappings: ExternalNodeRule[]
   host_rules: ExternalNodeRule[]
 }
 
 export type ExternalNodeSourcesResult = {
   sources: ExternalNodeSource[]
   user_agent_presets: Record<string, string>
+  pull_proxy: ExternalPullProxySettings
   dns_zones: ExternalDnsZone[]
 }
 
 export type ExternalNodeSyncResult = {
+  queued?: boolean
   node_count: number
   skipped_count: number
-  synced_at: number
+  synced_at: number | null
+}
+
+export type ExternalProxyTestPayload = {
+  source_id?: number
+  subscription_url: string
+  user_agent: string
+  proxy_mode: ExternalProxyMode
+  proxy_host?: string
+  proxy_port?: number
+  proxy_username?: string
+  proxy_password?: string
 }
 
 export function fetchExternalNodeSources() {
@@ -116,7 +152,10 @@ export function saveExternalNodeSource(payload: ExternalNodeSourcePayload) {
 }
 
 export function syncExternalNodeSource(id: number) {
-  return post<ExternalNodeSyncResult>('/server/external/sync', { id })
+  return post<ExternalNodeSyncResult>('/server/external/sync', {
+    id,
+    async_sync: true,
+  })
 }
 
 export function syncAllExternalNodeSources() {
@@ -125,6 +164,24 @@ export function syncAllExternalNodeSources() {
     dispatch_failed_count: number
     failed: Array<{ id: number; name: string; error: string }>
   }>('/server/external/syncAll')
+}
+
+export function saveExternalPullProxy(payload: {
+  enabled: boolean
+  host?: string
+  port?: number
+  username?: string
+  password?: string
+  clear_password?: boolean
+}) {
+  return post<ExternalPullProxySettings>('/server/external/saveProxy', payload)
+}
+
+export function testExternalPullProxy(payload: ExternalProxyTestPayload) {
+  return post<{ bytes: number; elapsed_ms: number; via_proxy: boolean }>(
+    '/server/external/testProxy',
+    payload
+  )
 }
 
 export function dropExternalNodeSource(id: number) {
