@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2, FileText } from 'lucide-react'
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -157,6 +157,10 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
       sell: true,
       force_update: false,
     },
+  })
+  const forceUpdateEnabled = useWatch({
+    control: form.control,
+    name: 'force_update',
   })
 
   // 按基础月价自动推算各周期价格（对齐原版，输入非法/空时不动）
@@ -752,7 +756,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
             </Form>
           </div>
         </div>
-        <DialogFooter className='flex-shrink-0 gap-3 border-t px-6 py-4 sm:items-center sm:justify-between'>
+        <DialogFooter className='flex-shrink-0 flex-col gap-3 border-t px-6 py-4 sm:flex-col sm:items-stretch sm:justify-start sm:space-x-0'>
           <div className='flex items-center gap-2'>
             {isEdit && (
               <Form {...form}>
@@ -776,7 +780,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
               </Form>
             )}
           </div>
-          <div className='flex flex-wrap items-center justify-end gap-2'>
+          <div className='flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end'>
             <Button
               variant='ghost'
               className='h-8 px-4 text-xs font-bold'
@@ -806,7 +810,11 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
               className='h-8 px-8 text-xs font-bold'
               disabled={mutation.isPending || syncGroupMutation.isPending}
             >
-              提交
+              {mutation.isPending
+                ? '正在保存…'
+                : forceUpdateEnabled
+                  ? '保存并强制更新'
+                  : '仅保存'}
             </Button>
           </div>
         </DialogFooter>
