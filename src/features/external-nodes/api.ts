@@ -22,6 +22,7 @@ export type ExternalPullProxySettings = {
 }
 
 export type ExternalProxyMode = 'inherit' | 'direct' | 'socks5'
+export type ExternalSubscriptionMode = 'url' | 'xboard_account'
 
 export type ExternalSubscriptionInfo = {
   upload?: number
@@ -41,9 +42,14 @@ export type ExternalNodeSource = {
   id: number
   name: string
   type: 'subscription' | 'manual'
+  subscription_mode: ExternalSubscriptionMode
   secret_configured: boolean
   subscription_url: string | null
   manual_uri: string | null
+  xboard_base_url: string | null
+  xboard_email: string | null
+  xboard_password_configured: boolean
+  xboard_last_login_at: number | null
   user_agent: string
   proxy_mode: ExternalProxyMode
   proxy_host: string | null
@@ -100,8 +106,12 @@ export type ExternalNodeSourcePayload = {
   async_sync?: boolean
   name: string
   type: 'subscription' | 'manual'
+  subscription_mode: ExternalSubscriptionMode
   subscription_url?: string
   manual_uri?: string
+  xboard_base_url?: string
+  xboard_email?: string
+  xboard_password?: string
   user_agent: string
   proxy_mode: ExternalProxyMode
   proxy_host?: string
@@ -142,7 +152,11 @@ export type ExternalNodeSyncResult = {
 
 export type ExternalProxyTestPayload = {
   source_id?: number
-  subscription_url: string
+  subscription_mode: ExternalSubscriptionMode
+  subscription_url?: string
+  xboard_base_url?: string
+  xboard_email?: string
+  xboard_password?: string
   user_agent: string
   proxy_mode: ExternalProxyMode
   proxy_host?: string

@@ -281,6 +281,15 @@ export function ExternalNodesPage() {
                           {proxyModeLabel(source, !!data.pull_proxy?.enabled)}
                         </div>
                       )}
+                      {source.type === 'subscription' &&
+                        source.subscription_mode === 'xboard_account' && (
+                          <div
+                            className='max-w-72 truncate text-xs text-violet-600'
+                            title={`${source.xboard_email ?? ''} @ ${source.xboard_base_url ?? ''}`}
+                          >
+                            Xboard：{source.xboard_email ?? '账户未配置'}
+                          </div>
+                        )}
                       {source.dns_alias_enabled && source.dns_alias_domain && (
                         <div className='text-xs text-sky-600'>
                           DNS 套壳：{source.dns_alias_domain}
@@ -303,7 +312,11 @@ export function ExternalNodesPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant='outline'>
-                        {source.type === 'subscription' ? '订阅' : '单节点'}
+                        {source.type === 'subscription'
+                          ? source.subscription_mode === 'xboard_account'
+                            ? 'Xboard 账户'
+                            : '订阅'
+                          : '单节点'}
                       </Badge>
                     </TableCell>
                     <TableCell>

@@ -64,8 +64,12 @@ const defaultForm = (
   id: current?.id,
   name: current?.name ?? '',
   type: current?.type ?? 'subscription',
+  subscription_mode: current?.subscription_mode ?? 'url',
   subscription_url: current?.subscription_url ?? '',
   manual_uri: current?.manual_uri ?? '',
+  xboard_base_url: current?.xboard_base_url ?? '',
+  xboard_email: current?.xboard_email ?? '',
+  xboard_password: '',
   user_agent: current?.user_agent ?? 'clash-verge-rev',
   proxy_mode: current?.proxy_mode ?? 'inherit',
   proxy_host: current?.proxy_host ?? '',
@@ -174,12 +178,40 @@ export function ExternalNodeSourceDialog({
       toast.error('至少选择一个权限组')
       return
     }
-    const secret =
-      form.type === 'subscription' ? form.subscription_url : form.manual_uri
-    if (!current && !secret?.trim()) {
-      toast.error(
-        form.type === 'subscription' ? '请输入订阅地址' : '请输入节点链接'
-      )
+    if (form.type === 'manual' && !form.manual_uri?.trim()) {
+      toast.error('请输入节点链接')
+      return
+    }
+    if (
+      form.type === 'subscription' &&
+      form.subscription_mode === 'url' &&
+      !form.subscription_url?.trim()
+    ) {
+      toast.error('请输入订阅地址')
+      return
+    }
+    if (
+      form.type === 'subscription' &&
+      form.subscription_mode === 'xboard_account'
+    ) {
+      if (!form.xboard_base_url?.trim() || !form.xboard_email?.trim()) {
+        toast.error('请输入 Xboard 面板地址和登录邮箱')
+        return
+      }
+      const keepingPassword =
+        current?.subscription_mode === 'xboard_account' &&
+        current.xboard_password_configured
+      if (!form.xboard_password?.trim() && !keepingPassword) {
+        toast.error('请输入上游 Xboard 登录密码')
+        return
+      }
+    }
+    if (
+      form.type === 'subscription' &&
+      form.subscription_mode === 'xboard_account' &&
+      !form.xboard_base_url?.trim().startsWith('https://')
+    ) {
+      toast.error('Xboard 面板地址必须使用 HTTPS')
       return
     }
     if (
@@ -225,6 +257,8 @@ export function ExternalNodeSourceDialog({
       user_agent: form.user_agent.trim(),
       subscription_url: form.subscription_url?.trim(),
       manual_uri: form.manual_uri?.trim(),
+      xboard_base_url: form.xboard_base_url?.trim().replace(/\/+$/, ''),
+      xboard_email: form.xboard_email?.trim(),
       name_template: form.name_template?.trim(),
       name_rules: form.name_rules.map((rule) => ({
         from: rule.from,
@@ -245,14 +279,31 @@ export function ExternalNodeSourceDialog({
   ) => setForm((value) => ({ ...value, [key]: rules }))
 
   const testProxy = () => {
-    if (!form.subscription_url?.trim()) {
+    if (form.subscription_mode === 'url' && !form.subscription_url?.trim()) {
       toast.error('请先输入订阅地址')
       return
+    }
+    if (form.subscription_mode === 'xboard_account') {
+      const keepingPassword =
+        current?.subscription_mode === 'xboard_account' &&
+        current.xboard_password_configured
+      if (
+        !form.xboard_base_url?.trim() ||
+        !form.xboard_email?.trim() ||
+        (!form.xboard_password?.trim() && !keepingPassword)
+      ) {
+        toast.error('请先填写 Xboard 面板地址、邮箱和密码')
+        return
+      }
     }
     if (!form.user_agent.trim() || !validateProxy()) return
     proxyTestMutation.mutate({
       source_id: current?.id,
-      subscription_url: form.subscription_url.trim(),
+      subscription_mode: form.subscription_mode,
+      subscription_url: form.subscription_url?.trim(),
+      xboard_base_url: form.xboard_base_url?.trim().replace(/\/+$/, ''),
+      xboard_email: form.xboard_email?.trim(),
+      xboard_password: form.xboard_password,
       user_agent: form.user_agent.trim(),
       proxy_mode: form.proxy_mode,
       proxy_host: form.proxy_host?.trim(),
@@ -304,22 +355,122 @@ export function ExternalNodeSourceDialog({
           </div>
 
           {form.type === 'subscription' ? (
-            <Field
-              label='订阅地址'
-              hint='以明文保存，编辑时会直接显示完整地址。'
-            >
-              <Input
-                autoComplete='off'
-                value={form.subscription_url}
-                onChange={(event) =>
-                  setForm((value) => ({
-                    ...value,
-                    subscription_url: event.target.value,
-                  }))
-                }
-                placeholder='https://example.com/api/v1/client/subscribe?...'
-              />
-            </Field>
+            <div className='grid gap-4 rounded-md border p-4'>
+              <Field
+                label='订阅获取方式'
+                hint='固定地址适合普通订阅；Xboard 账户会在每次同步前自动读取账户当前的最新订阅地址。'
+              >
+                <Select
+                  value={form.subscription_mode}
+                  onValueChange={(
+                    subscription_mode: typeof form.subscription_mode
+                  ) => setForm((value) => ({ ...value, subscription_mode }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='url'>固定订阅地址</SelectItem>
+                    <SelectItem value='xboard_account'>
+                      Xboard 账户自动获取
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {form.subscription_mode === 'url' ? (
+                <Field
+                  label='订阅地址'
+                  hint='以明文保存，编辑时会直接显示完整地址。'
+                >
+                  <Input
+                    autoComplete='off'
+                    value={form.subscription_url}
+                    onChange={(event) =>
+                      setForm((value) => ({
+                        ...value,
+                        subscription_url: event.target.value,
+                      }))
+                    }
+                    placeholder='https://example.com/api/v1/client/subscribe?...'
+                  />
+                </Field>
+              ) : (
+                <>
+                  <div className='grid gap-4 sm:grid-cols-2'>
+                    <Field
+                      label='Xboard 面板地址'
+                      hint='填写面板根地址，必须是 HTTPS；不要包含 /api 路径、参数或锚点。'
+                    >
+                      <Input
+                        autoComplete='url'
+                        value={form.xboard_base_url}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            xboard_base_url: event.target.value,
+                          }))
+                        }
+                        placeholder='https://panel.example.com'
+                      />
+                    </Field>
+                    <Field label='Xboard 登录邮箱'>
+                      <Input
+                        type='email'
+                        autoComplete='username'
+                        value={form.xboard_email}
+                        onChange={(event) =>
+                          setForm((value) => ({
+                            ...value,
+                            xboard_email: event.target.value,
+                          }))
+                        }
+                        placeholder='user@example.com'
+                      />
+                    </Field>
+                  </div>
+                  <Field
+                    label='Xboard 登录密码'
+                    hint={
+                      current?.xboard_password_configured
+                        ? '密码已加密保存；留空继续使用原密码。'
+                        : '密码会加密保存，仅用于向上游 Xboard 登录。'
+                    }
+                  >
+                    <Input
+                      type='password'
+                      autoComplete='new-password'
+                      value={form.xboard_password}
+                      onChange={(event) =>
+                        setForm((value) => ({
+                          ...value,
+                          xboard_password: event.target.value,
+                        }))
+                      }
+                      placeholder={
+                        current?.xboard_password_configured
+                          ? '留空保持原密码'
+                          : '输入上游账户密码'
+                      }
+                    />
+                  </Field>
+                  {current?.subscription_mode === 'xboard_account' &&
+                    current.subscription_url && (
+                      <div className='rounded-md bg-muted/50 p-3 text-xs'>
+                        <div className='text-muted-foreground'>
+                          当前自动获取的订阅地址
+                          {current.xboard_last_login_at
+                            ? ` · 最近登录 ${formatTimestamp(current.xboard_last_login_at)}`
+                            : ''}
+                        </div>
+                        <div className='mt-1 font-mono break-all'>
+                          {current.subscription_url}
+                        </div>
+                      </div>
+                    )}
+                </>
+              )}
+            </div>
           ) : (
             <Field
               label='节点链接'
@@ -833,6 +984,10 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp * 1000).toLocaleString()
 }
 
 function RuleEditor({

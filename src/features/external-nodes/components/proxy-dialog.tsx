@@ -98,7 +98,11 @@ export function ExternalPullProxyDialog({
       }
       return testExternalPullProxy({
         source_id: testSource.id,
+        subscription_mode: testSource.subscription_mode,
         subscription_url: testSource.subscription_url,
+        xboard_base_url: testSource.xboard_base_url ?? undefined,
+        xboard_email: testSource.xboard_email ?? undefined,
+        xboard_password: '',
         user_agent: testSource.user_agent,
         proxy_mode: 'inherit',
       })
