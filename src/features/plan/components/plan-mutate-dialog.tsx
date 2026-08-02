@@ -42,6 +42,7 @@ import {
   RESET_TRAFFIC_METHODS,
   type Plan,
   savePlan,
+  syncPlanGroup,
 } from '../api'
 
 // 原版字段视觉签名（对齐 Xboard NYt 字段组件）
@@ -225,40 +226,60 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     })
   }, [open, current, form])
 
+  const buildSavePayload = (values: FormValues, forceUpdate?: boolean) => {
+    const prices: Record<string, number> = {}
+    for (const p of PLAN_PERIODS) {
+      const n = toNum(values.prices[p])
+      if (n != null && n > 0) prices[p] = n
+    }
+    return {
+      id: current?.id,
+      name: values.name,
+      group_id: toNum(values.group_id),
+      site_id: toNum(values.site_id),
+      transfer_enable: values.transfer_enable,
+      speed_limit: toNum(values.speed_limit),
+      device_limit: toNum(values.device_limit),
+      capacity_limit: toNum(values.capacity_limit),
+      reset_traffic_method:
+        values.reset_traffic_method === 'null'
+          ? null
+          : Number(values.reset_traffic_method),
+      content: values.content || null,
+      tags: values.tags
+        ? values.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [],
+      prices,
+      force_update: isEdit ? forceUpdate : undefined,
+    }
+  }
+
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => {
-      const prices: Record<string, number> = {}
-      for (const p of PLAN_PERIODS) {
-        const n = toNum(values.prices[p])
-        if (n != null && n > 0) prices[p] = n
-      }
-      return savePlan({
-        id: current?.id,
-        name: values.name,
-        group_id: toNum(values.group_id),
-        site_id: toNum(values.site_id),
-        transfer_enable: values.transfer_enable,
-        speed_limit: toNum(values.speed_limit),
-        device_limit: toNum(values.device_limit),
-        capacity_limit: toNum(values.capacity_limit),
-        reset_traffic_method:
-          values.reset_traffic_method === 'null'
-            ? null
-            : Number(values.reset_traffic_method),
-        content: values.content || null,
-        tags: values.tags
-          ? values.tags
-              .split(',')
-              .map((t) => t.trim())
-              .filter(Boolean)
-          : [],
-        prices,
-        force_update: isEdit ? values.force_update : undefined,
-      })
-    },
+    mutationFn: (values: FormValues) =>
+      savePlan(buildSavePayload(values, values.force_update)),
     onSuccess: () => {
       toast.success(isEdit ? '套餐更新成功' : '套餐添加成功')
       queryClient.invalidateQueries({ queryKey: ['plans'] })
+      onOpenChange(false)
+    },
+    onError: handleServerError,
+  })
+
+  const syncGroupMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      if (!current) throw new Error('请先保存套餐')
+      await savePlan(buildSavePayload(values, false))
+      return syncPlanGroup(current.id)
+    },
+    onSuccess: (result) => {
+      toast.success(
+        `权限组同步完成：共 ${result.total_count} 个用户，更新 ${result.updated_count} 个；流量未改变`
+      )
+      queryClient.invalidateQueries({ queryKey: ['plans'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
       onOpenChange(false)
     },
     onError: handleServerError,
@@ -731,7 +752,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
             </Form>
           </div>
         </div>
-        <DialogFooter className='flex-shrink-0 border-t px-6 py-4 sm:items-center sm:justify-between'>
+        <DialogFooter className='flex-shrink-0 gap-3 border-t px-6 py-4 sm:items-center sm:justify-between'>
           <div className='flex items-center gap-2'>
             {isEdit && (
               <Form {...form}>
@@ -755,20 +776,35 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
               </Form>
             )}
           </div>
-          <div className='flex items-center gap-3'>
+          <div className='flex flex-wrap items-center justify-end gap-2'>
             <Button
               variant='ghost'
               className='h-8 px-4 text-xs font-bold'
               onClick={() => onOpenChange(false)}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || syncGroupMutation.isPending}
             >
               取消
             </Button>
+            {isEdit && (
+              <Button
+                type='button'
+                variant='outline'
+                className='h-8 px-4 text-xs font-bold'
+                disabled={mutation.isPending || syncGroupMutation.isPending}
+                onClick={form.handleSubmit((values) =>
+                  syncGroupMutation.mutate(values)
+                )}
+              >
+                {syncGroupMutation.isPending
+                  ? '正在同步权限组…'
+                  : '保存并仅同步权限组'}
+              </Button>
+            )}
             <Button
               type='submit'
               form='plan-form'
               className='h-8 px-8 text-xs font-bold'
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || syncGroupMutation.isPending}
             >
               提交
             </Button>
