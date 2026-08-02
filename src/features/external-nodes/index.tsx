@@ -80,8 +80,10 @@ export function ExternalNodesPage() {
     refetchInterval: (query) =>
       query.state.data?.sources.some(
         (source) =>
-          source.last_sync_status === 'pending' &&
-          Date.now() / 1000 - source.updated_at < 16 * 60
+          (source.last_sync_status === 'pending' &&
+            Date.now() / 1000 - source.updated_at < 16 * 60) ||
+          (source.node_selection_task?.status === 'pending' &&
+            Date.now() / 1000 - source.node_selection_task.updated_at < 60 * 60)
       )
         ? 2000
         : false,
@@ -342,7 +344,12 @@ export function ExternalNodesPage() {
                           </div>
                         )}
                         {!!source.subscription_info?.filtered_info_nodes && (
-                          <div className='text-xs text-sky-600'>
+                          <div
+                            className='text-xs text-sky-600'
+                            title={source.subscription_info.filtered_info_node_names?.join(
+                              '\n'
+                            )}
+                          >
                             过滤上游提示{' '}
                             {source.subscription_info.filtered_info_nodes}
                           </div>
@@ -538,6 +545,14 @@ function UpstreamSubscriptionInfo({ source }: { source: ExternalNodeSource }) {
       {info.reset_text && (
         <div className='text-muted-foreground'>重置：{info.reset_text}</div>
       )}
+      {!!info.filtered_info_node_names?.length && (
+        <div
+          className='max-w-40 truncate text-sky-600'
+          title={info.filtered_info_node_names.join('\n')}
+        >
+          已过滤：{info.filtered_info_node_names.join('、')}
+        </div>
+      )}
       {!hasTraffic && !('expire' in info) && !info.profile_title && (
         <span className='text-muted-foreground'>已读取订阅信息</span>
       )}
@@ -546,6 +561,20 @@ function UpstreamSubscriptionInfo({ source }: { source: ExternalNodeSource }) {
 }
 
 function SyncStatus({ source }: { source: ExternalNodeSource }) {
+  if (source.node_selection_task?.status === 'pending') {
+    return <Badge variant='secondary'>下发处理中</Badge>
+  }
+  if (source.node_selection_task?.status === 'failed') {
+    return (
+      <Badge
+        variant='destructive'
+        className='max-w-32 truncate'
+        title={source.node_selection_task.error ?? '保存下发选择失败'}
+      >
+        下发选择失败
+      </Badge>
+    )
+  }
   if (source.last_sync_status === 'pending') {
     return <Badge variant='secondary'>同步中</Badge>
   }
@@ -659,14 +688,33 @@ function ExternalNodeSelectionEditor({
     mutationFn: () => saveExternalNodeSelection(source.id, selectedIds),
     onSuccess: (result) => {
       toast.success(
-        `已保存，下发 ${result.enabled_node_count} / ${result.node_count} 个节点`
+        result.queued
+          ? `已提交后台处理，完成后下发 ${result.enabled_node_count} / ${result.node_count} 个节点`
+          : `已保存，下发 ${result.enabled_node_count} / ${result.node_count} 个节点`
       )
       queryClient.setQueryData(
         ['external-nodes', source.id],
         nodes.map((node) => ({ ...node, enabled: selected.has(node.id) }))
       )
-      queryClient.invalidateQueries({ queryKey: ['external-node-sources'] })
-      queryClient.invalidateQueries({ queryKey: ['external-nodes', source.id] })
+      if (!result.queued) {
+        queryClient.invalidateQueries({ queryKey: ['external-node-sources'] })
+        queryClient.invalidateQueries({
+          queryKey: ['external-nodes', source.id],
+        })
+        return
+      }
+
+      // DNS 套壳可能需要创建或删除数百条记录；分阶段刷新直到后台任务完成。
+      Array.of(5000, 15000, 30000, 60000, 120000, 300000).forEach((delay) =>
+        window.setTimeout(() => {
+          queryClient.invalidateQueries({
+            queryKey: ['external-node-sources'],
+          })
+          queryClient.invalidateQueries({
+            queryKey: ['external-nodes', source.id],
+          })
+        }, delay)
+      )
     },
     onError: handleServerError,
   })

@@ -33,6 +33,7 @@ export type ExternalSubscriptionInfo = {
   update_interval_hours?: number
   fetched_at?: number
   filtered_info_nodes?: number
+  filtered_info_node_names?: string[]
   remaining_text?: string
   expire_text?: string
   reset_text?: string
@@ -81,6 +82,11 @@ export type ExternalNodeSource = {
   node_count: number
   enabled_node_count: number
   last_skipped_count: number
+  node_selection_task: {
+    status: 'pending' | 'success' | 'failed'
+    error: string | null
+    updated_at: number
+  } | null
   created_at: number
   updated_at: number
 }
@@ -176,13 +182,15 @@ export function fetchExternalNodes(sourceId: number) {
 }
 
 export function saveExternalNodeSelection(sourceId: number, nodeIds: number[]) {
-  return post<{ node_count: number; enabled_node_count: number }>(
-    '/server/external/saveNodeSelection',
-    {
-      source_id: sourceId,
-      node_ids: nodeIds,
-    }
-  )
+  return post<{
+    queued: boolean
+    node_count: number
+    enabled_node_count: number
+  }>('/server/external/saveNodeSelection', {
+    source_id: sourceId,
+    node_ids: nodeIds,
+    async_sync: true,
+  })
 }
 
 export function saveExternalNodeSource(payload: ExternalNodeSourcePayload) {
