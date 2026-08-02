@@ -884,6 +884,9 @@ export function UserPage() {
             setPageSize(s)
             setPage(1)
           }}
+          pageSizeOptions={[20, 50, 100, 200, 500, 1000]}
+          allowCustomPageSize
+          maxPageSize={1000}
           left={
             <>
               已选择 {selected.length} 项，共 {total} 个用户

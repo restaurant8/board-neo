@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -5,6 +6,7 @@ import {
   DoubleArrowRightIcon,
 } from '@radix-ui/react-icons'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -35,6 +37,10 @@ type SimplePaginationProps = {
   left?: React.ReactNode
   /** 可选的每页条数候选项，默认 10/20/30/50。 */
   pageSizeOptions?: number[]
+  /** 是否允许输入任意每页条数。 */
+  allowCustomPageSize?: boolean
+  /** 自定义每页条数上限。 */
+  maxPageSize?: number
 }
 
 /**
@@ -51,35 +57,101 @@ export function SimplePagination({
   onPageSizeChange,
   left,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
+  allowCustomPageSize = false,
+  maxPageSize = 1000,
 }: SimplePaginationProps) {
   const currentPage = Math.max(1, page)
   const lastPage = Math.max(1, totalPages)
   const canPrev = currentPage > 1
   const canNext = currentPage < lastPage
+  const normalizedPageSizes = useMemo(
+    () =>
+      Array.from(new Set(pageSizeOptions))
+        .filter(
+          (size) => Number.isInteger(size) && size >= 1 && size <= maxPageSize
+        )
+        .sort((leftSize, rightSize) => leftSize - rightSize),
+    [maxPageSize, pageSizeOptions]
+  )
+  const hasPresetPageSize = normalizedPageSizes.includes(pageSize)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customPageSize, setCustomPageSize] = useState(String(pageSize))
+  const parsedCustomPageSize = Number(customPageSize)
+  const customPageSizeValid =
+    Number.isInteger(parsedCustomPageSize) &&
+    parsedCustomPageSize >= 1 &&
+    parsedCustomPageSize <= maxPageSize
+
+  const applyCustomPageSize = () => {
+    if (!customPageSizeValid) return
+    onPageSizeChange(parsedCustomPageSize)
+    setCustomOpen(false)
+  }
 
   return (
     <div className='flex flex-col-reverse items-center justify-between gap-4 px-2 sm:flex-row'>
-      <div className='text-muted-foreground text-sm'>
+      <div className='text-sm text-muted-foreground'>
         {left ?? <>共 {total} 条</>}
       </div>
-      <div className='flex items-center gap-4 sm:gap-6 lg:gap-8'>
-        <div className='flex items-center gap-2'>
+      <div className='flex flex-wrap items-center justify-end gap-4 sm:gap-6 lg:gap-8'>
+        <div className='flex flex-wrap items-center justify-end gap-2'>
           <p className='text-sm font-medium'>每页显示</p>
           <Select
-            value={`${pageSize}`}
-            onValueChange={(value) => onPageSizeChange(Number(value))}
+            value={hasPresetPageSize ? `${pageSize}` : '__current'}
+            onValueChange={(value) => {
+              if (value === '__custom') {
+                setCustomPageSize(String(pageSize))
+                setCustomOpen(true)
+                return
+              }
+              if (value === '__current') return
+              setCustomOpen(false)
+              onPageSizeChange(Number(value))
+            }}
           >
             <SelectTrigger className='h-8 w-17.5'>
               <SelectValue placeholder={pageSize} />
             </SelectTrigger>
             <SelectContent side='top'>
-              {pageSizeOptions.map((s) => (
+              {!hasPresetPageSize && (
+                <SelectItem value='__current'>{pageSize}（自定义）</SelectItem>
+              )}
+              {normalizedPageSizes.map((s) => (
                 <SelectItem key={s} value={`${s}`}>
                   {s}
                 </SelectItem>
               ))}
+              {allowCustomPageSize && (
+                <SelectItem value='__custom'>自定义…</SelectItem>
+              )}
             </SelectContent>
           </Select>
+          {allowCustomPageSize && customOpen && (
+            <div className='flex items-center gap-1'>
+              <Input
+                className='h-8 w-24'
+                type='number'
+                min={1}
+                max={maxPageSize}
+                value={customPageSize}
+                aria-label={`自定义每页数量，最多 ${maxPageSize}`}
+                onChange={(event) => setCustomPageSize(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') applyCustomPageSize()
+                  if (event.key === 'Escape') setCustomOpen(false)
+                }}
+              />
+              <Button
+                type='button'
+                size='sm'
+                className='h-8 px-2'
+                disabled={!customPageSizeValid}
+                onClick={applyCustomPageSize}
+              >
+                应用
+              </Button>
+            </div>
+          )}
         </div>
         <div className='flex w-28 items-center justify-center text-sm font-medium'>
           第 {currentPage} 页，共 {lastPage} 页
