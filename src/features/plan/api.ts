@@ -125,6 +125,17 @@ export function updatePlan(payload: {
   return post<boolean>('/plan/update', payload)
 }
 
+export type PlanGroupSyncResult = {
+  total_count: number
+  updated_count: number
+  group_id: number | null
+}
+
+/** POST /plan/syncGroup — 仅把套餐权限组同步到名下用户，不修改流量等字段。 */
+export function syncPlanGroup(id: number) {
+  return post<PlanGroupSyncResult>('/plan/syncGroup', { id })
+}
+
 /** POST /plan/sort — 按 ids 顺序重排 sort。 */
 export function sortPlans(ids: number[]) {
   return post<boolean>('/plan/sort', { ids })

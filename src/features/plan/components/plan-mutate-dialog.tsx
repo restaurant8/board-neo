@@ -747,7 +747,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                         />
                       </FormControl>
                       <FormLabel className='cursor-pointer select-none text-xs font-normal'>
-                        强制更新用户套餐
+                        强制更新用户套餐（含流量）
                       </FormLabel>
                     </FormItem>
                   )}

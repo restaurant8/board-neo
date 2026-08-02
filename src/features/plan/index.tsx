@@ -9,6 +9,7 @@ import {
   ArrowDown,
   Search,
   Check,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
@@ -37,6 +38,7 @@ import {
   dropPlan,
   fetchPlans,
   sortPlans,
+  syncPlanGroup,
   updatePlan,
 } from './api'
 import { PlanMutateDialog } from './components/plan-mutate-dialog'
@@ -95,6 +97,7 @@ export function PlanPage() {
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<Plan | null>(null)
   const [deleting, setDeleting] = useState<Plan | null>(null)
+  const [syncingGroup, setSyncingGroup] = useState<Plan | null>(null)
   const [keyword, setKeyword] = useState('')
   const [sortMode, setSortMode] = useState(false)
   // 排序模式下的本地顺序（id 数组），保存时一次性提交。
@@ -133,6 +136,18 @@ export function PlanPage() {
       queryClient.invalidateQueries({ queryKey: ['plans'] })
       setSortMode(false)
       setOrder(null)
+    },
+    onError: handleServerError,
+  })
+
+  const syncGroupMutation = useMutation({
+    mutationFn: (id: number) => syncPlanGroup(id),
+    onSuccess: (result) => {
+      toast.success(
+        `权限组同步完成：共 ${result.total_count} 个用户，更新 ${result.updated_count} 个`
+      )
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      setSyncingGroup(null)
     },
     onError: handleServerError,
   })
@@ -344,6 +359,16 @@ export function PlanPage() {
                             variant='ghost'
                             size='icon'
                             className='h-8 w-8 hover:bg-muted'
+                            title='仅同步权限组'
+                            aria-label={`仅同步套餐 ${p.name} 的权限组`}
+                            onClick={() => setSyncingGroup(p)}
+                          >
+                            <RefreshCw className='h-4 w-4 text-muted-foreground hover:text-foreground' />
+                          </Button>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='h-8 w-8 hover:bg-muted'
                             disabled={i === 0}
                             onClick={() => move(i, -1)}
                           >
@@ -401,6 +426,22 @@ export function PlanPage() {
         open={mutateOpen}
         onOpenChange={setMutateOpen}
         current={current}
+      />
+
+      <ConfirmDialog
+        open={!!syncingGroup}
+        onOpenChange={(open) => !open && setSyncingGroup(null)}
+        title='仅同步套餐权限组？'
+        desc={
+          syncingGroup?.group_id == null
+            ? `将清空套餐“${syncingGroup?.name ?? ''}”名下所有用户的权限组。不会修改流量、已用流量、到期时间、限速或设备数。`
+            : `将把套餐“${syncingGroup?.name ?? ''}”的权限组“${syncingGroup?.group?.name ?? `#${syncingGroup?.group_id}`}”同步给名下所有用户。不会修改流量、已用流量、到期时间、限速或设备数。`
+        }
+        confirmText='仅同步权限组'
+        isLoading={syncGroupMutation.isPending}
+        handleConfirm={() =>
+          syncingGroup && syncGroupMutation.mutate(syncingGroup.id)
+        }
       />
 
       <ConfirmDialog
