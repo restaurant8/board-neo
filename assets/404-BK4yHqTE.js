@@ -1,1 +1,0 @@
-import{p as e}from"./index-DHXG-lox.js";var t=e;export{t as component};
