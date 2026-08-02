@@ -1,0 +1,1 @@
+import{m as e}from"./index-C1pImDPe.js";var t=e;export{t as component};
