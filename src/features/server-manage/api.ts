@@ -68,6 +68,7 @@ export type Server = {
   excludes: string[] | null
   show: boolean
   enabled: boolean
+  udp_enabled?: boolean
   rate: string | number
   rate_time_enable: boolean
   rate_time_ranges: Array<{ start: string; end: string; rate: number }> | null
@@ -109,6 +110,7 @@ export type ServerSavePayload = {
   rate: string | number
   show?: number | boolean
   enabled?: boolean
+  udp_enabled?: boolean
   group_ids?: number[] | null
   route_ids?: number[] | null
   parent_id?: number | null
@@ -147,6 +149,7 @@ export function updateNode(payload: {
   id: number
   show?: number
   enabled?: boolean
+  udp_enabled?: boolean
   machine_id?: number | null
 }) {
   return post<boolean>('/server/manage/update', payload)

@@ -424,6 +424,21 @@ function getPath(obj: Dict, path: string): unknown {
   }, obj)
 }
 
+/**
+ * 这些协议/传输本身依赖 UDP，不能关闭 UDP 转发。
+ * 与后端 Server::requiresUdpTransport 保持一致。
+ */
+function requiresUdpTransport(type: ServerType, settings: Dict): boolean {
+  if (type === 'hysteria' || type === 'tuic') return true
+
+  if (type === 'mieru') {
+    return String(getPath(settings, 'transport') ?? 'TCP').toUpperCase() === 'UDP'
+  }
+
+  const network = String(getPath(settings, 'network') ?? '').toLowerCase()
+  return network === 'kcp' || network === 'mkcp' || network === 'quic'
+}
+
 function setPath(obj: Dict, path: string, value: unknown): Dict {
   const keys = path.split('.')
   const next: Dict = { ...obj }
@@ -509,6 +524,7 @@ type BaseState = {
   machine_id: string
   show: boolean
   enabled: boolean
+  udp_enabled: boolean
 }
 
 const EMPTY_BASE: BaseState = {
@@ -531,6 +547,7 @@ const EMPTY_BASE: BaseState = {
   machine_id: '',
   show: true,
   enabled: true,
+  udp_enabled: true,
 }
 
 export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
@@ -634,6 +651,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         machine_id: current.machine_id != null ? String(current.machine_id) : '',
         show: !!current.show,
         enabled: !!current.enabled,
+        udp_enabled: current.udp_enabled !== false,
       })
       const loadedPs = (current.protocol_settings ?? {}) as Dict
       setPs(loadedPs)
@@ -658,8 +676,13 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
 
   /** 切换协议类型：载入该协议默认 protocol_settings。 */
   const onTypeChange = (type: ServerType) => {
-    setBase((b) => ({ ...b, type }))
-    setPs({ ...(PROTOCOL_DEFAULTS[type] ?? {}) })
+    const defaults = { ...(PROTOCOL_DEFAULTS[type] ?? {}) }
+    setBase((b) => ({
+      ...b,
+      type,
+      udp_enabled: requiresUdpTransport(type, defaults) ? true : b.udp_enabled,
+    }))
+    setPs(defaults)
   }
 
   const mutation = useMutation({
@@ -696,6 +719,9 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
         machine_id: base.machine_id ? Number(base.machine_id) : null,
         show: base.show ? 1 : 0,
         enabled: base.enabled,
+        udp_enabled: requiresUdpTransport(base.type, ps)
+          ? true
+          : base.udp_enabled,
         // cert_config 是顶层字段（后端 ServerSave 只校验顶层 cert_config；
         // 若嵌进 protocol_settings 会被 validated() 丢弃 → 保存无效）。
         protocol_settings: ps,
@@ -1134,6 +1160,25 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                 </Field>
               </div>
 
+              {!requiresUdpTransport(base.type, ps) && (
+                <div className='flex items-center justify-between gap-4 rounded-xl border bg-muted/5 p-4'>
+                  <div className='space-y-1'>
+                    <Label className='font-mono text-[12px] text-foreground/80'>
+                      禁用 UDP 转发
+                    </Label>
+                    <p className='text-xs leading-5 text-muted-foreground'>
+                      仅阻止用户通过该节点代理 UDP，不影响服务器自身的 DNS、NTP 等 UDP 流量。
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!base.udp_enabled}
+                    onCheckedChange={(disabled) =>
+                      setBase((b) => ({ ...b, udp_enabled: !disabled }))
+                    }
+                    aria-label='禁用 UDP 转发'
+                  />
+                </div>
+              )}
             </div>
 
             {/* ----------------------------- 协议专属配置 ----------------------------- */}
@@ -2856,4 +2901,3 @@ function ProtocolFields(props: FieldProps) {
       return null
   }
 }
-
