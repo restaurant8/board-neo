@@ -202,7 +202,7 @@ export function ExternalNodesPage() {
                 <TableHead>类型</TableHead>
                 <TableHead>节点数</TableHead>
                 <TableHead>上游套餐</TableHead>
-                <TableHead>权限组</TableHead>
+                <TableHead>下发范围</TableHead>
                 <TableHead>User-Agent</TableHead>
                 <TableHead>同步状态</TableHead>
                 <TableHead>最后更新</TableHead>
@@ -361,11 +361,23 @@ export function ExternalNodesPage() {
                     </TableCell>
                     <TableCell>
                       <div className='flex max-w-48 flex-wrap gap-1'>
-                        {source.group_ids.map((groupId) => (
-                          <Badge key={groupId} variant='secondary'>
-                            {groupMap.get(Number(groupId)) ?? `#${groupId}`}
-                          </Badge>
-                        ))}
+                        {source.audience_mode !== 'user' &&
+                          source.group_ids.map((groupId) => (
+                            <Badge key={groupId} variant='secondary'>
+                              {groupMap.get(Number(groupId)) ?? `#${groupId}`}
+                            </Badge>
+                          ))}
+                        {source.audience_mode !== 'group' &&
+                          source.audience_users.length > 0 && (
+                            <Badge
+                              variant='outline'
+                              title={source.audience_users
+                                .map((user) => user.email)
+                                .join('\n')}
+                            >
+                              指定用户 {source.audience_users.length}
+                            </Badge>
+                          )}
                       </div>
                     </TableCell>
                     <TableCell>

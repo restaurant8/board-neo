@@ -22,6 +22,12 @@ export type ExternalPullProxySettings = {
 }
 
 export type ExternalProxyMode = 'inherit' | 'direct' | 'socks5'
+export type ExternalAudienceMode = 'group' | 'user' | 'group_or_user'
+
+export type ExternalAudienceUser = {
+  id: number
+  email: string
+}
 export type ExternalSubscriptionMode = 'url' | 'xboard_account'
 
 export type ExternalSubscriptionInfo = {
@@ -59,6 +65,9 @@ export type ExternalNodeSource = {
   proxy_password_configured: boolean
   subscription_info: ExternalSubscriptionInfo | null
   group_ids: number[]
+  audience_mode: ExternalAudienceMode
+  audience_users: ExternalAudienceUser[]
+  user_ids: number[]
   enabled: boolean
   dns_alias_enabled: boolean
   dns_cloudflare_zone_id: string | null
@@ -125,6 +134,8 @@ export type ExternalNodeSourcePayload = {
   proxy_username?: string
   proxy_password?: string
   group_ids: number[]
+  audience_mode: ExternalAudienceMode
+  user_ids: number[]
   enabled: boolean
   dns_alias_enabled: boolean
   dns_cloudflare_zone_id?: string
@@ -179,6 +190,13 @@ export function fetchExternalNodes(sourceId: number) {
   return get<ExternalNode[]>('/server/external/nodes', {
     source_id: sourceId,
   })
+}
+
+export function searchExternalAudienceUsers(params: {
+  keyword?: string
+  ids?: number[]
+}) {
+  return get<ExternalAudienceUser[]>('/server/external/searchUsers', params)
 }
 
 export function saveExternalNodeSelection(sourceId: number, nodeIds: number[]) {

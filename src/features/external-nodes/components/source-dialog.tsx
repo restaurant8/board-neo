@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -26,12 +27,15 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { type ServerGroup } from '@/features/server-group/api'
 import {
+  type ExternalAudienceMode,
+  type ExternalAudienceUser,
   type ExternalDnsZone,
   type ExternalNodeRule,
   type ExternalNodeSource,
   type ExternalNodeSourcePayload,
   type ExternalPullProxySettings,
   saveExternalNodeSource,
+  searchExternalAudienceUsers,
   testExternalPullProxy,
 } from '../api'
 
@@ -50,6 +54,28 @@ type Props = {
  * {host_label} 与 {host} 不算：同一台上游主机的多个节点会取到相同值。
  */
 const NAME_TEMPLATE_DISTINGUISHING = ['{name}', '{index}']
+
+const AUDIENCE_MODE_OPTIONS: Array<{
+  value: ExternalAudienceMode
+  label: string
+  hint: string
+}> = [
+  {
+    value: 'group',
+    label: '按权限组',
+    hint: '所选权限组里的全部用户都会收到该来源的节点。',
+  },
+  {
+    value: 'user',
+    label: '按指定用户',
+    hint: '只有下面选中的用户会收到，和权限组无关。',
+  },
+  {
+    value: 'group_or_user',
+    label: '权限组 + 指定用户',
+    hint: '权限组内的用户，加上单独指定的用户，取并集。',
+  },
+]
 
 const EMPTY_RULE: ExternalNodeRule = {
   from: '',
@@ -77,6 +103,8 @@ const defaultForm = (
   proxy_username: current?.proxy_username ?? '',
   proxy_password: '',
   group_ids: current?.group_ids.map(Number) ?? [],
+  audience_mode: current?.audience_mode ?? 'group',
+  user_ids: current?.user_ids ?? [],
   enabled: current?.enabled ?? true,
   dns_alias_enabled: current?.dns_alias_enabled ?? false,
   dns_cloudflare_zone_id: current?.dns_cloudflare_zone_id ?? '',
@@ -107,6 +135,29 @@ export function ExternalNodeSourceDialog({
   const [form, setForm] = useState<ExternalNodeSourcePayload>(() =>
     defaultForm(current)
   )
+  const [audienceUsers, setAudienceUsers] = useState<ExternalAudienceUser[]>(
+    () => current?.audience_users ?? []
+  )
+  const [userKeyword, setUserKeyword] = useState('')
+  const [debouncedKeyword, setDebouncedKeyword] = useState('')
+
+  const targetsGroups =
+    form.audience_mode === 'group' || form.audience_mode === 'group_or_user'
+  const targetsUsers =
+    form.audience_mode === 'user' || form.audience_mode === 'group_or_user'
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedKeyword(userKeyword), 300)
+    return () => window.clearTimeout(timer)
+  }, [userKeyword])
+
+  const userSearch = useQuery({
+    queryKey: ['external-audience-user-search', debouncedKeyword],
+    queryFn: () =>
+      searchExternalAudienceUsers({ keyword: debouncedKeyword.trim() }),
+    enabled: targetsUsers && debouncedKeyword.trim().length > 0,
+    staleTime: 30_000,
+  })
 
   const selectedPreset = useMemo(() => {
     return Object.values(userAgentPresets).includes(form.user_agent)
@@ -174,8 +225,12 @@ export function ExternalNodeSourceDialog({
       return
     }
     if (!validateProxy()) return
-    if (form.group_ids.length === 0) {
+    if (targetsGroups && form.group_ids.length === 0) {
       toast.error('至少选择一个权限组')
+      return
+    }
+    if (targetsUsers && audienceUsers.length === 0) {
+      toast.error('至少选择一个下发用户')
       return
     }
     if (form.type === 'manual' && !form.manual_uri?.trim()) {
@@ -253,6 +308,7 @@ export function ExternalNodeSourceDialog({
     mutation.mutate({
       ...form,
       async_sync: true,
+      user_ids: audienceUsers.map((user) => user.id),
       name: form.name.trim(),
       user_agent: form.user_agent.trim(),
       subscription_url: form.subscription_url?.trim(),
@@ -545,40 +601,157 @@ export function ExternalNodeSourceDialog({
           </div>
 
           <Field
-            label='下发权限组'
-            hint='只有这些权限组的用户会收到该来源的节点。'
+            label='下发范围'
+            hint={
+              AUDIENCE_MODE_OPTIONS.find(
+                (option) => option.value === form.audience_mode
+              )?.hint ?? ''
+            }
           >
-            <div className='grid max-h-36 gap-2 overflow-y-auto rounded-md border p-3 sm:grid-cols-2'>
-              {groups.length === 0 ? (
-                <span className='text-sm text-muted-foreground'>
-                  暂无权限组
-                </span>
-              ) : (
-                groups.map((group) => {
-                  const checked = form.group_ids.includes(group.id)
-                  return (
-                    <label
-                      key={group.id}
-                      className='flex cursor-pointer items-center gap-2 text-sm'
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(next) =>
-                          setForm((value) => ({
-                            ...value,
-                            group_ids: next
-                              ? [...value.group_ids, group.id]
-                              : value.group_ids.filter((id) => id !== group.id),
-                          }))
-                        }
-                      />
-                      {group.name}
-                    </label>
-                  )
-                })
-              )}
-            </div>
+            <Select
+              value={form.audience_mode}
+              onValueChange={(audience_mode) =>
+                setForm((value) => ({
+                  ...value,
+                  audience_mode: audience_mode as ExternalAudienceMode,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AUDIENCE_MODE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
+
+          {targetsGroups && (
+            <Field
+              label='下发权限组'
+              hint='只有这些权限组的用户会收到该来源的节点。'
+            >
+              <div className='grid max-h-36 gap-2 overflow-y-auto rounded-md border p-3 sm:grid-cols-2'>
+                {groups.length === 0 ? (
+                  <span className='text-sm text-muted-foreground'>
+                    暂无权限组
+                  </span>
+                ) : (
+                  groups.map((group) => {
+                    const checked = form.group_ids.includes(group.id)
+                    return (
+                      <label
+                        key={group.id}
+                        className='flex cursor-pointer items-center gap-2 text-sm'
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(next) =>
+                            setForm((value) => ({
+                              ...value,
+                              group_ids: next
+                                ? [...value.group_ids, group.id]
+                                : value.group_ids.filter(
+                                    (id) => id !== group.id
+                                  ),
+                            }))
+                          }
+                        />
+                        {group.name}
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </Field>
+          )}
+
+          {targetsUsers && (
+            <Field
+              label='下发用户'
+              hint='按邮箱或用户 ID 搜索后点击添加；这些用户不受权限组限制。'
+            >
+              <div className='space-y-3 rounded-md border p-3'>
+                <Input
+                  value={userKeyword}
+                  onChange={(event) => setUserKeyword(event.target.value)}
+                  placeholder='输入邮箱或用户 ID 搜索'
+                />
+                {debouncedKeyword.trim().length > 0 && (
+                  <div className='max-h-40 space-y-1 overflow-y-auto'>
+                    {userSearch.isPending ? (
+                      <span className='text-sm text-muted-foreground'>
+                        搜索中…
+                      </span>
+                    ) : (userSearch.data?.length ?? 0) === 0 ? (
+                      <span className='text-sm text-muted-foreground'>
+                        没有匹配的用户
+                      </span>
+                    ) : (
+                      userSearch.data?.map((user) => {
+                        const picked = audienceUsers.some(
+                          (item) => item.id === user.id
+                        )
+                        return (
+                          <button
+                            key={user.id}
+                            type='button'
+                            disabled={picked}
+                            className='flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm hover:bg-muted disabled:opacity-50'
+                            onClick={() =>
+                              setAudienceUsers((value) =>
+                                value.some((item) => item.id === user.id)
+                                  ? value
+                                  : [...value, user]
+                              )
+                            }
+                          >
+                            <span>{user.email}</span>
+                            <span className='text-xs text-muted-foreground'>
+                              #{user.id}
+                              {picked ? ' · 已选' : ''}
+                            </span>
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+                <div className='flex flex-wrap gap-2'>
+                  {audienceUsers.length === 0 ? (
+                    <span className='text-sm text-muted-foreground'>
+                      尚未选择用户
+                    </span>
+                  ) : (
+                    audienceUsers.map((user) => (
+                      <Badge
+                        key={user.id}
+                        variant='secondary'
+                        className='gap-1 py-1'
+                      >
+                        {user.email}
+                        <button
+                          type='button'
+                          aria-label={`移除 ${user.email}`}
+                          onClick={() =>
+                            setAudienceUsers((value) =>
+                              value.filter((item) => item.id !== user.id)
+                            )
+                          }
+                        >
+                          <X className='size-3' />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              </div>
+            </Field>
+          )}
 
           {form.type === 'subscription' && (
             <>
