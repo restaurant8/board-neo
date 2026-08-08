@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import {
   ArrowDown,
   ArrowUp,
@@ -25,18 +25,11 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminApi } from '@/lib/api-client'
-import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
-import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
-import { Checkbox } from '@/components/ui/checkbox'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +44,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { fetchResellerSites } from '@/features/reseller/api'
 import {
   Table,
   TableBody,
@@ -60,6 +52,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
+import { fetchResellerSites } from '@/features/reseller/api'
 import {
   type User,
   type UserFilter,
@@ -71,17 +71,17 @@ import {
   resetSecret,
   resetUserTraffic,
 } from './api'
-import { UserEditDialog } from './components/user-edit-dialog'
-import { UserGenerateDialog } from './components/user-generate-dialog'
-import { UserSendMailDialog } from './components/user-send-mail-dialog'
 import { SubscriptionRecordsDialog } from './components/subscription-records-dialog'
 import { UsageRecordsDialog } from './components/usage-records-dialog'
-import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
-import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   UserAdvancedFilter,
   type FilterCondition,
 } from './components/user-advanced-filter'
+import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
+import { UserEditDialog } from './components/user-edit-dialog'
+import { UserGenerateDialog } from './components/user-generate-dialog'
+import { UserSendMailDialog } from './components/user-send-mail-dialog'
+import { UserTrafficDialog } from './components/user-traffic-dialog'
 import {
   formatBytes,
   formatDeviceLimit,
@@ -135,14 +135,16 @@ export function UserPage() {
         <ArrowUpDown className='h-4 w-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
       )
     return (
-      <TableHead className={cn('h-11 bg-card px-4 text-muted-foreground', className)}>
+      <TableHead
+        className={cn('h-11 bg-card px-4 text-muted-foreground', className)}
+      >
         <div className='flex items-center gap-1'>
           <div className='flex items-center gap-2'>
             <Button
               variant='ghost'
               size='default'
               onClick={() => toggleSort(field)}
-              className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
+              className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
             >
               <span>{label}</span>
               {icon}
@@ -174,7 +176,9 @@ export function UserPage() {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [mailOpen, setMailOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
-  const [usagePrefill, setUsagePrefill] = useState<string | undefined>(undefined)
+  const [usagePrefill, setUsagePrefill] = useState<string | undefined>(
+    undefined
+  )
   const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
   const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] = useState<
     string | undefined
@@ -183,13 +187,18 @@ export function UserPage() {
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
   const [trafficTarget, setTrafficTarget] = useState<User | null>(null)
-  const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(null)
+  const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(
+    null
+  )
   // 批量封禁范围：'selected' | 'filtered' | 'all'
   const [batchBanScope, setBatchBanScope] = useState<
     'selected' | 'filtered' | 'all' | null
   >(null)
 
-  const { data: plans } = useQuery({ queryKey: ['plans-brief'], queryFn: fetchPlans })
+  const { data: plans } = useQuery({
+    queryKey: ['plans-brief'],
+    queryFn: fetchPlans,
+  })
 
   // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串
   const [siteFilter, setSiteFilter] = useState('')
@@ -236,7 +245,9 @@ export function UserPage() {
     }
   }
   const toggleOne = (id: number) =>
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+    setSelected((s) =>
+      s.includes(id) ? s.filter((x) => x !== id) : [...s, id]
+    )
 
   const applyQuickSearch = () => {
     setAppliedEmail(emailInput.trim())
@@ -245,10 +256,7 @@ export function UserPage() {
   }
 
   // 应用高级筛选：保存条件与生成的 filter 项
-  const applyAdvancedFilter = (
-    f: UserFilter[],
-    conds: FilterCondition[]
-  ) => {
+  const applyAdvancedFilter = (f: UserFilter[], conds: FilterCondition[]) => {
     setAdvancedFilter(f)
     setConditions(conds)
     setSelected([])
@@ -446,11 +454,7 @@ export function UserPage() {
             )}
           </Button>
           {conditions.length > 0 && (
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={resetAdvancedFilter}
-            >
+            <Button variant='ghost' size='sm' onClick={resetAdvancedFilter}>
               <X className='size-4' /> 清除筛选
             </Button>
           )}
@@ -460,9 +464,7 @@ export function UserPage() {
         {inviteUserId != null && (
           <div className='flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm'>
             <Users className='size-4 text-muted-foreground' />
-            <span>
-              仅显示 邀请人 #{inviteUserId} 邀请的用户
-            </span>
+            <span>仅显示 邀请人 #{inviteUserId} 邀请的用户</span>
             <Button
               variant='ghost'
               size='sm'
@@ -481,7 +483,7 @@ export function UserPage() {
 
         {/* 批量操作栏 */}
         <div className='flex flex-wrap items-center gap-2'>
-          <span className='text-muted-foreground text-sm'>
+          <span className='text-sm text-muted-foreground'>
             已选择 {selected.length} 项
           </span>
           <Button
@@ -508,11 +510,7 @@ export function UserPage() {
             封禁全部
           </Button>
           {selected.length > 0 && (
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => setSelected([])}
-            >
+            <Button variant='ghost' size='sm' onClick={() => setSelected([])}>
               清除选择
             </Button>
           )}
@@ -572,7 +570,9 @@ export function UserPage() {
                     <TableRow
                       key={u.id}
                       className='animate-fade-in hover:bg-muted/50'
-                      data-state={selected.includes(u.id) ? 'selected' : undefined}
+                      data-state={
+                        selected.includes(u.id) ? 'selected' : undefined
+                      }
                     >
                       <TableCell className='bg-card'>
                         <Checkbox
@@ -683,13 +683,13 @@ export function UserPage() {
                         const pct = total > 0 ? (used / total) * 100 : 0
                         return (
                           <>
-                            <TableCell className='bg-card min-w-[7rem]'>
+                            <TableCell className='min-w-[7rem] bg-card'>
                               <div className='w-full space-y-1'>
                                 <div className='flex justify-between text-sm'>
                                   <span className='text-muted-foreground'>
                                     {formatBytes(used)}
                                   </span>
-                                  <span className='text-muted-foreground text-xs'>
+                                  <span className='text-xs text-muted-foreground'>
                                     {pct.toFixed(1)}%
                                   </span>
                                 </div>
@@ -715,7 +715,7 @@ export function UserPage() {
                           <span className='text-sm text-muted-foreground'>
                             ¥
                           </span>
-                          <span className='tabular-nums text-foreground'>
+                          <span className='text-foreground tabular-nums'>
                             {Number(u.balance ?? 0).toFixed(2)}
                           </span>
                         </div>
@@ -725,7 +725,7 @@ export function UserPage() {
                           <span className='text-sm text-muted-foreground'>
                             ¥
                           </span>
-                          <span className='tabular-nums text-foreground'>
+                          <span className='text-foreground tabular-nums'>
                             {Number(u.commission_balance ?? 0).toFixed(2)}
                           </span>
                         </div>
@@ -770,7 +770,7 @@ export function UserPage() {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className='bg-card whitespace-nowrap text-sm text-muted-foreground'>
+                      <TableCell className='bg-card text-sm whitespace-nowrap text-muted-foreground'>
                         <div className='truncate'>
                           {new Date(u.created_at * 1000).toLocaleDateString()}
                         </div>
@@ -904,7 +904,11 @@ export function UserPage() {
         onReset={resetAdvancedFilter}
       />
 
-      <UserEditDialog open={editOpen} onOpenChange={setEditOpen} current={editing} />
+      <UserEditDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        current={editing}
+      />
       <UserGenerateDialog open={generateOpen} onOpenChange={setGenerateOpen} />
       <UserSendMailDialog
         open={mailOpen}
