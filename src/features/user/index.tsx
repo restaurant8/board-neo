@@ -24,9 +24,16 @@ import {
   Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { adminApi } from '@/lib/api-client'
 import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
+import {
+  getTableColumnSpan,
+  renderVisibleColumns,
+  type TableColumnOption,
+  useTableColumnPreferences,
+} from '@/hooks/use-table-column-preferences'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -57,6 +64,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
+import { TableColumnCustomizer } from '@/components/table-column-customizer'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { fetchResellerSites } from '@/features/reseller/api'
@@ -91,8 +99,29 @@ import {
 
 const route = getRouteApi('/_authenticated/user/')
 
+const USER_TABLE_COLUMNS = [
+  { id: 'id', label: 'ID' },
+  { id: 'email', label: '邮箱' },
+  { id: 'plan', label: '订阅' },
+  { id: 'group', label: '权限组' },
+  { id: 'site', label: '分站' },
+  { id: 'expired_at', label: '到期时间' },
+  { id: 'total_used', label: '已用流量' },
+  { id: 'transfer_enable', label: '总流量' },
+  { id: 'balance', label: '余额' },
+  { id: 'commission_balance', label: '佣金' },
+  { id: 'online_count', label: '在线设备' },
+  { id: 'subscribe_remote', label: '订阅异地' },
+  { id: 'connect_remote', label: '连接异地' },
+  { id: 'banned', label: '状态' },
+  { id: 'created_at', label: '注册时间' },
+] as const satisfies readonly TableColumnOption<string>[]
+
+type UserTableColumnId = (typeof USER_TABLE_COLUMNS)[number]['id']
+
 export function UserPage() {
   const queryClient = useQueryClient()
+  const adminEmail = useAuthStore((state) => state.auth.user?.email)
 
   const navigate = useNavigate()
 
@@ -114,6 +143,19 @@ export function UserPage() {
   const [advancedFilter, setAdvancedFilter] = useState<UserFilter[]>([])
   // 列排序：单列三态 none → asc → desc → none，驱动后端 sort 参数
   const [sort, setSort] = useState<UserSort[]>([])
+  const userColumns = useTableColumnPreferences<UserTableColumnId>(
+    `board-neo:${encodeURIComponent(adminEmail ?? 'anonymous')}:user-table-columns`,
+    USER_TABLE_COLUMNS,
+    {
+      onExternalVisibilityChange: (hidden) => {
+        const sortedColumn = sort[0]?.id as UserTableColumnId | undefined
+        if (sortedColumn && hidden.has(sortedColumn)) {
+          setSort([])
+          setPage(1)
+        }
+      },
+    }
+  )
   const toggleSort = (field: string) => {
     setPage(1)
     setSort((prev) => {
@@ -122,6 +164,27 @@ export function UserPage() {
       if (!cur.desc) return [{ id: field, desc: true }]
       return []
     })
+  }
+  const toggleUserColumn = (column: UserTableColumnId) => {
+    const willHide = !userColumns.hiddenSet.has(column)
+    if (willHide && sort[0]?.id === column) {
+      setSort([])
+      setPage(1)
+    }
+    userColumns.toggleColumn(column)
+  }
+  const resetUserColumns = () => {
+    const sortedColumn = sort[0]?.id as UserTableColumnId | undefined
+    const resetWillHideSortedColumn = (
+      USER_TABLE_COLUMNS as readonly TableColumnOption<UserTableColumnId>[]
+    ).some(
+      (column) => column.id === sortedColumn && column.defaultVisible === false
+    )
+    if (resetWillHideSortedColumn) {
+      setSort([])
+      setPage(1)
+    }
+    userColumns.resetColumns()
   }
   const sortHead = (field: string, label: string, className?: string) => {
     const cur = sort[0]
@@ -136,6 +199,7 @@ export function UserPage() {
       )
     return (
       <TableHead
+        key={field}
         className={cn('h-11 bg-card px-4 text-muted-foreground', className)}
       >
         <div className='flex items-center gap-1'>
@@ -458,6 +522,16 @@ export function UserPage() {
               <X className='size-4' /> 清除筛选
             </Button>
           )}
+          <div className='ms-auto'>
+            <TableColumnCustomizer
+              columns={USER_TABLE_COLUMNS}
+              orderedColumns={userColumns.orderedColumns}
+              hiddenSet={userColumns.hiddenSet}
+              onToggle={toggleUserColumn}
+              onMove={userColumns.moveColumn}
+              onReset={resetUserColumns}
+            />
+          </div>
         </div>
 
         {/* 「TA的邀请」跳转筛选提示（invite_user_id） */}
@@ -527,29 +601,61 @@ export function UserPage() {
                     aria-label='全选本页'
                   />
                 </TableHead>
-                {sortHead('id', 'ID', 'w-16')}
-                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
-                  邮箱
-                </TableHead>
-                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
-                  订阅
-                </TableHead>
-                <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
-                  权限组
-                </TableHead>
-                <TableHead className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'>
-                  分站
-                </TableHead>
-                {sortHead('expired_at', '到期时间')}
-                {sortHead('total_used', '已用流量')}
-                {sortHead('transfer_enable', '总流量')}
-                {sortHead('balance', '余额')}
-                {sortHead('commission_balance', '佣金')}
-                {sortHead('online_count', '在线设备')}
-                {sortHead('subscribe_remote', '订阅异地')}
-                {sortHead('connect_remote', '连接异地')}
-                {sortHead('banned', '状态')}
-                {sortHead('created_at', '注册时间')}
+                {(() => {
+                  const headerRenderers = {
+                    id: () => sortHead('id', 'ID', 'w-16'),
+                    email: () => (
+                      <TableHead
+                        key='email'
+                        className='h-11 bg-card px-4 text-muted-foreground'
+                      >
+                        邮箱
+                      </TableHead>
+                    ),
+                    plan: () => (
+                      <TableHead
+                        key='plan'
+                        className='h-11 bg-card px-4 text-muted-foreground'
+                      >
+                        订阅
+                      </TableHead>
+                    ),
+                    group: () => (
+                      <TableHead
+                        key='group'
+                        className='h-11 bg-card px-4 text-muted-foreground'
+                      >
+                        权限组
+                      </TableHead>
+                    ),
+                    site: () => (
+                      <TableHead
+                        key='site'
+                        className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'
+                      >
+                        分站
+                      </TableHead>
+                    ),
+                    expired_at: () => sortHead('expired_at', '到期时间'),
+                    total_used: () => sortHead('total_used', '已用流量'),
+                    transfer_enable: () =>
+                      sortHead('transfer_enable', '总流量'),
+                    balance: () => sortHead('balance', '余额'),
+                    commission_balance: () =>
+                      sortHead('commission_balance', '佣金'),
+                    online_count: () => sortHead('online_count', '在线设备'),
+                    subscribe_remote: () =>
+                      sortHead('subscribe_remote', '订阅异地'),
+                    connect_remote: () =>
+                      sortHead('connect_remote', '连接异地'),
+                    banned: () => sortHead('banned', '状态'),
+                    created_at: () => sortHead('created_at', '注册时间'),
+                  }
+                  return renderVisibleColumns(
+                    userColumns.visibleColumns,
+                    headerRenderers
+                  )
+                })()}
                 <TableHead className='h-11 bg-card px-4 text-end text-muted-foreground'>
                   操作
                 </TableHead>
@@ -558,7 +664,10 @@ export function UserPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={16} className='h-24 text-center'>
+                  <TableCell
+                    colSpan={getTableColumnSpan(userColumns.visibleColumns)}
+                    className='h-24 text-center'
+                  >
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -566,6 +675,9 @@ export function UserPage() {
                 rows.map((u) => {
                   const exp = formatExpireStatus(u.expired_at)
                   const on = formatOnlineStatus(u.t)
+                  const used = u.total_used ?? (u.u ?? 0) + (u.d ?? 0)
+                  const total = u.transfer_enable ?? 0
+                  const pct = total > 0 ? (used / total) * 100 : 0
                   return (
                     <TableRow
                       key={u.id}
@@ -581,109 +693,134 @@ export function UserPage() {
                           aria-label={`选择 ${u.email}`}
                         />
                       </TableCell>
-                      <TableCell className='bg-card'>
-                        <Badge variant='outline'>{u.id}</Badge>
-                      </TableCell>
-                      <TableCell className='bg-card font-medium'>
-                        <div
-                          className='group flex items-center gap-2.5'
-                          title={on.text}
-                        >
-                          <div
-                            className={cn(
-                              'size-2.5 rounded-full ring-2 ring-offset-2 transition-all duration-300',
-                              on.online
-                                ? 'bg-green-500 ring-green-500/20'
-                                : 'bg-gray-300 ring-gray-300/20'
-                            )}
-                          />
-                          <span className='inline-flex min-w-[14em] cursor-pointer flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
-                            <span className='break-all'>{u.email}</span>
-                          </span>
-                          {!!u.is_admin && (
-                            <Badge variant='outline'>管理员</Badge>
-                          )}
-                          {!!u.is_staff && (
-                            <Badge variant='outline'>员工</Badge>
-                          )}
-                          <button
-                            type='button'
-                            tabIndex={-1}
-                            aria-label='复制邮箱'
-                            style={{ lineHeight: 0 }}
-                            className='ml-1 rounded bg-transparent p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted'
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigator.clipboard
-                                .writeText(u.email)
-                                .then(() => toast.success('复制成功'))
-                                .catch(() => toast.error('复制失败'))
-                            }}
-                          >
-                            <Copy className='h-4 w-4 text-muted-foreground' />
-                          </button>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card'>
-                        <div className='min-w-[10em] break-all'>
-                          {u.plan?.name ?? (
-                            <span className='text-muted-foreground'>-</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card'>
-                        <div className='flex flex-wrap gap-1'>
-                          <Badge
-                            variant='outline'
-                            className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
-                          >
-                            {u.group?.name || '-'}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card whitespace-nowrap'>
-                        {u.site_name ? (
-                          <Badge variant='secondary'>{u.site_name}</Badge>
-                        ) : (
-                          <span className='text-xs text-muted-foreground'>
-                            主站
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className='bg-card whitespace-nowrap'>
-                        <Badge
-                          variant='outline'
-                          className={cn(
-                            'w-full justify-center transition-colors',
-                            exp.expired
-                              ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                              : exp.permanent
-                                ? 'border-primary/40 bg-primary/5 text-primary/90'
-                                : exp.expiringSoon
-                                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500'
-                                  : 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-500'
-                          )}
-                        >
-                          {exp.permanent
-                            ? '长期有效'
-                            : (() => {
-                                const d = new Date(u.expired_at! * 1000)
-                                const m = String(d.getMonth() + 1).padStart(
-                                  2,
-                                  '0'
-                                )
-                                const day = String(d.getDate()).padStart(2, '0')
-                                return `${d.getFullYear()}-${m}-${day}`
-                              })()}
-                        </Badge>
-                      </TableCell>
                       {(() => {
-                        const used = u.total_used ?? (u.u ?? 0) + (u.d ?? 0)
-                        const total = u.transfer_enable ?? 0
-                        const pct = total > 0 ? (used / total) * 100 : 0
-                        return (
-                          <>
-                            <TableCell className='min-w-[7rem] bg-card'>
+                        const cellRenderers = {
+                          id: () => (
+                            <TableCell key='id' className='bg-card'>
+                              <Badge variant='outline'>{u.id}</Badge>
+                            </TableCell>
+                          ),
+                          email: () => (
+                            <TableCell
+                              key='email'
+                              className='bg-card font-medium'
+                            >
+                              <div
+                                className='group flex items-center gap-2.5'
+                                title={on.text}
+                              >
+                                <div
+                                  className={cn(
+                                    'size-2.5 rounded-full ring-2 ring-offset-2 transition-all duration-300',
+                                    on.online
+                                      ? 'bg-green-500 ring-green-500/20'
+                                      : 'bg-gray-300 ring-gray-300/20'
+                                  )}
+                                />
+                                <span className='inline-flex min-w-[14em] cursor-pointer flex-col font-medium text-foreground/90 transition-colors hover:text-primary hover:underline'>
+                                  <span className='break-all'>{u.email}</span>
+                                </span>
+                                {!!u.is_admin && (
+                                  <Badge variant='outline'>管理员</Badge>
+                                )}
+                                {!!u.is_staff && (
+                                  <Badge variant='outline'>员工</Badge>
+                                )}
+                                <button
+                                  type='button'
+                                  tabIndex={-1}
+                                  aria-label='复制邮箱'
+                                  style={{ lineHeight: 0 }}
+                                  className='ml-1 rounded bg-transparent p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted'
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigator.clipboard
+                                      .writeText(u.email)
+                                      .then(() => toast.success('复制成功'))
+                                      .catch(() => toast.error('复制失败'))
+                                  }}
+                                >
+                                  <Copy className='h-4 w-4 text-muted-foreground' />
+                                </button>
+                              </div>
+                            </TableCell>
+                          ),
+                          plan: () => (
+                            <TableCell key='plan' className='bg-card'>
+                              <div className='min-w-[10em] break-all'>
+                                {u.plan?.name ?? (
+                                  <span className='text-muted-foreground'>
+                                    -
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                          ),
+                          group: () => (
+                            <TableCell key='group' className='bg-card'>
+                              <div className='flex flex-wrap gap-1'>
+                                <Badge
+                                  variant='outline'
+                                  className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
+                                >
+                                  {u.group?.name || '-'}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          ),
+                          site: () => (
+                            <TableCell
+                              key='site'
+                              className='bg-card whitespace-nowrap'
+                            >
+                              {u.site_name ? (
+                                <Badge variant='secondary'>{u.site_name}</Badge>
+                              ) : (
+                                <span className='text-xs text-muted-foreground'>
+                                  主站
+                                </span>
+                              )}
+                            </TableCell>
+                          ),
+                          expired_at: () => (
+                            <TableCell
+                              key='expired_at'
+                              className='bg-card whitespace-nowrap'
+                            >
+                              <Badge
+                                variant='outline'
+                                className={cn(
+                                  'w-full justify-center transition-colors',
+                                  exp.expired
+                                    ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                                    : exp.permanent
+                                      ? 'border-primary/40 bg-primary/5 text-primary/90'
+                                      : exp.expiringSoon
+                                        ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-500'
+                                        : 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-500'
+                                )}
+                              >
+                                {exp.permanent
+                                  ? '长期有效'
+                                  : (() => {
+                                      const d = new Date(u.expired_at! * 1000)
+                                      const m = String(
+                                        d.getMonth() + 1
+                                      ).padStart(2, '0')
+                                      const day = String(d.getDate()).padStart(
+                                        2,
+                                        '0'
+                                      )
+                                      return `${d.getFullYear()}-${m}-${day}`
+                                    })()}
+                              </Badge>
+                            </TableCell>
+                          ),
+                          total_used: () => (
+                            <TableCell
+                              key='total_used'
+                              className='min-w-[7rem] bg-card'
+                            >
                               <div className='w-full space-y-1'>
                                 <div className='flex justify-between text-sm'>
                                   <span className='text-muted-foreground'>
@@ -699,82 +836,124 @@ export function UserPage() {
                                       'h-full rounded-full transition-all',
                                       pct > 90 ? 'bg-destructive' : 'bg-primary'
                                     )}
-                                    style={{ width: `${Math.min(pct, 100)}%` }}
+                                    style={{
+                                      width: `${Math.min(pct, 100)}%`,
+                                    }}
                                   />
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className='bg-card font-medium whitespace-nowrap text-muted-foreground'>
+                          ),
+                          transfer_enable: () => (
+                            <TableCell
+                              key='transfer_enable'
+                              className='bg-card font-medium whitespace-nowrap text-muted-foreground'
+                            >
                               {formatBytes(total)}
                             </TableCell>
-                          </>
+                          ),
+                          balance: () => (
+                            <TableCell
+                              key='balance'
+                              className='bg-card whitespace-nowrap'
+                            >
+                              <div className='flex items-center gap-1 font-medium'>
+                                <span className='text-sm text-muted-foreground'>
+                                  ¥
+                                </span>
+                                <span className='text-foreground tabular-nums'>
+                                  {Number(u.balance ?? 0).toFixed(2)}
+                                </span>
+                              </div>
+                            </TableCell>
+                          ),
+                          commission_balance: () => (
+                            <TableCell
+                              key='commission_balance'
+                              className='bg-card whitespace-nowrap'
+                            >
+                              <div className='flex items-center gap-1 font-medium'>
+                                <span className='text-sm text-muted-foreground'>
+                                  ¥
+                                </span>
+                                <span className='text-foreground tabular-nums'>
+                                  {Number(u.commission_balance ?? 0).toFixed(2)}
+                                </span>
+                              </div>
+                            </TableCell>
+                          ),
+                          online_count: () => (
+                            <TableCell
+                              key='online_count'
+                              className='bg-card'
+                              title={formatDeviceLimit(u.device_limit)}
+                            >
+                              <div className='flex items-center gap-1.5'>
+                                <Badge
+                                  variant='outline'
+                                  className={cn(
+                                    'min-w-[4rem] justify-center',
+                                    u.device_limit != null &&
+                                      (u.online_count ?? 0) >= u.device_limit
+                                      ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                                      : 'border-primary/40 bg-primary/5 text-primary/90'
+                                  )}
+                                >
+                                  {u.online_count ?? 0} /{' '}
+                                  {u.device_limit == null
+                                    ? '∞'
+                                    : u.device_limit}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          ),
+                          subscribe_remote: () => (
+                            <TableCell
+                              key='subscribe_remote'
+                              className='bg-card'
+                            >
+                              {remoteCell(u.subscribe_locations)}
+                            </TableCell>
+                          ),
+                          connect_remote: () => (
+                            <TableCell key='connect_remote' className='bg-card'>
+                              {remoteCell(u.connect_locations)}
+                            </TableCell>
+                          ),
+                          banned: () => (
+                            <TableCell key='banned' className='bg-card'>
+                              <div className='flex justify-center'>
+                                <Badge
+                                  className={cn(
+                                    'min-w-20 justify-center transition-colors',
+                                    u.banned
+                                      ? 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                                      : 'bg-green-500/15 text-green-600 hover:bg-green-500/25 dark:text-green-500'
+                                  )}
+                                >
+                                  {u.banned ? '封禁' : '正常'}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          ),
+                          created_at: () => (
+                            <TableCell
+                              key='created_at'
+                              className='bg-card text-sm whitespace-nowrap text-muted-foreground'
+                            >
+                              <div className='truncate'>
+                                {new Date(
+                                  u.created_at * 1000
+                                ).toLocaleDateString()}
+                              </div>
+                            </TableCell>
+                          ),
+                        }
+                        return renderVisibleColumns(
+                          userColumns.visibleColumns,
+                          cellRenderers
                         )
                       })()}
-                      <TableCell className='bg-card whitespace-nowrap'>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <span className='text-sm text-muted-foreground'>
-                            ¥
-                          </span>
-                          <span className='text-foreground tabular-nums'>
-                            {Number(u.balance ?? 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card whitespace-nowrap'>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <span className='text-sm text-muted-foreground'>
-                            ¥
-                          </span>
-                          <span className='text-foreground tabular-nums'>
-                            {Number(u.commission_balance ?? 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell
-                        className='bg-card'
-                        title={formatDeviceLimit(u.device_limit)}
-                      >
-                        <div className='flex items-center gap-1.5'>
-                          <Badge
-                            variant='outline'
-                            className={cn(
-                              'min-w-[4rem] justify-center',
-                              u.device_limit != null &&
-                                (u.online_count ?? 0) >= u.device_limit
-                                ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                                : 'border-primary/40 bg-primary/5 text-primary/90'
-                            )}
-                          >
-                            {u.online_count ?? 0} /{' '}
-                            {u.device_limit == null ? '∞' : u.device_limit}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card'>
-                        {remoteCell(u.subscribe_locations)}
-                      </TableCell>
-                      <TableCell className='bg-card'>
-                        {remoteCell(u.connect_locations)}
-                      </TableCell>
-                      <TableCell className='bg-card'>
-                        <div className='flex justify-center'>
-                          <Badge
-                            className={cn(
-                              'min-w-20 justify-center transition-colors',
-                              u.banned
-                                ? 'bg-destructive/15 text-destructive hover:bg-destructive/25'
-                                : 'bg-green-500/15 text-green-600 hover:bg-green-500/25 dark:text-green-500'
-                            )}
-                          >
-                            {u.banned ? '封禁' : '正常'}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card text-sm whitespace-nowrap text-muted-foreground'>
-                        <div className='truncate'>
-                          {new Date(u.created_at * 1000).toLocaleDateString()}
-                        </div>
-                      </TableCell>
                       <TableCell className='bg-card'>
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
@@ -864,7 +1043,10 @@ export function UserPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={16} className='h-24 text-center'>
+                  <TableCell
+                    colSpan={getTableColumnSpan(userColumns.visibleColumns)}
+                    className='h-24 text-center'
+                  >
                     未找到结果
                   </TableCell>
                 </TableRow>

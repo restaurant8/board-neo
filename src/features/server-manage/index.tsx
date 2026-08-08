@@ -24,8 +24,15 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
+import {
+  getTableColumnSpan,
+  renderVisibleColumns,
+  type TableColumnOption,
+  useTableColumnPreferences,
+} from '@/hooks/use-table-column-preferences'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -72,6 +79,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
+import { TableColumnCustomizer } from '@/components/table-column-customizer'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { formatBytes } from '@/features/dashboard/format'
 import { fetchServerGroups } from '@/features/server-group/api'
@@ -98,6 +106,20 @@ import { BatchGroupsDialog } from './components/batch-groups-dialog'
 import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
+
+const NODE_TABLE_COLUMNS = [
+  { id: 'id', label: '节点ID' },
+  { id: 'visibility', label: '显隐' },
+  { id: 'name', label: '节点' },
+  { id: 'deployment', label: '部署方式' },
+  { id: 'address', label: '地址' },
+  { id: 'online', label: '在线人数' },
+  { id: 'rate', label: '倍率' },
+  { id: 'groups', label: '权限组' },
+  { id: 'traffic', label: '流量使用' },
+] as const satisfies readonly TableColumnOption<string>[]
+
+type NodeTableColumnId = (typeof NODE_TABLE_COLUMNS)[number]['id']
 
 /* ----------------------------- 胶囊式 faceted 筛选 ----------------------------- */
 
@@ -220,6 +242,7 @@ function FacetFilter({
 
 export function ServerManagePage() {
   const queryClient = useQueryClient()
+  const adminEmail = useAuthStore((state) => state.auth.user?.email)
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<Server | null>(null)
   const [deleting, setDeleting] = useState<Server | null>(null)
@@ -242,6 +265,15 @@ export function ServerManagePage() {
 
   // 节点ID 排序（点击表头）
   const [idSort, setIdSort] = useState<'asc' | 'desc' | null>(null)
+  const nodeColumns = useTableColumnPreferences<NodeTableColumnId>(
+    `board-neo:${encodeURIComponent(adminEmail ?? 'anonymous')}:node-table-columns`,
+    NODE_TABLE_COLUMNS,
+    {
+      onExternalVisibilityChange: (hidden) => {
+        if (hidden.has('id')) setIdSort(null)
+      },
+    }
+  )
 
   // 排序编辑态（点选/拖拽）
   const [sortMode, setSortMode] = useState(false)
@@ -551,6 +583,18 @@ export function ServerManagePage() {
 
   const cycleIdSort = () =>
     setIdSort((s) => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))
+
+  const toggleNodeColumn = (column: NodeTableColumnId) => {
+    if (column === 'id' && !nodeColumns.hiddenSet.has(column)) setIdSort(null)
+    nodeColumns.toggleColumn(column)
+  }
+  const resetNodeColumns = () => {
+    const resetWillHideId = (
+      NODE_TABLE_COLUMNS as readonly TableColumnOption<NodeTableColumnId>[]
+    ).some((column) => column.id === 'id' && column.defaultVisible === false)
+    if (idSort && resetWillHideId) setIdSort(null)
+    nodeColumns.resetColumns()
+  }
 
   const resetFilters = () => {
     setKeyword('')
@@ -915,9 +959,19 @@ export function ServerManagePage() {
                   </Button>
                 </>
               ) : (
-                <Button variant='outline' size='sm' onClick={enterSortMode}>
-                  <GripVertical className='size-4' /> 编辑排序
-                </Button>
+                <>
+                  <TableColumnCustomizer
+                    columns={NODE_TABLE_COLUMNS}
+                    orderedColumns={nodeColumns.orderedColumns}
+                    hiddenSet={nodeColumns.hiddenSet}
+                    onToggle={toggleNodeColumn}
+                    onMove={nodeColumns.moveColumn}
+                    onReset={resetNodeColumns}
+                  />
+                  <Button variant='outline' size='sm' onClick={enterSortMode}>
+                    <GripVertical className='size-4' /> 编辑排序
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -937,124 +991,181 @@ export function ServerManagePage() {
                       />
                     </TableHead>
                   )}
-                  <TableHead className='h-11 w-20 bg-card px-4 text-muted-foreground'>
-                    <Button
-                      variant='ghost'
-                      size='default'
-                      className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
-                      onClick={cycleIdSort}
-                      disabled={sortMode}
-                    >
-                      <span>节点ID</span>
-                      {idSort === 'asc' ? (
-                        <ArrowUp className='size-4 text-foreground/70' />
-                      ) : idSort === 'desc' ? (
-                        <ArrowDown className='size-4 text-foreground/70' />
-                      ) : (
-                        <ChevronsUpDown className='size-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead className='h-11 w-14 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>显隐</span>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-64 bg-card px-4 text-muted-foreground'>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                          <span>节点</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className='grid grid-cols-1 gap-3 p-2'>
-                          <div className='flex items-center space-x-2.5'>
-                            <span className='size-2.5 rounded-full bg-red-500' />
-                            <span className='text-sm font-medium'>未运行</span>
+                  {(() => {
+                    const headerRenderers = {
+                      id: () => (
+                        <TableHead
+                          key='id'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                        >
+                          <Button
+                            variant='ghost'
+                            size='default'
+                            className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
+                            onClick={cycleIdSort}
+                            disabled={sortMode}
+                          >
+                            <span>节点ID</span>
+                            {idSort === 'asc' ? (
+                              <ArrowUp className='size-4 text-foreground/70' />
+                            ) : idSort === 'desc' ? (
+                              <ArrowDown className='size-4 text-foreground/70' />
+                            ) : (
+                              <ChevronsUpDown className='size-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
+                            )}
+                          </Button>
+                        </TableHead>
+                      ),
+                      visibility: () => (
+                        <TableHead
+                          key='visibility'
+                          className='h-11 w-14 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>显隐</span>
                           </div>
-                          <div className='flex items-center space-x-2.5'>
-                            <span className='size-2.5 rounded-full bg-amber-500' />
-                            <span className='text-sm font-medium'>
-                              无人使用或异常
-                            </span>
+                        </TableHead>
+                      ),
+                      name: () => (
+                        <TableHead
+                          key='name'
+                          className='h-11 w-64 bg-card px-4 text-muted-foreground'
+                        >
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild>
+                              <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                                <span>节点</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className='grid grid-cols-1 gap-3 p-2'>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-red-500' />
+                                  <span className='text-sm font-medium'>
+                                    未运行
+                                  </span>
+                                </div>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-amber-500' />
+                                  <span className='text-sm font-medium'>
+                                    无人使用或异常
+                                  </span>
+                                </div>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-emerald-500' />
+                                  <span className='text-sm font-medium'>
+                                    运行正常
+                                  </span>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
+                      ),
+                      deployment: () => (
+                        <TableHead
+                          key='deployment'
+                          className='h-11 w-52 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>部署方式</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                查看节点是独立部署，还是由某台服务器托管，并可直接在列表中调整。
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
-                          <div className='flex items-center space-x-2.5'>
-                            <span className='size-2.5 rounded-full bg-emerald-500' />
-                            <span className='text-sm font-medium'>
-                              运行正常
-                            </span>
+                        </TableHead>
+                      ),
+                      address: () => (
+                        <TableHead
+                          key='address'
+                          className='h-11 w-44 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>地址</span>
                           </div>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-                  <TableHead className='h-11 w-52 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>部署方式</span>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          查看节点是独立部署，还是由某台服务器托管，并可直接在列表中调整。
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-44 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>地址</span>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-20 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>在线人数</span>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          在线人数根据服务端上报频率而定
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-20 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>倍率</span>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
-                        </TooltipTrigger>
-                        <TooltipContent>流量扣费倍率</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-40 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>权限组</span>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
-                        </TooltipTrigger>
-                        <TooltipContent>可订阅到该节点的权限组</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
-                  <TableHead className='h-11 w-32 bg-card px-4 text-muted-foreground'>
-                    <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                      <span>流量使用</span>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          节点流量使用情况，显示已用流量和限制
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
+                        </TableHead>
+                      ),
+                      online: () => (
+                        <TableHead
+                          key='online'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>在线人数</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                在线人数根据服务端上报频率而定
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      rate: () => (
+                        <TableHead
+                          key='rate'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>倍率</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>流量扣费倍率</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      groups: () => (
+                        <TableHead
+                          key='groups'
+                          className='h-11 w-40 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>权限组</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                可订阅到该节点的权限组
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      traffic: () => (
+                        <TableHead
+                          key='traffic'
+                          className='h-11 w-32 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>流量使用</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                节点流量使用情况，显示已用流量和限制
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                    }
+                    return renderVisibleColumns(
+                      nodeColumns.visibleColumns,
+                      headerRenderers
+                    )
+                  })()}
                   <TableHead className='h-11 w-14 bg-card px-4 text-muted-foreground'>
                     <div className='flex items-center justify-end space-x-1 py-2 font-medium text-nowrap'>
                       <span>操作</span>
@@ -1066,7 +1177,7 @@ export function ServerManagePage() {
                 {isLoading ? (
                   <TableRow className='animate-fade-in hover:bg-muted/50'>
                     <TableCell
-                      colSpan={11}
+                      colSpan={getTableColumnSpan(nodeColumns.visibleColumns)}
                       className='h-24 bg-card px-4 text-center'
                     >
                       加载中...
@@ -1138,300 +1249,353 @@ export function ServerManagePage() {
                             />
                           </TableCell>
                         )}
-                        <TableCell className='bg-card px-4'>
-                          {(() => {
-                            const isChild = !!n.parent_id // parent_id 为 0/null 均表示无父节点
-                            return (
-                              <Tooltip delayDuration={100}>
-                                <TooltipTrigger asChild>
-                                  <div className='group/id flex items-center space-x-2'>
+                        {(() => {
+                          const cellRenderers = {
+                            id: () => (
+                              <TableCell key='id' className='bg-card px-4'>
+                                {(() => {
+                                  const isChild = !!n.parent_id // parent_id 为 0/null 均表示无父节点
+                                  return (
+                                    <Tooltip delayDuration={100}>
+                                      <TooltipTrigger asChild>
+                                        <div className='group/id flex items-center space-x-2'>
+                                          <Badge
+                                            variant='outline'
+                                            className='flex items-center gap-1.5 border-2 font-medium transition-all duration-200 hover:opacity-80'
+                                            style={{
+                                              borderColor:
+                                                SERVER_TYPE_COLOR[n.type],
+                                            }}
+                                          >
+                                            <ServerIcon className='size-3' />
+                                            <span className='flex items-center gap-1'>
+                                              <span className='flex items-center gap-0.5'>
+                                                {n.code ?? n.id}
+                                              </span>
+                                              {isChild ? (
+                                                <>
+                                                  <span className='text-sm text-muted-foreground/30'>
+                                                    →
+                                                  </span>
+                                                  <span>
+                                                    {n.parent?.code ??
+                                                      n.parent?.id ??
+                                                      n.parent_id}
+                                                  </span>
+                                                </>
+                                              ) : null}
+                                            </span>
+                                          </Badge>
+                                          <Button
+                                            variant='ghost'
+                                            size='icon'
+                                            className='size-5 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover/id:opacity-100 hover:text-muted-foreground'
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              navigator.clipboard
+                                                ?.writeText(
+                                                  n.code || n.id.toString()
+                                                )
+                                                .then(() =>
+                                                  toast.success('复制成功')
+                                                )
+                                            }}
+                                          >
+                                            <Copy className='size-3' />
+                                          </Button>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side='top'
+                                        className='flex flex-col gap-2 p-3'
+                                      >
+                                        <p className='font-medium'>
+                                          {SERVER_TYPE_LABEL[n.type] ?? n.type}
+                                          {isChild ? ' (子节点)' : ''}
+                                        </p>
+                                        <div className='mt-1 grid gap-1.5'>
+                                          <div className='flex items-center gap-3'>
+                                            <span className='text-xs text-muted-foreground'>
+                                              自定义ID
+                                            </span>
+                                            <span className='max-w-[120px] truncate font-mono text-xs font-medium'>
+                                              {n.code ?? '—'}
+                                            </span>
+                                          </div>
+                                          <div className='flex items-center gap-3'>
+                                            <span className='text-xs text-muted-foreground'>
+                                              原始ID
+                                            </span>
+                                            <span className='font-mono text-xs font-semibold'>
+                                              {n.id}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                })()}
+                              </TableCell>
+                            ),
+                            visibility: () => (
+                              <TableCell
+                                key='visibility'
+                                className='bg-card px-4'
+                              >
+                                <Switch
+                                  checked={!!n.show}
+                                  disabled={sortMode}
+                                  onCheckedChange={(c) =>
+                                    toggleMutation.mutate({
+                                      id: n.id,
+                                      show: c ? 1 : 0,
+                                    })
+                                  }
+                                  aria-label='显隐'
+                                  style={
+                                    n.show
+                                      ? {
+                                          backgroundColor:
+                                            SERVER_TYPE_COLOR[n.type],
+                                        }
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
+                            ),
+                            name: () => (
+                              <TableCell
+                                key='name'
+                                className='bg-card px-4 font-medium'
+                              >
+                                <div className='flex items-center space-x-2.5 outline-none'>
+                                  <Tooltip delayDuration={100}>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className={cn(
+                                          'size-2.5 shrink-0 cursor-pointer rounded-full shadow-sm transition-all duration-200',
+                                          n.available_status === 2
+                                            ? 'bg-emerald-500/80 shadow-emerald-500/50'
+                                            : n.available_status === 1
+                                              ? 'bg-yellow-500/80 shadow-yellow-500/50'
+                                              : 'bg-destructive/80 shadow-destructive/50'
+                                        )}
+                                      />
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side='top'
+                                      align='center'
+                                      sideOffset={10}
+                                    >
+                                      {n.available_status === 2
+                                        ? '运行正常'
+                                        : n.available_status === 1
+                                          ? '无人使用或异常'
+                                          : '未运行'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <span className='cursor-default text-left font-medium whitespace-nowrap transition-colors hover:text-primary'>
+                                    {n.name}
+                                  </span>
+                                  {n.parent_id ? (
                                     <Badge
                                       variant='outline'
-                                      className='flex items-center gap-1.5 border-2 font-medium transition-all duration-200 hover:opacity-80'
-                                      style={{
-                                        borderColor: SERVER_TYPE_COLOR[n.type],
-                                      }}
+                                      className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
                                     >
-                                      <ServerIcon className='size-3' />
-                                      <span className='flex items-center gap-1'>
-                                        <span className='flex items-center gap-0.5'>
-                                          {n.code ?? n.id}
-                                        </span>
-                                        {isChild ? (
-                                          <>
-                                            <span className='text-sm text-muted-foreground/30'>
-                                              →
-                                            </span>
-                                            <span>
-                                              {n.parent?.code ??
-                                                n.parent?.id ??
-                                                n.parent_id}
-                                            </span>
-                                          </>
-                                        ) : null}
-                                      </span>
+                                      子节点
                                     </Badge>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                            ),
+                            deployment: () => (
+                              <TableCell
+                                key='deployment'
+                                className='bg-card px-4'
+                              >
+                                <div className='flex items-center gap-1.5 px-1'>
+                                  {n.machine_id != null ? (
+                                    (() => {
+                                      const mc = machineById.get(n.machine_id)
+                                      const mOnline = mc
+                                        ? isOnline(mc.last_seen_at)
+                                        : false
+                                      return (
+                                        <div className='flex min-w-0 flex-1 items-center gap-1.5 text-xs'>
+                                          <span
+                                            className={cn(
+                                              'size-2 shrink-0 rounded-full',
+                                              mOnline
+                                                ? 'bg-emerald-500'
+                                                : 'bg-rose-500'
+                                            )}
+                                          />
+                                          <span className='truncate text-xs font-medium'>
+                                            {machineName ?? `#${n.machine_id}`}
+                                          </span>
+                                          <Badge
+                                            variant='outline'
+                                            className={cn(
+                                              'shrink-0 px-1.5 py-0 text-[10px] font-normal',
+                                              mOnline
+                                                ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                                            )}
+                                          >
+                                            {mOnline
+                                              ? '服务器在线'
+                                              : '服务器离线'}
+                                          </Badge>
+                                          {!n.enabled && (
+                                            <Badge
+                                              variant='secondary'
+                                              className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
+                                            >
+                                              节点停用
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )
+                                    })()
+                                  ) : (
+                                    <div className='flex min-w-0 flex-1 items-center gap-1.5'>
+                                      <ServerIcon className='size-3.5 shrink-0 text-muted-foreground' />
+                                      <span className='truncate text-xs font-medium text-foreground'>
+                                        独立部署
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            ),
+                            address: () => (
+                              <TableCell key='address' className='bg-card px-4'>
+                                <div className='group relative flex min-w-0 items-start'>
+                                  <div className='flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-7'>
+                                    <div className='flex items-center'>
+                                      <span className='font-mono text-sm font-medium text-foreground/90'>
+                                        {n.host}:{n.port}
+                                      </span>
+                                    </div>
+                                    {n.server_port != null &&
+                                      n.server_port !== n.port && (
+                                        <span className='text-[0.7rem] tracking-tight whitespace-nowrap text-muted-foreground/40'>
+                                          (内部端口 {n.server_port})
+                                        </span>
+                                      )}
+                                  </div>
+                                  <div className='absolute top-0 right-0'>
                                     <Button
                                       variant='ghost'
                                       size='icon'
-                                      className='size-5 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover/id:opacity-100 hover:text-muted-foreground'
+                                      className='size-6 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover:opacity-100 hover:bg-muted/50 hover:text-muted-foreground'
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         navigator.clipboard
-                                          ?.writeText(n.code || n.id.toString())
+                                          ?.writeText(`${n.host}:${n.port}`)
                                           .then(() => toast.success('复制成功'))
                                       }}
                                     >
                                       <Copy className='size-3' />
                                     </Button>
                                   </div>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side='top'
-                                  className='flex flex-col gap-2 p-3'
-                                >
-                                  <p className='font-medium'>
-                                    {SERVER_TYPE_LABEL[n.type] ?? n.type}
-                                    {isChild ? ' (子节点)' : ''}
-                                  </p>
-                                  <div className='mt-1 grid gap-1.5'>
-                                    <div className='flex items-center gap-3'>
-                                      <span className='text-xs text-muted-foreground'>
-                                        自定义ID
-                                      </span>
-                                      <span className='max-w-[120px] truncate font-mono text-xs font-medium'>
-                                        {n.code ?? '—'}
-                                      </span>
-                                    </div>
-                                    <div className='flex items-center gap-3'>
-                                      <span className='text-xs text-muted-foreground'>
-                                        原始ID
-                                      </span>
-                                      <span className='font-mono text-xs font-semibold'>
-                                        {n.id}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            )
-                          })()}
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <Switch
-                            checked={!!n.show}
-                            disabled={sortMode}
-                            onCheckedChange={(c) =>
-                              toggleMutation.mutate({
-                                id: n.id,
-                                show: c ? 1 : 0,
-                              })
-                            }
-                            aria-label='显隐'
-                            style={
-                              n.show
-                                ? { backgroundColor: SERVER_TYPE_COLOR[n.type] }
-                                : undefined
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className='bg-card px-4 font-medium'>
-                          <div className='flex items-center space-x-2.5 outline-none'>
-                            <Tooltip delayDuration={100}>
-                              <TooltipTrigger asChild>
-                                <span
-                                  className={cn(
-                                    'size-2.5 shrink-0 cursor-pointer rounded-full shadow-sm transition-all duration-200',
-                                    n.available_status === 2
-                                      ? 'bg-emerald-500/80 shadow-emerald-500/50'
-                                      : n.available_status === 1
-                                        ? 'bg-yellow-500/80 shadow-yellow-500/50'
-                                        : 'bg-destructive/80 shadow-destructive/50'
-                                  )}
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side='top'
-                                align='center'
-                                sideOffset={10}
-                              >
-                                {n.available_status === 2
-                                  ? '运行正常'
-                                  : n.available_status === 1
-                                    ? '无人使用或异常'
-                                    : '未运行'}
-                              </TooltipContent>
-                            </Tooltip>
-                            <span className='cursor-default text-left font-medium whitespace-nowrap transition-colors hover:text-primary'>
-                              {n.name}
-                            </span>
-                            {n.parent_id ? (
-                              <Badge
-                                variant='outline'
-                                className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
-                              >
-                                子节点
-                              </Badge>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <div className='flex items-center gap-1.5 px-1'>
-                            {n.machine_id != null ? (
-                              (() => {
-                                const mc = machineById.get(n.machine_id)
-                                const mOnline = mc
-                                  ? isOnline(mc.last_seen_at)
-                                  : false
-                                return (
-                                  <div className='flex min-w-0 flex-1 items-center gap-1.5 text-xs'>
-                                    <span
-                                      className={cn(
-                                        'size-2 shrink-0 rounded-full',
-                                        mOnline
-                                          ? 'bg-emerald-500'
-                                          : 'bg-rose-500'
-                                      )}
-                                    />
-                                    <span className='truncate text-xs font-medium'>
-                                      {machineName ?? `#${n.machine_id}`}
-                                    </span>
-                                    <Badge
-                                      variant='outline'
-                                      className={cn(
-                                        'shrink-0 px-1.5 py-0 text-[10px] font-normal',
-                                        mOnline
-                                          ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                          : 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                                      )}
-                                    >
-                                      {mOnline ? '服务器在线' : '服务器离线'}
-                                    </Badge>
-                                    {!n.enabled && (
-                                      <Badge
-                                        variant='secondary'
-                                        className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
-                                      >
-                                        节点停用
-                                      </Badge>
-                                    )}
-                                  </div>
-                                )
-                              })()
-                            ) : (
-                              <div className='flex min-w-0 flex-1 items-center gap-1.5'>
-                                <ServerIcon className='size-3.5 shrink-0 text-muted-foreground' />
-                                <span className='truncate text-xs font-medium text-foreground'>
-                                  独立部署
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <div className='group relative flex min-w-0 items-start'>
-                            <div className='flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-7'>
-                              <div className='flex items-center'>
-                                <span className='font-mono text-sm font-medium text-foreground/90'>
-                                  {n.host}:{n.port}
-                                </span>
-                              </div>
-                              {n.server_port != null &&
-                                n.server_port !== n.port && (
-                                  <span className='text-[0.7rem] tracking-tight whitespace-nowrap text-muted-foreground/40'>
-                                    (内部端口 {n.server_port})
-                                  </span>
-                                )}
-                            </div>
-                            <div className='absolute top-0 right-0'>
-                              <Button
-                                variant='ghost'
-                                size='icon'
-                                className='size-6 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover:opacity-100 hover:bg-muted/50 hover:text-muted-foreground'
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  navigator.clipboard
-                                    ?.writeText(`${n.host}:${n.port}`)
-                                    .then(() => toast.success('复制成功'))
-                                }}
-                              >
-                                <Copy className='size-3' />
-                              </Button>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <div className='flex items-center space-x-2 px-4'>
-                            <User className='size-4' />
-                            <span className='font-medium'>{n.online ?? 0}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <Badge variant='secondary' className='font-medium'>
-                            {n.rate} x
-                          </Badge>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          <div className='flex flex-nowrap items-center gap-1.5'>
-                            {(n.groups ?? []).length > 0 ? (
-                              (n.groups ?? []).map((g) => (
-                                <Badge
-                                  key={g.id}
-                                  variant='secondary'
-                                  className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
-                                >
-                                  {g.name}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className='text-sm text-muted-foreground'>
-                                --
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className='bg-card px-4'>
-                          {(() => {
-                            const usedStr = formatBytes(used)
-                            const totalStr = formatBytes(limit)
-                            if (limit <= 0)
-                              return (
-                                <div className='text-sm text-muted-foreground'>
-                                  {usedStr}
                                 </div>
-                              )
-                            const pct = Math.min((used / limit) * 100, 100)
-                            return (
-                              <Tooltip delayDuration={100}>
-                                <TooltipTrigger>
-                                  <div className='flex items-center gap-2'>
-                                    <div className='h-1.5 w-12 rounded-full bg-secondary'>
-                                      <div
-                                        className={cn(
-                                          'h-full rounded-full transition-all',
-                                          pct > 90
-                                            ? 'bg-destructive'
-                                            : 'bg-primary'
-                                        )}
-                                        style={{ width: `${pct}%` }}
-                                      />
-                                    </div>
-                                    <span className='text-xs text-muted-foreground tabular-nums'>
-                                      {usedStr}
+                              </TableCell>
+                            ),
+                            online: () => (
+                              <TableCell key='online' className='bg-card px-4'>
+                                <div className='flex items-center space-x-2 px-4'>
+                                  <User className='size-4' />
+                                  <span className='font-medium'>
+                                    {n.online ?? 0}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            ),
+                            rate: () => (
+                              <TableCell key='rate' className='bg-card px-4'>
+                                <Badge
+                                  variant='secondary'
+                                  className='font-medium'
+                                >
+                                  {n.rate} x
+                                </Badge>
+                              </TableCell>
+                            ),
+                            groups: () => (
+                              <TableCell key='groups' className='bg-card px-4'>
+                                <div className='flex flex-nowrap items-center gap-1.5'>
+                                  {(n.groups ?? []).length > 0 ? (
+                                    (n.groups ?? []).map((g) => (
+                                      <Badge
+                                        key={g.id}
+                                        variant='secondary'
+                                        className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
+                                      >
+                                        {g.name}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className='text-sm text-muted-foreground'>
+                                      --
                                     </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent side='bottom'>
-                                  <div className='space-y-1 text-sm'>
-                                    <p>已用: {usedStr}</p>
-                                    <p>总流量: {totalStr}</p>
-                                    <p>使用率: {pct.toFixed(1)}%</p>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            )
-                          })()}
-                        </TableCell>
+                                  )}
+                                </div>
+                              </TableCell>
+                            ),
+                            traffic: () => (
+                              <TableCell key='traffic' className='bg-card px-4'>
+                                {(() => {
+                                  const usedStr = formatBytes(used)
+                                  const totalStr = formatBytes(limit)
+                                  if (limit <= 0)
+                                    return (
+                                      <div className='text-sm text-muted-foreground'>
+                                        {usedStr}
+                                      </div>
+                                    )
+                                  const pct = Math.min(
+                                    (used / limit) * 100,
+                                    100
+                                  )
+                                  return (
+                                    <Tooltip delayDuration={100}>
+                                      <TooltipTrigger>
+                                        <div className='flex items-center gap-2'>
+                                          <div className='h-1.5 w-12 rounded-full bg-secondary'>
+                                            <div
+                                              className={cn(
+                                                'h-full rounded-full transition-all',
+                                                pct > 90
+                                                  ? 'bg-destructive'
+                                                  : 'bg-primary'
+                                              )}
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </div>
+                                          <span className='text-xs text-muted-foreground tabular-nums'>
+                                            {usedStr}
+                                          </span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side='bottom'>
+                                        <div className='space-y-1 text-sm'>
+                                          <p>已用: {usedStr}</p>
+                                          <p>总流量: {totalStr}</p>
+                                          <p>使用率: {pct.toFixed(1)}%</p>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                })()}
+                              </TableCell>
+                            ),
+                          }
+                          return renderVisibleColumns(
+                            nodeColumns.visibleColumns,
+                            cellRenderers
+                          )
+                        })()}
                         <TableCell className='bg-card px-4'>
                           <div className='flex justify-center'>
                             <DropdownMenu modal={false}>
@@ -1490,7 +1654,7 @@ export function ServerManagePage() {
                 ) : (
                   <TableRow className='animate-fade-in hover:bg-muted/50'>
                     <TableCell
-                      colSpan={11}
+                      colSpan={getTableColumnSpan(nodeColumns.visibleColumns)}
                       className='h-24 bg-card px-4 text-center'
                     >
                       暂无节点
