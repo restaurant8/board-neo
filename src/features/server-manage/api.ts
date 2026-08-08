@@ -208,6 +208,39 @@ export function batchReplaceNodes(payload: BatchReplaceNodesPayload) {
   return post<BatchReplaceNodesResult>('/server/manage/batchReplace', payload)
 }
 
+export type BatchUpdateCertificatePayload = {
+  ids: number[]
+  match_domain: string
+  target_domain: string
+  update_sni: boolean
+  sni?: string
+  cert_content: string
+  key_content: string
+}
+
+export type BatchUpdateCertificateResult = {
+  requested_count: number
+  updated_count: number
+  certificate_updated_count: number
+  domain_updated_count: number
+  sni_updated_count: number
+  match_domain: string
+  target_domain: string
+  update_sni: boolean
+  sni: string | null
+  certificate_names: string[]
+  certificate_expires_at: number
+  certificate_fingerprint_sha256: string
+}
+
+/** POST /server/manage/batchUpdateCertificate — 批量更新同域名 Cert Push 证书。 */
+export function batchUpdateCertificate(payload: BatchUpdateCertificatePayload) {
+  return post<BatchUpdateCertificateResult>(
+    '/server/manage/batchUpdateCertificate',
+    payload
+  )
+}
+
 /**
  * POST /server/manage/batchUpdateGroups — 批量调整节点权限组。
  * mode: replace 覆盖 / add 追加 / remove 移除。

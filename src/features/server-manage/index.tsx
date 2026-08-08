@@ -18,6 +18,7 @@ import {
   Save,
   Search,
   Server as ServerIcon,
+  ShieldCheck,
   Terminal,
   Trash2,
   User,
@@ -85,6 +86,7 @@ import {
   batchDeleteNodes,
   batchReplaceNodes,
   batchResetTraffic,
+  batchUpdateCertificate,
   batchUpdateNodeGroups,
   batchUpdateNodes,
   copyNode,
@@ -94,6 +96,7 @@ import {
   sortNodes,
   updateNode,
 } from './api'
+import { BatchCertificateDialog } from './components/batch-certificate-dialog'
 import { BatchGroupsDialog } from './components/batch-groups-dialog'
 import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
@@ -230,6 +233,7 @@ export function ServerManagePage() {
   const [batchResetOpen, setBatchResetOpen] = useState(false)
   const [batchGroupsOpen, setBatchGroupsOpen] = useState(false)
   const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
+  const [batchCertificateOpen, setBatchCertificateOpen] = useState(false)
 
   // 筛选（胶囊多选）
   const [keyword, setKeyword] = useState('')
@@ -369,6 +373,26 @@ export function ServerManagePage() {
       invalidate()
       setSelected([])
       setBatchReplaceOpen(false)
+    },
+    onError: handleServerError,
+  })
+
+  const batchCertificateMutation = useMutation({
+    mutationFn: batchUpdateCertificate,
+    onSuccess: (result) => {
+      const expiresAt = new Date(
+        result.certificate_expires_at * 1000
+      ).toLocaleDateString('zh-CN')
+      if (result.updated_count > 0) {
+        toast.success(
+          `已更新 ${result.updated_count} 个节点（证书内容 ${result.certificate_updated_count} 个、证书域名 ${result.domain_updated_count} 个、SNI ${result.sni_updated_count} 个），有效期至 ${expiresAt}`
+        )
+      } else {
+        toast.info('所有匹配节点已经使用这组证书，无需更新')
+      }
+      invalidate()
+      setSelected([])
+      setBatchCertificateOpen(false)
     },
     onError: handleServerError,
   })
@@ -728,6 +752,16 @@ export function ServerManagePage() {
               >
                 <Replace className='size-4' />
                 批量替换
+              </Button>
+              <Button
+                variant='outline'
+                size='sm'
+                className='h-8'
+                disabled={nodes.length === 0}
+                onClick={() => setBatchCertificateOpen(true)}
+              >
+                <ShieldCheck className='size-4' />
+                批量证书
               </Button>
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -1539,6 +1573,18 @@ export function ServerManagePage() {
           selectedIds={selected}
           isLoading={batchReplaceMutation.isPending}
           onConfirm={(payload) => batchReplaceMutation.mutate(payload)}
+        />
+      )}
+
+      {batchCertificateOpen && (
+        <BatchCertificateDialog
+          open
+          onOpenChange={setBatchCertificateOpen}
+          nodes={nodes}
+          filteredIds={filtered.map((node) => node.id)}
+          selectedIds={selected}
+          isLoading={batchCertificateMutation.isPending}
+          onConfirm={(payload) => batchCertificateMutation.mutate(payload)}
         />
       )}
 
