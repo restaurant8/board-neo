@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PlusCircledIcon, CheckIcon } from '@radix-ui/react-icons'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
@@ -25,18 +25,15 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import { handleServerError } from '@/lib/handle-server-error'
-import { formatBytes } from '@/features/dashboard/format'
-import { fetchServerGroups } from '@/features/server-group/api'
-import { fetchMachines } from '@/features/server-machine/api'
-import { isOnline } from '@/features/server-machine/format'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
+import { cn } from '@/lib/utils'
+import {
+  getTableColumnSpan,
+  renderVisibleColumns,
+  type TableColumnOption,
+  useTableColumnPreferences,
+} from '@/hooks/use-table-column-preferences'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -78,6 +75,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { TableColumnCustomizer } from '@/components/table-column-customizer'
+import { ThemeSwitch } from '@/components/theme-switch'
+import { formatBytes } from '@/features/dashboard/format'
+import { fetchServerGroups } from '@/features/server-group/api'
+import { fetchMachines } from '@/features/server-machine/api'
+import { isOnline } from '@/features/server-machine/format'
 import {
   SERVER_TYPES,
   SERVER_TYPE_COLOR,
@@ -101,6 +109,20 @@ import { BatchGroupsDialog } from './components/batch-groups-dialog'
 import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
+
+const NODE_TABLE_COLUMNS = [
+  { id: 'id', label: '节点ID' },
+  { id: 'visibility', label: '显隐' },
+  { id: 'name', label: '节点' },
+  { id: 'deployment', label: '部署方式' },
+  { id: 'address', label: '地址' },
+  { id: 'online', label: '在线人数' },
+  { id: 'rate', label: '倍率' },
+  { id: 'groups', label: '权限组' },
+  { id: 'traffic', label: '流量使用' },
+] as const satisfies readonly TableColumnOption<string>[]
+
+type NodeTableColumnId = (typeof NODE_TABLE_COLUMNS)[number]['id']
 
 /* ----------------------------- 胶囊式 faceted 筛选 ----------------------------- */
 
@@ -188,13 +210,13 @@ function FacetFilter({
                   >
                     <div
                       className={cn(
-                        'border-primary flex size-4 items-center justify-center rounded-sm border',
+                        'flex size-4 items-center justify-center rounded-sm border border-primary',
                         isSelected
                           ? 'bg-primary text-primary-foreground'
                           : 'opacity-50 [&_svg]:invisible'
                       )}
                     >
-                      <CheckIcon className='text-background size-4' />
+                      <CheckIcon className='size-4 text-background' />
                     </div>
                     <span>{option.label}</span>
                   </CommandItem>
@@ -223,6 +245,7 @@ function FacetFilter({
 
 export function ServerManagePage() {
   const queryClient = useQueryClient()
+  const adminEmail = useAuthStore((state) => state.auth.user?.email)
   const [mutateOpen, setMutateOpen] = useState(false)
   const [current, setCurrent] = useState<Server | null>(null)
   const [deleting, setDeleting] = useState<Server | null>(null)
@@ -246,6 +269,15 @@ export function ServerManagePage() {
 
   // 节点ID 排序（点击表头）
   const [idSort, setIdSort] = useState<'asc' | 'desc' | null>(null)
+  const nodeColumns = useTableColumnPreferences<NodeTableColumnId>(
+    `board-neo:${encodeURIComponent(adminEmail ?? 'anonymous')}:node-table-columns`,
+    NODE_TABLE_COLUMNS,
+    {
+      onExternalVisibilityChange: (hidden) => {
+        if (hidden.has('id')) setIdSort(null)
+      },
+    }
+  )
 
   // 排序编辑态（点选/拖拽）
   const [sortMode, setSortMode] = useState(false)
@@ -255,7 +287,10 @@ export function ServerManagePage() {
   const [pickMode, setPickMode] = useState(true)
   const [pickOrder, setPickOrder] = useState<number[]>([])
 
-  const { data, isLoading } = useQuery({ queryKey: ['nodes'], queryFn: getNodes })
+  const { data, isLoading } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: getNodes,
+  })
   const { data: groups } = useQuery({
     queryKey: ['server-groups'],
     queryFn: fetchServerGroups,
@@ -485,9 +520,7 @@ export function ServerManagePage() {
   const display = useMemo(() => {
     if (!sortMode) return sorted
     const map = new Map(filtered.map((n) => [n.id, n]))
-    return orderedIds
-      .map((id) => map.get(id))
-      .filter((n): n is Server => !!n)
+    return orderedIds.map((id) => map.get(id)).filter((n): n is Server => !!n)
   }, [sorted, filtered, sortMode, orderedIds])
 
   const allSelected =
@@ -575,6 +608,18 @@ export function ServerManagePage() {
   const cycleIdSort = () =>
     setIdSort((s) => (s === 'asc' ? 'desc' : s === 'desc' ? null : 'asc'))
 
+  const toggleNodeColumn = (column: NodeTableColumnId) => {
+    if (column === 'id' && !nodeColumns.hiddenSet.has(column)) setIdSort(null)
+    nodeColumns.toggleColumn(column)
+  }
+  const resetNodeColumns = () => {
+    const resetWillHideId = (
+      NODE_TABLE_COLUMNS as readonly TableColumnOption<NodeTableColumnId>[]
+    ).some((column) => column.id === 'id' && column.defaultVisible === false)
+    if (idSort && resetWillHideId) setIdSort(null)
+    nodeColumns.resetColumns()
+  }
+
   const resetFilters = () => {
     setKeyword('')
     setTypeFilter([])
@@ -641,129 +686,129 @@ export function ServerManagePage() {
 
       <Main className='flex flex-1 flex-col gap-4'>
         <TooltipProvider delayDuration={100}>
-        <div className='flex flex-wrap items-end justify-between gap-2'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight'>节点管理</h2>
-            <p className='text-muted-foreground mt-2'>
-              管理所有节点，包括添加、删除、编辑等操作。
-            </p>
+          <div className='flex flex-wrap items-end justify-between gap-2'>
+            <div>
+              <h2 className='text-2xl font-bold tracking-tight'>节点管理</h2>
+              <p className='mt-2 text-muted-foreground'>
+                管理所有节点，包括添加、删除、编辑等操作。
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* ----------------------------- 工具栏 ----------------------------- */}
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          {sortMode ? (
-            <p className='text-muted-foreground text-sm'>
-              {pickMode
-                ? '按目标顺序依次点击节点行编号，先点的排前面；未点选的保持原顺序跟在后面，再点一次可取消'
-                : '拖拽节点进行排序，完成后点击保存'}
-              ，保存后用户订阅将按此顺序输出
-              {pickMode && pickOrder.length > 0 && (
-                <>
-                  <span className='text-foreground font-medium'>
-                    （已点选 {pickOrder.length} 个）
+          {/* ----------------------------- 工具栏 ----------------------------- */}
+          <div className='flex flex-wrap items-center justify-between gap-2'>
+            {sortMode ? (
+              <p className='text-sm text-muted-foreground'>
+                {pickMode
+                  ? '按目标顺序依次点击节点行编号，先点的排前面；未点选的保持原顺序跟在后面，再点一次可取消'
+                  : '拖拽节点进行排序，完成后点击保存'}
+                ，保存后用户订阅将按此顺序输出
+                {pickMode && pickOrder.length > 0 && (
+                  <>
+                    <span className='font-medium text-foreground'>
+                      （已点选 {pickOrder.length} 个）
+                    </span>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      className='h-6 px-2'
+                      onClick={() => setPickOrder([])}
+                    >
+                      清空
+                    </Button>
+                  </>
+                )}
+                {hasFilter && (
+                  <span className='text-amber-600 dark:text-amber-500'>
+                    （当前筛选生效，仅重排筛选出的节点）
                   </span>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    className='h-6 px-2'
-                    onClick={() => setPickOrder([])}
-                  >
-                    清空
-                  </Button>
-                </>
-              )}
-              {hasFilter && (
-                <span className='text-amber-600 dark:text-amber-500'>
-                  （当前筛选生效，仅重排筛选出的节点）
-                </span>
-              )}
-            </p>
-          ) : (
-            <div className='flex flex-1 flex-wrap items-center gap-2'>
-              <Button
-                size='sm'
-                onClick={() => {
-                  setCurrent(null)
-                  setMutateOpen(true)
-                }}
-              >
-                <Plus className='size-4' /> 添加节点
-              </Button>
-              <div className='relative w-full max-w-xs'>
-                <Search className='text-muted-foreground absolute start-2 top-1/2 size-4 -translate-y-1/2' />
-                <Input
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder='搜索节点...'
-                  className='h-8 ps-8'
+                )}
+              </p>
+            ) : (
+              <div className='flex flex-1 flex-wrap items-center gap-2'>
+                <Button
+                  size='sm'
+                  onClick={() => {
+                    setCurrent(null)
+                    setMutateOpen(true)
+                  }}
+                >
+                  <Plus className='size-4' /> 添加节点
+                </Button>
+                <div className='relative w-full max-w-xs'>
+                  <Search className='absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
+                  <Input
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder='搜索节点...'
+                    className='h-8 ps-8'
+                  />
+                </div>
+                <FacetFilter
+                  title='类型'
+                  options={typeOptions}
+                  selected={typeFilter}
+                  onChange={setTypeFilter}
                 />
-              </div>
-              <FacetFilter
-                title='类型'
-                options={typeOptions}
-                selected={typeFilter}
-                onChange={setTypeFilter}
-              />
-              <FacetFilter
-                title='服务器'
-                options={machineOptions}
-                selected={machineFilter}
-                onChange={setMachineFilter}
-                searchPlaceholder='搜索服务器...'
-                emptyText='未找到服务器'
-              />
-              <FacetFilter
-                title='权限组'
-                options={groupOptions}
-                selected={groupFilter}
-                onChange={setGroupFilter}
-              />
-              <FacetFilter
-                title='地址'
-                options={hostOptions}
-                selected={hostFilter}
-                onChange={setHostFilter}
-                searchPlaceholder='搜索节点地址...'
-                emptyText='未找到节点地址'
-              />
-              <FacetFilter
-                title='连接端口'
-                options={portOptions}
-                selected={portFilter}
-                onChange={setPortFilter}
-                searchPlaceholder='搜索连接端口...'
-                emptyText='未找到连接端口'
-              />
-              <FacetFilter
-                title='服务端口'
-                options={serverPortOptions}
-                selected={serverPortFilter}
-                onChange={setServerPortFilter}
-                searchPlaceholder='搜索服务端口...'
-                emptyText='未找到服务端口'
-              />
-              <Button
-                variant='outline'
-                size='sm'
-                className='h-8'
-                disabled={nodes.length === 0}
-                onClick={() => setBatchReplaceOpen(true)}
-              >
-                <Replace className='size-4' />
-                批量替换
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
-                className='h-8'
-                disabled={nodes.length === 0}
-                onClick={() => setBatchCertificateOpen(true)}
-              >
-                <ShieldCheck className='size-4' />
-                批量证书
-              </Button>
-              <DropdownMenu>
+                <FacetFilter
+                  title='服务器'
+                  options={machineOptions}
+                  selected={machineFilter}
+                  onChange={setMachineFilter}
+                  searchPlaceholder='搜索服务器...'
+                  emptyText='未找到服务器'
+                />
+                <FacetFilter
+                  title='权限组'
+                  options={groupOptions}
+                  selected={groupFilter}
+                  onChange={setGroupFilter}
+                />
+                <FacetFilter
+                  title='地址'
+                  options={hostOptions}
+                  selected={hostFilter}
+                  onChange={setHostFilter}
+                  searchPlaceholder='搜索节点地址...'
+                  emptyText='未找到节点地址'
+                />
+                <FacetFilter
+                  title='连接端口'
+                  options={portOptions}
+                  selected={portFilter}
+                  onChange={setPortFilter}
+                  searchPlaceholder='搜索连接端口...'
+                  emptyText='未找到连接端口'
+                />
+                <FacetFilter
+                  title='服务端口'
+                  options={serverPortOptions}
+                  selected={serverPortFilter}
+                  onChange={setServerPortFilter}
+                  searchPlaceholder='搜索服务端口...'
+                  emptyText='未找到服务端口'
+                />
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='h-8'
+                  disabled={nodes.length === 0}
+                  onClick={() => setBatchReplaceOpen(true)}
+                >
+                  <Replace className='size-4' />
+                  批量替换
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='h-8'
+                  disabled={nodes.length === 0}
+                  onClick={() => setBatchCertificateOpen(true)}
+                >
+                  <ShieldCheck className='size-4' />
+                  批量证书
+                </Button>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant='outline'
@@ -849,665 +894,810 @@ export function ServerManagePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              {hasFilter && (
-                <Button variant='ghost' size='sm' onClick={resetFilters}>
-                  重置 <X className='size-4' />
-                </Button>
-              )}
-            </div>
-          )}
+                {hasFilter && (
+                  <Button variant='ghost' size='sm' onClick={resetFilters}>
+                    重置 <X className='size-4' />
+                  </Button>
+                )}
+              </div>
+            )}
 
-          <div className='flex items-center gap-2'>
-            {sortMode ? (
-              <>
-                <div className='flex items-center rounded-md border p-0.5'>
-                  <Button
-                    variant={pickMode ? 'secondary' : 'ghost'}
-                    size='sm'
-                    className='h-7'
-                    onClick={() => switchSortTool(true)}
-                    disabled={sortMutation.isPending}
-                  >
-                    <MousePointerClick className='size-4' /> 点选
-                  </Button>
-                  <Button
-                    variant={!pickMode ? 'secondary' : 'ghost'}
-                    size='sm'
-                    className='h-7'
-                    onClick={() => switchSortTool(false)}
-                    disabled={sortMutation.isPending}
-                  >
-                    <GripVertical className='size-4' /> 拖拽
-                  </Button>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+            <div className='flex items-center gap-2'>
+              {sortMode ? (
+                <>
+                  <div className='flex items-center rounded-md border p-0.5'>
                     <Button
-                      variant='outline'
+                      variant={pickMode ? 'secondary' : 'ghost'}
                       size='sm'
+                      className='h-7'
+                      onClick={() => switchSortTool(true)}
                       disabled={sortMutation.isPending}
                     >
-                      <ArrowUpDown className='size-4' /> 快速排序
+                      <MousePointerClick className='size-4' /> 点选
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align='end'>
-                    <DropdownMenuItem onClick={() => applyQuickSort('name', 'asc')}>
-                      名称 A→Z
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => applyQuickSort('name', 'desc')}>
-                      名称 Z→A
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => applyQuickSort('type', 'asc')}>
-                      按协议类型分组
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => applyQuickSort('rate', 'asc')}>
-                      倍率 低→高
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => applyQuickSort('rate', 'desc')}>
-                      倍率 高→低
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => applyQuickSort('id', 'asc')}>
-                      ID 旧→新
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => applyQuickSort('id', 'desc')}>
-                      ID 新→旧
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setSortMode(false)}
-                  disabled={sortMutation.isPending}
-                >
-                  取消
-                </Button>
-                <Button
-                  size='sm'
-                  onClick={saveSort}
-                  disabled={sortMutation.isPending}
-                >
-                  <Save className='size-4' /> 保存排序
-                </Button>
-              </>
-            ) : (
-              <Button variant='outline' size='sm' onClick={enterSortMode}>
-                <GripVertical className='size-4' /> 编辑排序
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className='bg-card relative overflow-auto rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow className='hover:bg-transparent'>
-                {sortMode ? (
-                  <TableHead className='bg-card text-muted-foreground h-11 w-10 px-4' />
-                ) : (
-                  <TableHead className='bg-card text-muted-foreground h-11 w-10 px-4'>
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(c) => toggleSelectAll(!!c)}
-                      aria-label='全选'
-                    />
-                  </TableHead>
-                )}
-                <TableHead className='bg-card text-muted-foreground h-11 w-20 px-4'>
-                  <Button
-                    variant='ghost'
-                    size='default'
-                    className='hover:bg-muted/60 -ml-3 flex h-8 items-center gap-2 font-medium text-nowrap'
-                    onClick={cycleIdSort}
-                    disabled={sortMode}
-                  >
-                    <span>节点ID</span>
-                    {idSort === 'asc' ? (
-                      <ArrowUp className='text-foreground/70 size-4' />
-                    ) : idSort === 'desc' ? (
-                      <ArrowDown className='text-foreground/70 size-4' />
-                    ) : (
-                      <ChevronsUpDown className='text-muted-foreground/70 hover:text-foreground/70 size-4 transition-colors' />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-14 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>显隐</span>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-64 px-4'>
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                        <span>节点</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className='grid grid-cols-1 gap-3 p-2'>
-                        <div className='flex items-center space-x-2.5'>
-                          <span className='size-2.5 rounded-full bg-red-500' />
-                          <span className='text-sm font-medium'>未运行</span>
-                        </div>
-                        <div className='flex items-center space-x-2.5'>
-                          <span className='size-2.5 rounded-full bg-amber-500' />
-                          <span className='text-sm font-medium'>
-                            无人使用或异常
-                          </span>
-                        </div>
-                        <div className='flex items-center space-x-2.5'>
-                          <span className='size-2.5 rounded-full bg-emerald-500' />
-                          <span className='text-sm font-medium'>运行正常</span>
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-52 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>部署方式</span>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className='text-muted-foreground size-4 cursor-pointer' />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        查看节点是独立部署，还是由某台服务器托管，并可直接在列表中调整。
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-44 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>地址</span>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-20 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>在线人数</span>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className='text-muted-foreground size-4 cursor-pointer' />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        在线人数根据服务端上报频率而定
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-20 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>倍率</span>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className='text-muted-foreground size-4 cursor-pointer' />
-                      </TooltipTrigger>
-                      <TooltipContent>流量扣费倍率</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-40 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>权限组</span>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className='text-muted-foreground size-4 cursor-pointer' />
-                      </TooltipTrigger>
-                      <TooltipContent>可订阅到该节点的权限组</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-32 px-4'>
-                  <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
-                    <span>流量使用</span>
-                    <Tooltip delayDuration={100}>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className='text-muted-foreground size-4 cursor-pointer' />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        节点流量使用情况，显示已用流量和限制
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </TableHead>
-                <TableHead className='bg-card text-muted-foreground h-11 w-14 px-4'>
-                  <div className='flex items-center justify-end space-x-1 py-2 font-medium text-nowrap'>
-                    <span>操作</span>
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow className='animate-fade-in hover:bg-muted/50'>
-                  <TableCell
-                    colSpan={11}
-                    className='bg-card h-24 px-4 text-center'
-                  >
-                    加载中...
-                  </TableCell>
-                </TableRow>
-              ) : display.length > 0 ? (
-                display.map((n) => {
-                  const used = (n.u ?? 0) + (n.d ?? 0)
-                  const limit = n.transfer_enable ?? 0
-                  const machineName =
-                    n.machine_id != null
-                      ? machineNameById.get(n.machine_id)
-                      : null
-                  const dragging = sortMode && !pickMode
-                  const pickIdx = pickOrder.indexOf(n.id)
-                  return (
-                    <TableRow
-                      key={n.id}
-                      draggable={dragging}
-                      onDragStart={() => dragging && setDragId(n.id)}
-                      onDragOver={(e) => dragging && e.preventDefault()}
-                      onDrop={() => dragging && onDrop(n.id)}
-                      onClick={(e) => {
-                        if (!sortMode || !pickMode) return
-                        // 行内按钮/开关/输入等自身可交互的元素不触发点选
-                        const el = e.target as HTMLElement
-                        if (
-                          el.closest(
-                            'button,[role="switch"],[role="checkbox"],[role="menuitem"],a,input,select'
-                          )
-                        )
-                          return
-                        togglePick(n.id)
-                      }}
-                      className={cn(
-                        'animate-fade-in hover:bg-muted/50',
-                        dragging && dragId === n.id && 'opacity-50',
-                        sortMode && pickMode && 'cursor-pointer select-none',
-                        sortMode && pickMode && pickIdx >= 0 && 'bg-primary/5'
-                      )}
+                    <Button
+                      variant={!pickMode ? 'secondary' : 'ghost'}
+                      size='sm'
+                      className='h-7'
+                      onClick={() => switchSortTool(false)}
+                      disabled={sortMutation.isPending}
                     >
-                      {sortMode ? (
-                        <TableCell
-                          className={cn(
-                            'bg-card px-4',
-                            pickMode
-                              ? 'cursor-pointer'
-                              : 'text-muted-foreground cursor-grab'
-                          )}
+                      <GripVertical className='size-4' /> 拖拽
+                    </Button>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        disabled={sortMutation.isPending}
+                      >
+                        <ArrowUpDown className='size-4' /> 快速排序
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align='end'>
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('name', 'asc')}
+                      >
+                        名称 A→Z
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('name', 'desc')}
+                      >
+                        名称 Z→A
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('type', 'asc')}
+                      >
+                        按协议类型分组
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('rate', 'asc')}
+                      >
+                        倍率 低→高
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('rate', 'desc')}
+                      >
+                        倍率 高→低
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('id', 'asc')}
+                      >
+                        ID 旧→新
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => applyQuickSort('id', 'desc')}
+                      >
+                        ID 新→旧
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setSortMode(false)}
+                    disabled={sortMutation.isPending}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    size='sm'
+                    onClick={saveSort}
+                    disabled={sortMutation.isPending}
+                  >
+                    <Save className='size-4' /> 保存排序
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <TableColumnCustomizer
+                    columns={NODE_TABLE_COLUMNS}
+                    orderedColumns={nodeColumns.orderedColumns}
+                    hiddenSet={nodeColumns.hiddenSet}
+                    onToggle={toggleNodeColumn}
+                    onMove={nodeColumns.moveColumn}
+                    onReset={resetNodeColumns}
+                  />
+                  <Button variant='outline' size='sm' onClick={enterSortMode}>
+                    <GripVertical className='size-4' /> 编辑排序
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className='relative overflow-auto rounded-md border bg-card'>
+            <Table>
+              <TableHeader>
+                <TableRow className='hover:bg-transparent'>
+                  {sortMode ? (
+                    <TableHead className='h-11 w-10 bg-card px-4 text-muted-foreground' />
+                  ) : (
+                    <TableHead className='h-11 w-10 bg-card px-4 text-muted-foreground'>
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(c) => toggleSelectAll(!!c)}
+                        aria-label='全选'
+                      />
+                    </TableHead>
+                  )}
+                  {(() => {
+                    const headerRenderers = {
+                      id: () => (
+                        <TableHead
+                          key='id'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
                         >
-                          {pickMode ? (
-                            pickIdx >= 0 ? (
-                              <span className='bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-full text-xs font-semibold'>
-                                {pickIdx + 1}
-                              </span>
+                          <Button
+                            variant='ghost'
+                            size='default'
+                            className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
+                            onClick={cycleIdSort}
+                            disabled={sortMode}
+                          >
+                            <span>节点ID</span>
+                            {idSort === 'asc' ? (
+                              <ArrowUp className='size-4 text-foreground/70' />
+                            ) : idSort === 'desc' ? (
+                              <ArrowDown className='size-4 text-foreground/70' />
                             ) : (
-                              <span className='border-muted-foreground/40 block size-5 rounded-full border-2' />
-                            )
-                          ) : (
-                            <GripVertical className='size-4' />
-                          )}
-                        </TableCell>
-                      ) : (
-                        <TableCell className='bg-card px-4'>
-                          <Checkbox
-                            checked={selected.includes(n.id)}
-                            onCheckedChange={(c) => toggleSelect(n.id, !!c)}
-                            aria-label={`选择 ${n.name}`}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell className='bg-card px-4'>
-                        {(() => {
-                          const isChild = !!n.parent_id // parent_id 为 0/null 均表示无父节点
-                          return (
-                            <Tooltip delayDuration={100}>
-                              <TooltipTrigger asChild>
-                                <div className='group/id flex items-center space-x-2'>
-                                  <Badge
-                                    variant='outline'
-                                    className='flex items-center gap-1.5 border-2 font-medium transition-all duration-200 hover:opacity-80'
-                                    style={{
-                                      borderColor: SERVER_TYPE_COLOR[n.type],
-                                    }}
-                                  >
-                                    <ServerIcon className='size-3' />
-                                    <span className='flex items-center gap-1'>
-                                      <span className='flex items-center gap-0.5'>
-                                        {n.code ?? n.id}
-                                      </span>
-                                      {isChild ? (
-                                        <>
-                                          <span className='text-muted-foreground/30 text-sm'>
-                                            →
-                                          </span>
-                                          <span>
-                                            {n.parent?.code ??
-                                              n.parent?.id ??
-                                              n.parent_id}
-                                          </span>
-                                        </>
-                                      ) : null}
-                                    </span>
-                                  </Badge>
-                                  <Button
-                                    variant='ghost'
-                                    size='icon'
-                                    className='text-muted-foreground/40 hover:text-muted-foreground group-hover/id:opacity-100 size-5 opacity-0 transition-all duration-200'
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      navigator.clipboard
-                                        ?.writeText(
-                                          n.code || n.id.toString()
-                                        )
-                                        .then(() => toast.success('复制成功'))
-                                    }}
-                                  >
-                                    <Copy className='size-3' />
-                                  </Button>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side='top'
-                                className='flex flex-col gap-2 p-3'
-                              >
-                                <p className='font-medium'>
-                                  {SERVER_TYPE_LABEL[n.type] ?? n.type}
-                                  {isChild ? ' (子节点)' : ''}
-                                </p>
-                                <div className='mt-1 grid gap-1.5'>
-                                  <div className='flex items-center gap-3'>
-                                    <span className='text-muted-foreground text-xs'>
-                                      自定义ID
-                                    </span>
-                                    <span className='max-w-[120px] truncate font-mono text-xs font-medium'>
-                                      {n.code ?? '—'}
-                                    </span>
-                                  </div>
-                                  <div className='flex items-center gap-3'>
-                                    <span className='text-muted-foreground text-xs'>
-                                      原始ID
-                                    </span>
-                                    <span className='font-mono text-xs font-semibold'>
-                                      {n.id}
-                                    </span>
-                                  </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          )
-                        })()}
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <Switch
-                          checked={!!n.show}
-                          disabled={sortMode}
-                          onCheckedChange={(c) =>
-                            toggleMutation.mutate({ id: n.id, show: c ? 1 : 0 })
-                          }
-                          aria-label='显隐'
-                          style={
-                            n.show
-                              ? { backgroundColor: SERVER_TYPE_COLOR[n.type] }
-                              : undefined
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className='bg-card px-4 font-medium'>
-                        <div className='flex items-center space-x-2.5 outline-none'>
+                              <ChevronsUpDown className='size-4 text-muted-foreground/70 transition-colors hover:text-foreground/70' />
+                            )}
+                          </Button>
+                        </TableHead>
+                      ),
+                      visibility: () => (
+                        <TableHead
+                          key='visibility'
+                          className='h-11 w-14 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>显隐</span>
+                          </div>
+                        </TableHead>
+                      ),
+                      name: () => (
+                        <TableHead
+                          key='name'
+                          className='h-11 w-64 bg-card px-4 text-muted-foreground'
+                        >
                           <Tooltip delayDuration={100}>
                             <TooltipTrigger asChild>
-                              <span
-                                className={cn(
-                                  'size-2.5 shrink-0 cursor-pointer rounded-full shadow-sm transition-all duration-200',
-                                  n.available_status === 2
-                                    ? 'bg-emerald-500/80 shadow-emerald-500/50'
-                                    : n.available_status === 1
-                                      ? 'bg-yellow-500/80 shadow-yellow-500/50'
-                                      : 'bg-destructive/80 shadow-destructive/50'
-                                )}
-                              />
+                              <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                                <span>节点</span>
+                              </div>
                             </TooltipTrigger>
-                            <TooltipContent side='top' align='center' sideOffset={10}>
-                              {n.available_status === 2
-                                ? '运行正常'
-                                : n.available_status === 1
-                                  ? '无人使用或异常'
-                                  : '未运行'}
+                            <TooltipContent>
+                              <div className='grid grid-cols-1 gap-3 p-2'>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-red-500' />
+                                  <span className='text-sm font-medium'>
+                                    未运行
+                                  </span>
+                                </div>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-amber-500' />
+                                  <span className='text-sm font-medium'>
+                                    无人使用或异常
+                                  </span>
+                                </div>
+                                <div className='flex items-center space-x-2.5'>
+                                  <span className='size-2.5 rounded-full bg-emerald-500' />
+                                  <span className='text-sm font-medium'>
+                                    运行正常
+                                  </span>
+                                </div>
+                              </div>
                             </TooltipContent>
                           </Tooltip>
-                          <span className='hover:text-primary cursor-default text-left font-medium whitespace-nowrap transition-colors'>
-                            {n.name}
-                          </span>
-                          {n.parent_id ? (
-                            <Badge
-                              variant='outline'
-                              className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
-                            >
-                              子节点
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <div className='flex items-center gap-1.5 px-1'>
-                          {n.machine_id != null ? (
-                            (() => {
-                              const mc = machineById.get(n.machine_id)
-                              const mOnline = mc
-                                ? isOnline(mc.last_seen_at)
-                                : false
-                              return (
-                                <div className='flex min-w-0 flex-1 items-center gap-1.5 text-xs'>
-                                  <span
-                                    className={cn(
-                                      'size-2 shrink-0 rounded-full',
-                                      mOnline ? 'bg-emerald-500' : 'bg-rose-500'
-                                    )}
-                                  />
-                                  <span className='truncate text-xs font-medium'>
-                                    {machineName ?? `#${n.machine_id}`}
-                                  </span>
-                                  <Badge
-                                    variant='outline'
-                                    className={cn(
-                                      'shrink-0 px-1.5 py-0 text-[10px] font-normal',
-                                      mOnline
-                                        ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                        : 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
-                                    )}
-                                  >
-                                    {mOnline ? '服务器在线' : '服务器离线'}
-                                  </Badge>
-                                  {!n.enabled && (
-                                    <Badge
-                                      variant='secondary'
-                                      className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
-                                    >
-                                      节点停用
-                                    </Badge>
-                                  )}
-                                </div>
-                              )
-                            })()
-                          ) : (
-                            <div className='flex min-w-0 flex-1 items-center gap-1.5'>
-                              <ServerIcon className='text-muted-foreground size-3.5 shrink-0' />
-                              <span className='text-foreground truncate text-xs font-medium'>
-                                独立部署
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <div className='group relative flex min-w-0 items-start'>
-                          <div className='flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-7'>
-                            <div className='flex items-center'>
-                              <span className='text-foreground/90 font-mono text-sm font-medium'>
-                                {n.host}:{n.port}
-                              </span>
-                            </div>
-                            {n.server_port != null &&
-                              n.server_port !== n.port && (
-                                <span className='text-muted-foreground/40 text-[0.7rem] tracking-tight whitespace-nowrap'>
-                                  (内部端口 {n.server_port})
-                                </span>
-                              )}
-                          </div>
-                          <div className='absolute top-0 right-0'>
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              className='text-muted-foreground/40 hover:bg-muted/50 hover:text-muted-foreground group-hover:opacity-100 size-6 opacity-0 transition-all duration-200'
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigator.clipboard
-                                  ?.writeText(`${n.host}:${n.port}`)
-                                  .then(() => toast.success('复制成功'))
-                              }}
-                            >
-                              <Copy className='size-3' />
-                            </Button>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <div className='flex items-center space-x-2 px-4'>
-                          <User className='size-4' />
-                          <span className='font-medium'>{n.online ?? 0}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <Badge variant='secondary' className='font-medium'>
-                          {n.rate} x
-                        </Badge>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <div className='flex flex-nowrap items-center gap-1.5'>
-                          {(n.groups ?? []).length > 0 ? (
-                            (n.groups ?? []).map((g) => (
-                              <Badge
-                                key={g.id}
-                                variant='secondary'
-                                className='bg-secondary/50 hover:bg-secondary/70 border-border/50 flex cursor-default items-center gap-1.5 border px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none'
-                              >
-                                {g.name}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className='text-muted-foreground text-sm'>
-                              --
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        {(() => {
-                          const usedStr = formatBytes(used)
-                          const totalStr = formatBytes(limit)
-                          if (limit <= 0)
-                            return (
-                              <div className='text-muted-foreground text-sm'>
-                                {usedStr}
-                              </div>
-                            )
-                          const pct = Math.min((used / limit) * 100, 100)
-                          return (
+                        </TableHead>
+                      ),
+                      deployment: () => (
+                        <TableHead
+                          key='deployment'
+                          className='h-11 w-52 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>部署方式</span>
                             <Tooltip delayDuration={100}>
-                              <TooltipTrigger>
-                                <div className='flex items-center gap-2'>
-                                  <div className='bg-secondary h-1.5 w-12 rounded-full'>
-                                    <div
-                                      className={cn(
-                                        'h-full rounded-full transition-all',
-                                        pct > 90 ? 'bg-destructive' : 'bg-primary'
-                                      )}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-                                  <span className='text-muted-foreground text-xs tabular-nums'>
-                                    {usedStr}
-                                  </span>
-                                </div>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
                               </TooltipTrigger>
-                              <TooltipContent side='bottom'>
-                                <div className='space-y-1 text-sm'>
-                                  <p>已用: {usedStr}</p>
-                                  <p>总流量: {totalStr}</p>
-                                  <p>使用率: {pct.toFixed(1)}%</p>
-                                </div>
+                              <TooltipContent>
+                                查看节点是独立部署，还是由某台服务器托管，并可直接在列表中调整。
                               </TooltipContent>
                             </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      address: () => (
+                        <TableHead
+                          key='address'
+                          className='h-11 w-44 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>地址</span>
+                          </div>
+                        </TableHead>
+                      ),
+                      online: () => (
+                        <TableHead
+                          key='online'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>在线人数</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                在线人数根据服务端上报频率而定
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      rate: () => (
+                        <TableHead
+                          key='rate'
+                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>倍率</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>流量扣费倍率</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      groups: () => (
+                        <TableHead
+                          key='groups'
+                          className='h-11 w-40 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>权限组</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                可订阅到该节点的权限组
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                      traffic: () => (
+                        <TableHead
+                          key='traffic'
+                          className='h-11 w-32 bg-card px-4 text-muted-foreground'
+                        >
+                          <div className='flex items-center space-x-1 py-2 font-medium text-nowrap'>
+                            <span>流量使用</span>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className='size-4 cursor-pointer text-muted-foreground' />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                节点流量使用情况，显示已用流量和限制
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableHead>
+                      ),
+                    }
+                    return renderVisibleColumns(
+                      nodeColumns.visibleColumns,
+                      headerRenderers
+                    )
+                  })()}
+                  <TableHead className='h-11 w-14 bg-card px-4 text-muted-foreground'>
+                    <div className='flex items-center justify-end space-x-1 py-2 font-medium text-nowrap'>
+                      <span>操作</span>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow className='animate-fade-in hover:bg-muted/50'>
+                    <TableCell
+                      colSpan={getTableColumnSpan(nodeColumns.visibleColumns)}
+                      className='h-24 bg-card px-4 text-center'
+                    >
+                      加载中...
+                    </TableCell>
+                  </TableRow>
+                ) : display.length > 0 ? (
+                  display.map((n) => {
+                    const used = (n.u ?? 0) + (n.d ?? 0)
+                    const limit = n.transfer_enable ?? 0
+                    const machineName =
+                      n.machine_id != null
+                        ? machineNameById.get(n.machine_id)
+                        : null
+                    const dragging = sortMode && !pickMode
+                    const pickIdx = pickOrder.indexOf(n.id)
+                    return (
+                      <TableRow
+                        key={n.id}
+                        draggable={dragging}
+                        onDragStart={() => dragging && setDragId(n.id)}
+                        onDragOver={(e) => dragging && e.preventDefault()}
+                        onDrop={() => dragging && onDrop(n.id)}
+                        onClick={(e) => {
+                          if (!sortMode || !pickMode) return
+                          // 行内按钮/开关/输入等自身可交互的元素不触发点选
+                          const el = e.target as HTMLElement
+                          if (
+                            el.closest(
+                              'button,[role="switch"],[role="checkbox"],[role="menuitem"],a,input,select'
+                            )
+                          )
+                            return
+                          togglePick(n.id)
+                        }}
+                        className={cn(
+                          'animate-fade-in hover:bg-muted/50',
+                          dragging && dragId === n.id && 'opacity-50',
+                          sortMode && pickMode && 'cursor-pointer select-none',
+                          sortMode && pickMode && pickIdx >= 0 && 'bg-primary/5'
+                        )}
+                      >
+                        {sortMode ? (
+                          <TableCell
+                            className={cn(
+                              'bg-card px-4',
+                              pickMode
+                                ? 'cursor-pointer'
+                                : 'cursor-grab text-muted-foreground'
+                            )}
+                          >
+                            {pickMode ? (
+                              pickIdx >= 0 ? (
+                                <span className='flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground'>
+                                  {pickIdx + 1}
+                                </span>
+                              ) : (
+                                <span className='block size-5 rounded-full border-2 border-muted-foreground/40' />
+                              )
+                            ) : (
+                              <GripVertical className='size-4' />
+                            )}
+                          </TableCell>
+                        ) : (
+                          <TableCell className='bg-card px-4'>
+                            <Checkbox
+                              checked={selected.includes(n.id)}
+                              onCheckedChange={(c) => toggleSelect(n.id, !!c)}
+                              aria-label={`选择 ${n.name}`}
+                            />
+                          </TableCell>
+                        )}
+                        {(() => {
+                          const cellRenderers = {
+                            id: () => (
+                              <TableCell key='id' className='bg-card px-4'>
+                                {(() => {
+                                  const isChild = !!n.parent_id // parent_id 为 0/null 均表示无父节点
+                                  return (
+                                    <Tooltip delayDuration={100}>
+                                      <TooltipTrigger asChild>
+                                        <div className='group/id flex items-center space-x-2'>
+                                          <Badge
+                                            variant='outline'
+                                            className='flex items-center gap-1.5 border-2 font-medium transition-all duration-200 hover:opacity-80'
+                                            style={{
+                                              borderColor:
+                                                SERVER_TYPE_COLOR[n.type],
+                                            }}
+                                          >
+                                            <ServerIcon className='size-3' />
+                                            <span className='flex items-center gap-1'>
+                                              <span className='flex items-center gap-0.5'>
+                                                {n.code ?? n.id}
+                                              </span>
+                                              {isChild ? (
+                                                <>
+                                                  <span className='text-sm text-muted-foreground/30'>
+                                                    →
+                                                  </span>
+                                                  <span>
+                                                    {n.parent?.code ??
+                                                      n.parent?.id ??
+                                                      n.parent_id}
+                                                  </span>
+                                                </>
+                                              ) : null}
+                                            </span>
+                                          </Badge>
+                                          <Button
+                                            variant='ghost'
+                                            size='icon'
+                                            className='size-5 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover/id:opacity-100 hover:text-muted-foreground'
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              navigator.clipboard
+                                                ?.writeText(
+                                                  n.code || n.id.toString()
+                                                )
+                                                .then(() =>
+                                                  toast.success('复制成功')
+                                                )
+                                            }}
+                                          >
+                                            <Copy className='size-3' />
+                                          </Button>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side='top'
+                                        className='flex flex-col gap-2 p-3'
+                                      >
+                                        <p className='font-medium'>
+                                          {SERVER_TYPE_LABEL[n.type] ?? n.type}
+                                          {isChild ? ' (子节点)' : ''}
+                                        </p>
+                                        <div className='mt-1 grid gap-1.5'>
+                                          <div className='flex items-center gap-3'>
+                                            <span className='text-xs text-muted-foreground'>
+                                              自定义ID
+                                            </span>
+                                            <span className='max-w-[120px] truncate font-mono text-xs font-medium'>
+                                              {n.code ?? '—'}
+                                            </span>
+                                          </div>
+                                          <div className='flex items-center gap-3'>
+                                            <span className='text-xs text-muted-foreground'>
+                                              原始ID
+                                            </span>
+                                            <span className='font-mono text-xs font-semibold'>
+                                              {n.id}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                })()}
+                              </TableCell>
+                            ),
+                            visibility: () => (
+                              <TableCell
+                                key='visibility'
+                                className='bg-card px-4'
+                              >
+                                <Switch
+                                  checked={!!n.show}
+                                  disabled={sortMode}
+                                  onCheckedChange={(c) =>
+                                    toggleMutation.mutate({
+                                      id: n.id,
+                                      show: c ? 1 : 0,
+                                    })
+                                  }
+                                  aria-label='显隐'
+                                  style={
+                                    n.show
+                                      ? {
+                                          backgroundColor:
+                                            SERVER_TYPE_COLOR[n.type],
+                                        }
+                                      : undefined
+                                  }
+                                />
+                              </TableCell>
+                            ),
+                            name: () => (
+                              <TableCell
+                                key='name'
+                                className='bg-card px-4 font-medium'
+                              >
+                                <div className='flex items-center space-x-2.5 outline-none'>
+                                  <Tooltip delayDuration={100}>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        className={cn(
+                                          'size-2.5 shrink-0 cursor-pointer rounded-full shadow-sm transition-all duration-200',
+                                          n.available_status === 2
+                                            ? 'bg-emerald-500/80 shadow-emerald-500/50'
+                                            : n.available_status === 1
+                                              ? 'bg-yellow-500/80 shadow-yellow-500/50'
+                                              : 'bg-destructive/80 shadow-destructive/50'
+                                        )}
+                                      />
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side='top'
+                                      align='center'
+                                      sideOffset={10}
+                                    >
+                                      {n.available_status === 2
+                                        ? '运行正常'
+                                        : n.available_status === 1
+                                          ? '无人使用或异常'
+                                          : '未运行'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <span className='cursor-default text-left font-medium whitespace-nowrap transition-colors hover:text-primary'>
+                                    {n.name}
+                                  </span>
+                                  {n.parent_id ? (
+                                    <Badge
+                                      variant='outline'
+                                      className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
+                                    >
+                                      子节点
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                            ),
+                            deployment: () => (
+                              <TableCell
+                                key='deployment'
+                                className='bg-card px-4'
+                              >
+                                <div className='flex items-center gap-1.5 px-1'>
+                                  {n.machine_id != null ? (
+                                    (() => {
+                                      const mc = machineById.get(n.machine_id)
+                                      const mOnline = mc
+                                        ? isOnline(mc.last_seen_at)
+                                        : false
+                                      return (
+                                        <div className='flex min-w-0 flex-1 items-center gap-1.5 text-xs'>
+                                          <span
+                                            className={cn(
+                                              'size-2 shrink-0 rounded-full',
+                                              mOnline
+                                                ? 'bg-emerald-500'
+                                                : 'bg-rose-500'
+                                            )}
+                                          />
+                                          <span className='truncate text-xs font-medium'>
+                                            {machineName ?? `#${n.machine_id}`}
+                                          </span>
+                                          <Badge
+                                            variant='outline'
+                                            className={cn(
+                                              'shrink-0 px-1.5 py-0 text-[10px] font-normal',
+                                              mOnline
+                                                ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                                            )}
+                                          >
+                                            {mOnline
+                                              ? '服务器在线'
+                                              : '服务器离线'}
+                                          </Badge>
+                                          {!n.enabled && (
+                                            <Badge
+                                              variant='secondary'
+                                              className='shrink-0 px-1.5 py-0 text-[10px] font-normal'
+                                            >
+                                              节点停用
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )
+                                    })()
+                                  ) : (
+                                    <div className='flex min-w-0 flex-1 items-center gap-1.5'>
+                                      <ServerIcon className='size-3.5 shrink-0 text-muted-foreground' />
+                                      <span className='truncate text-xs font-medium text-foreground'>
+                                        独立部署
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                            ),
+                            address: () => (
+                              <TableCell key='address' className='bg-card px-4'>
+                                <div className='group relative flex min-w-0 items-start'>
+                                  <div className='flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5 pr-7'>
+                                    <div className='flex items-center'>
+                                      <span className='font-mono text-sm font-medium text-foreground/90'>
+                                        {n.host}:{n.port}
+                                      </span>
+                                    </div>
+                                    {n.server_port != null &&
+                                      n.server_port !== n.port && (
+                                        <span className='text-[0.7rem] tracking-tight whitespace-nowrap text-muted-foreground/40'>
+                                          (内部端口 {n.server_port})
+                                        </span>
+                                      )}
+                                  </div>
+                                  <div className='absolute top-0 right-0'>
+                                    <Button
+                                      variant='ghost'
+                                      size='icon'
+                                      className='size-6 text-muted-foreground/40 opacity-0 transition-all duration-200 group-hover:opacity-100 hover:bg-muted/50 hover:text-muted-foreground'
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        navigator.clipboard
+                                          ?.writeText(`${n.host}:${n.port}`)
+                                          .then(() => toast.success('复制成功'))
+                                      }}
+                                    >
+                                      <Copy className='size-3' />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            ),
+                            online: () => (
+                              <TableCell key='online' className='bg-card px-4'>
+                                <div className='flex items-center space-x-2 px-4'>
+                                  <User className='size-4' />
+                                  <span className='font-medium'>
+                                    {n.online ?? 0}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            ),
+                            rate: () => (
+                              <TableCell key='rate' className='bg-card px-4'>
+                                <Badge
+                                  variant='secondary'
+                                  className='font-medium'
+                                >
+                                  {n.rate} x
+                                </Badge>
+                              </TableCell>
+                            ),
+                            groups: () => (
+                              <TableCell key='groups' className='bg-card px-4'>
+                                <div className='flex flex-nowrap items-center gap-1.5'>
+                                  {(n.groups ?? []).length > 0 ? (
+                                    (n.groups ?? []).map((g) => (
+                                      <Badge
+                                        key={g.id}
+                                        variant='secondary'
+                                        className='flex cursor-default items-center gap-1.5 border border-border/50 bg-secondary/50 px-2 py-0.5 font-medium whitespace-nowrap transition-all duration-200 select-none hover:bg-secondary/70'
+                                      >
+                                        {g.name}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className='text-sm text-muted-foreground'>
+                                      --
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                            ),
+                            traffic: () => (
+                              <TableCell key='traffic' className='bg-card px-4'>
+                                {(() => {
+                                  const usedStr = formatBytes(used)
+                                  const totalStr = formatBytes(limit)
+                                  if (limit <= 0)
+                                    return (
+                                      <div className='text-sm text-muted-foreground'>
+                                        {usedStr}
+                                      </div>
+                                    )
+                                  const pct = Math.min(
+                                    (used / limit) * 100,
+                                    100
+                                  )
+                                  return (
+                                    <Tooltip delayDuration={100}>
+                                      <TooltipTrigger>
+                                        <div className='flex items-center gap-2'>
+                                          <div className='h-1.5 w-12 rounded-full bg-secondary'>
+                                            <div
+                                              className={cn(
+                                                'h-full rounded-full transition-all',
+                                                pct > 90
+                                                  ? 'bg-destructive'
+                                                  : 'bg-primary'
+                                              )}
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </div>
+                                          <span className='text-xs text-muted-foreground tabular-nums'>
+                                            {usedStr}
+                                          </span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side='bottom'>
+                                        <div className='space-y-1 text-sm'>
+                                          <p>已用: {usedStr}</p>
+                                          <p>总流量: {totalStr}</p>
+                                          <p>使用率: {pct.toFixed(1)}%</p>
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                })()}
+                              </TableCell>
+                            ),
+                          }
+                          return renderVisibleColumns(
+                            nodeColumns.visibleColumns,
+                            cellRenderers
                           )
                         })()}
-                      </TableCell>
-                      <TableCell className='bg-card px-4'>
-                        <div className='flex justify-center'>
-                          <DropdownMenu modal={false}>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant='ghost'
-                                className='hover:bg-muted h-8 w-8 p-0'
-                                disabled={sortMode}
-                                aria-label='操作'
-                              >
-                                <MoreHorizontal className='size-4' />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align='end' className='w-40'>
-                              <DropdownMenuItem
-                                className='cursor-pointer'
-                                onClick={() => {
-                                  setCurrent(n)
-                                  setMutateOpen(true)
-                                }}
-                              >
-                                <Pencil className='mr-2 size-4' /> 编辑
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className='cursor-pointer'
-                                onClick={() => copyMutation.mutate(n.id)}
-                              >
-                                <Copy className='mr-2 size-4' /> 复制
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className='cursor-pointer'
-                                onClick={() => setInstallNode(n)}
-                              >
-                                <Terminal className='mr-2 size-4' /> 安装命令
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className='cursor-pointer'
-                                onClick={() => setResetting(n)}
-                              >
-                                <RotateCcw className='mr-2 size-4' /> 重置流量
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className='text-destructive focus:text-destructive cursor-pointer'
-                                onClick={() => setDeleting(n)}
-                              >
-                                <Trash2 className='mr-2 size-4' /> 删除
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              ) : (
-                <TableRow className='animate-fade-in hover:bg-muted/50'>
-                  <TableCell
-                    colSpan={11}
-                    className='bg-card h-24 px-4 text-center'
-                  >
-                    暂无节点
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                        <TableCell className='bg-card px-4'>
+                          <div className='flex justify-center'>
+                            <DropdownMenu modal={false}>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant='ghost'
+                                  className='h-8 w-8 p-0 hover:bg-muted'
+                                  disabled={sortMode}
+                                  aria-label='操作'
+                                >
+                                  <MoreHorizontal className='size-4' />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align='end' className='w-40'>
+                                <DropdownMenuItem
+                                  className='cursor-pointer'
+                                  onClick={() => {
+                                    setCurrent(n)
+                                    setMutateOpen(true)
+                                  }}
+                                >
+                                  <Pencil className='mr-2 size-4' /> 编辑
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className='cursor-pointer'
+                                  onClick={() => copyMutation.mutate(n.id)}
+                                >
+                                  <Copy className='mr-2 size-4' /> 复制
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className='cursor-pointer'
+                                  onClick={() => setInstallNode(n)}
+                                >
+                                  <Terminal className='mr-2 size-4' /> 安装命令
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className='cursor-pointer'
+                                  onClick={() => setResetting(n)}
+                                >
+                                  <RotateCcw className='mr-2 size-4' /> 重置流量
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className='cursor-pointer text-destructive focus:text-destructive'
+                                  onClick={() => setDeleting(n)}
+                                >
+                                  <Trash2 className='mr-2 size-4' /> 删除
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                ) : (
+                  <TableRow className='animate-fade-in hover:bg-muted/50'>
+                    <TableCell
+                      colSpan={getTableColumnSpan(nodeColumns.visibleColumns)}
+                      className='h-24 bg-card px-4 text-center'
+                    >
+                      暂无节点
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </TooltipProvider>
       </Main>
 
