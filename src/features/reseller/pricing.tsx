@@ -3,11 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +22,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import {
   type ResellerPricePlan,
   fetchResellerPrices,
@@ -62,12 +62,20 @@ export function ResellerPricingPage() {
     queryKey: ['reseller-sites'],
     queryFn: fetchResellerSites,
   })
+  const resellerSites = (sites ?? []).filter(
+    (site) => site.site_type === 'reseller'
+  )
 
   // 以下三处装载/重置均用「渲染期间派生重置」（React 官方模式），避免 effect 里同步 setState
 
   // 分站列表到达后默认选中第一个
-  if (siteId == null && sites && sites.length > 0) {
-    setSiteId(sites[0].id)
+  const fallbackSiteId = resellerSites[0]?.id ?? null
+  if (
+    sites &&
+    !resellerSites.some((site) => site.id === siteId) &&
+    fallbackSiteId !== siteId
+  ) {
+    setSiteId(fallbackSiteId)
   }
 
   const { data: pricing } = useQuery({
@@ -187,7 +195,9 @@ export function ResellerPricingPage() {
       return next
     })
     toast.success(
-      filled > 0 ? `已填入 ${filled} 个周期的主站价，记得保存` : '该套餐无主站价可填'
+      filled > 0
+        ? `已填入 ${filled} 个周期的主站价，记得保存`
+        : '该套餐无主站价可填'
     )
   }
 
@@ -223,7 +233,7 @@ export function ResellerPricingPage() {
               <SelectValue placeholder='选择分站' />
             </SelectTrigger>
             <SelectContent>
-              {(sites ?? []).map((s) => (
+              {resellerSites.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
                   {s.name}
                   {s.domain ? ` (${s.domain})` : ''}
@@ -232,7 +242,7 @@ export function ResellerPricingPage() {
             </SelectContent>
           </Select>
           <div className='relative'>
-            <Search className='absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+            <Search className='absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
             <Input
               placeholder='搜索套餐名...'
               value={search}
@@ -253,11 +263,7 @@ export function ResellerPricingPage() {
               >
                 全部展开
               </Button>
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={() => setExpanded({})}
-              >
+              <Button variant='ghost' size='sm' onClick={() => setExpanded({})}>
                 全部折叠
               </Button>
               <Button
@@ -278,7 +284,10 @@ export function ResellerPricingPage() {
               {plans.map((plan) => {
                 const open = !!expanded[plan.id]
                 return (
-                  <div key={plan.id} className='overflow-hidden rounded-md border'>
+                  <div
+                    key={plan.id}
+                    className='overflow-hidden rounded-md border'
+                  >
                     <div className='flex w-full items-center justify-between gap-2 bg-muted/30 px-4 py-3'>
                       <button
                         type='button'
@@ -315,7 +324,9 @@ export function ResellerPricingPage() {
                           <TableRow>
                             <TableHead className='w-[110px]'>周期</TableHead>
                             <TableHead className='w-[110px]'>主站价</TableHead>
-                            <TableHead className='w-[150px]'>底价（元）</TableHead>
+                            <TableHead className='w-[150px]'>
+                              底价（元）
+                            </TableHead>
                             <TableHead className='w-[110px]'>零售价</TableHead>
                             <TableHead className='w-[80px]'>上架</TableHead>
                           </TableRow>
@@ -364,7 +375,10 @@ export function ResellerPricingPage() {
                                     onCheckedChange={(v) =>
                                       setEdits((prev) => ({
                                         ...prev,
-                                        [key]: { ...(prev[key] ?? edit), enabled: v },
+                                        [key]: {
+                                          ...(prev[key] ?? edit),
+                                          enabled: v,
+                                        },
                                       }))
                                     }
                                   />

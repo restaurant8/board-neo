@@ -18,6 +18,8 @@ export const COUPON_TYPE_PERCENT = 2
 /** v2_coupon 表字段。type=1 时 value 以「分」存储；type=2 时为百分比整数。 */
 export type Coupon = {
   id: number
+  site_id: number | null
+  is_global: boolean
   code: string
   name: string
   /** 1=金额 2=比例。 */
@@ -53,6 +55,8 @@ export type CouponFetchParams = {
  */
 export type CouponGeneratePayload = {
   id?: number
+  site_id: number | null
+  is_global: boolean
   generate_count?: number | null
   name: string
   type: number
@@ -68,7 +72,10 @@ export type CouponGeneratePayload = {
 
 /** POST /coupon/fetch — 分页列表（路由 any，可 POST）。 */
 export function fetchCoupons(params: CouponFetchParams) {
-  return getPaginated<Coupon>('/coupon/fetch', params as Record<string, unknown>)
+  return getPaginated<Coupon>(
+    '/coupon/fetch',
+    params as Record<string, unknown>
+  )
 }
 
 /**

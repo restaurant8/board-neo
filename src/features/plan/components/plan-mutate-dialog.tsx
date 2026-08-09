@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react'
-import { Trash2, FileText } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Trash2, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { fetchServerGroups } from '@/features/server-group/api'
-import { fetchResellerSites } from '@/features/reseller/api'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -36,6 +34,8 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { MarkdownEditor } from '@/components/markdown-editor'
+import { fetchResellerSites } from '@/features/reseller/api'
+import { fetchServerGroups } from '@/features/server-group/api'
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_NAMES,
@@ -44,12 +44,15 @@ import {
   savePlan,
   syncPlanGroup,
 } from '../api'
+import { filterServerGroupsBySite } from '../group-site'
 
 // 原版字段视觉签名（对齐 Xboard NYt 字段组件）
 const fieldLabelCls =
   'text-[11px] font-semibold uppercase tracking-wider text-muted-foreground'
-const fieldInputCls = 'h-9 font-mono text-xs transition-all focus-visible:ring-1'
-const fieldDescCls = 'font-mono text-[10px] leading-relaxed text-muted-foreground'
+const fieldInputCls =
+  'h-9 font-mono text-xs transition-all focus-visible:ring-1'
+const fieldDescCls =
+  'font-mono text-[10px] leading-relaxed text-muted-foreground'
 const fieldMsgCls = 'font-mono text-[10px] uppercase tracking-tight'
 
 const priceShape = Object.fromEntries(
@@ -58,7 +61,7 @@ const priceShape = Object.fromEntries(
 
 const formSchema = z.object({
   name: z.string().min(1, '请输入套餐名称'),
-  group_id: z.string().optional(),
+  group_id: z.string().min(1, '请选择服务器分组'),
   site_id: z.string().optional(),
   transfer_enable: z.coerce.number().int().min(1, '流量配额必须大于 0'),
   speed_limit: z.string().optional(),
@@ -162,6 +165,25 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     control: form.control,
     name: 'force_update',
   })
+  const selectedSiteId = useWatch({
+    control: form.control,
+    name: 'site_id',
+  })
+  const matchingGroups = useMemo(
+    () => filterServerGroupsBySite(groups ?? [], selectedSiteId),
+    [groups, selectedSiteId]
+  )
+
+  useEffect(() => {
+    if (!groups) return
+    const groupId = form.getValues('group_id')
+    if (
+      groupId &&
+      !matchingGroups.some((group) => String(group.id) === groupId)
+    ) {
+      form.setValue('group_id', '', { shouldDirty: true })
+    }
+  }, [form, groups, matchingGroups])
 
   // 按基础月价自动推算各周期价格（对齐原版，输入非法/空时不动）
   const applyBasePrice = (v: string) => {
@@ -211,8 +233,10 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
       group_id: current?.group_id != null ? String(current.group_id) : '',
       site_id: current?.site_id != null ? String(current.site_id) : '',
       transfer_enable: current?.transfer_enable ?? 0,
-      speed_limit: current?.speed_limit != null ? String(current.speed_limit) : '',
-      device_limit: current?.device_limit != null ? String(current.device_limit) : '',
+      speed_limit:
+        current?.speed_limit != null ? String(current.speed_limit) : '',
+      device_limit:
+        current?.device_limit != null ? String(current.device_limit) : '',
       capacity_limit:
         current?.capacity_limit != null ? String(current.capacity_limit) : '',
       reset_traffic_method:
@@ -239,7 +263,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
     return {
       id: current?.id,
       name: values.name,
-      group_id: toNum(values.group_id),
+      group_id: Number(values.group_id),
       site_id: toNum(values.site_id),
       transfer_enable: values.transfer_enable,
       speed_limit: toNum(values.speed_limit),
@@ -296,7 +320,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='flex max-h-[90vh] max-w-xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
-        <DialogHeader className='flex-shrink-0 border-b px-6 pb-4 pt-6'>
+        <DialogHeader className='flex-shrink-0 border-b px-6 pt-6 pb-4'>
           <DialogTitle className='text-lg tracking-tight'>
             {isEdit ? '编辑套餐' : '添加套餐'}
           </DialogTitle>
@@ -314,9 +338,10 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   // 避免校验失败时静默无反应：把第一条错误提示给用户。
                   (errs) => {
                     const first = Object.values(errs)[0] as
-                      | { message?: string }
-                      | undefined
-                    toast.error(first?.message || '表单校验失败，请检查并修正错误后重试。')
+                      { message?: string } | undefined
+                    toast.error(
+                      first?.message || '表单校验失败，请检查并修正错误后重试。'
+                    )
                   }
                 )}
                 className='space-y-6'
@@ -327,7 +352,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     name='name'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>套餐名称</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          套餐名称
+                        </FormLabel>
                         <FormControl>
                           <Input
                             placeholder='请输入套餐名称'
@@ -361,26 +388,32 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                 <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                   <FormField
                     control={form.control}
-                    name='group_id'
+                    name='site_id'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>服务器分组</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          归属站点
+                        </FormLabel>
                         <Select
                           value={field.value || 'none'}
-                          onValueChange={(v) =>
+                          onValueChange={(v) => {
                             field.onChange(v === 'none' ? '' : v)
-                          }
+                            form.setValue('group_id', '', { shouldDirty: true })
+                          }}
                         >
                           <FormControl>
                             <SelectTrigger className='h-9 font-mono text-xs'>
-                              <SelectValue placeholder='请选择服务器分组' />
+                              <SelectValue placeholder='主站套餐' />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value='none'>无</SelectItem>
-                            {(groups ?? []).map((g) => (
-                              <SelectItem key={g.id} value={String(g.id)}>
-                                {g.name}
+                            <SelectItem value='none'>主站套餐</SelectItem>
+                            {(resellerSites ?? []).map((site) => (
+                              <SelectItem key={site.id} value={String(site.id)}>
+                                {site.name}
+                                {site.site_type === 'brand'
+                                  ? '（品牌站）'
+                                  : '（分销站）'}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -391,10 +424,12 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   />
                   <FormField
                     control={form.control}
-                    name='site_id'
+                    name='group_id'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>归属分站</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          服务器分组
+                        </FormLabel>
                         <Select
                           value={field.value || 'none'}
                           onValueChange={(v) =>
@@ -403,21 +438,31 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                         >
                           <FormControl>
                             <SelectTrigger className='h-9 font-mono text-xs'>
-                              <SelectValue placeholder='主站套餐' />
+                              <SelectValue placeholder='请选择同站点权限组' />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value='none'>
-                              主站套餐（处处可见）
+                            <SelectItem value='none' disabled>
+                              请选择权限组
                             </SelectItem>
-                            {(resellerSites ?? []).map((s) => (
-                              <SelectItem key={s.id} value={String(s.id)}>
-                                {s.name}
-                                {s.domain ? ` (${s.domain})` : ''}
+                            {matchingGroups.map((group) => (
+                              <SelectItem
+                                key={group.id}
+                                value={String(group.id)}
+                              >
+                                {group.name}
                               </SelectItem>
                             ))}
+                            {matchingGroups.length === 0 && (
+                              <SelectItem value='unavailable' disabled>
+                                当前站点暂无权限组
+                              </SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
+                        <p className={fieldDescCls}>
+                          仅显示与套餐归属站点完全一致的权限组。
+                        </p>
                         <FormMessage className={fieldMsgCls} />
                       </FormItem>
                     )}
@@ -439,7 +484,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             />
                           </FormControl>
                           <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
-                            <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                            <span className='font-mono text-[10px] font-bold text-muted-foreground/40 uppercase'>
                               GB
                             </span>
                           </div>
@@ -456,7 +501,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     name='speed_limit'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>速度限制</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          速度限制
+                        </FormLabel>
                         <div className='relative'>
                           <FormControl>
                             <Input
@@ -468,7 +515,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             />
                           </FormControl>
                           <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
-                            <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                            <span className='font-mono text-[10px] font-bold text-muted-foreground/40 uppercase'>
                               Mbps
                             </span>
                           </div>
@@ -482,7 +529,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     name='device_limit'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>设备限制</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          设备限制
+                        </FormLabel>
                         <div className='relative'>
                           <FormControl>
                             <Input
@@ -494,7 +543,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             />
                           </FormControl>
                           <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
-                            <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                            <span className='font-mono text-[10px] font-bold text-muted-foreground/40 uppercase'>
                               台
                             </span>
                           </div>
@@ -511,7 +560,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     name='capacity_limit'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>容量限制</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          容量限制
+                        </FormLabel>
                         <div className='relative'>
                           <FormControl>
                             <Input
@@ -523,7 +574,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             />
                           </FormControl>
                           <div className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3'>
-                            <span className='font-mono text-[10px] font-bold uppercase text-muted-foreground/40'>
+                            <span className='font-mono text-[10px] font-bold text-muted-foreground/40 uppercase'>
                               人
                             </span>
                           </div>
@@ -537,8 +588,13 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     name='reset_traffic_method'
                     render={({ field }) => (
                       <FormItem className='space-y-1.5'>
-                        <FormLabel className={fieldLabelCls}>流量重置方式</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <FormLabel className={fieldLabelCls}>
+                          流量重置方式
+                        </FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger className='h-9 font-mono text-xs'>
                               <SelectValue placeholder='请选择重置方式' />
@@ -548,7 +604,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                             {RESET_TRAFFIC_METHODS.map((m) => (
                               <SelectItem
                                 key={String(m.value)}
-                                value={m.value == null ? 'null' : String(m.value)}
+                                value={
+                                  m.value == null ? 'null' : String(m.value)
+                                }
                               >
                                 {m.label}
                               </SelectItem>
@@ -575,7 +633,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                           onChange={(e) => applyBasePrice(e.target.value)}
                           className='h-8 w-24 pl-5 text-xs'
                         />
-                        <span className='absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground'>
+                        <span className='absolute top-1/2 left-2 -translate-y-1/2 text-xs text-muted-foreground'>
                           ￥
                         </span>
                       </div>
@@ -637,7 +695,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                               {...field}
                             />
                           </FormControl>
-                          <p className={fieldDescCls}>一次性流量包，无时间限制</p>
+                          <p className={fieldDescCls}>
+                            一次性流量包，无时间限制
+                          </p>
                           <FormMessage className={fieldMsgCls} />
                         </FormItem>
                       )}
@@ -673,7 +733,9 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   render={({ field }) => (
                     <FormItem className='space-y-3'>
                       <div className='flex items-center justify-between'>
-                        <FormLabel className={fieldLabelCls}>套餐说明</FormLabel>
+                        <FormLabel className={fieldLabelCls}>
+                          套餐说明
+                        </FormLabel>
                         <Button
                           variant='outline'
                           size='sm'
@@ -704,14 +766,14 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     control={form.control}
                     name='show'
                     render={({ field }) => (
-                      <FormItem className='flex flex-row items-center space-x-2 space-y-0'>
+                      <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
                         <FormControl>
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
-                        <FormLabel className='cursor-pointer select-none text-xs font-normal'>
+                        <FormLabel className='cursor-pointer text-xs font-normal select-none'>
                           显示
                         </FormLabel>
                       </FormItem>
@@ -721,14 +783,14 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     control={form.control}
                     name='sell'
                     render={({ field }) => (
-                      <FormItem className='flex flex-row items-center space-x-2 space-y-0'>
+                      <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
                         <FormControl>
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
-                        <FormLabel className='cursor-pointer select-none text-xs font-normal'>
+                        <FormLabel className='cursor-pointer text-xs font-normal select-none'>
                           可售卖
                         </FormLabel>
                       </FormItem>
@@ -738,14 +800,14 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                     control={form.control}
                     name='renew'
                     render={({ field }) => (
-                      <FormItem className='flex flex-row items-center space-x-2 space-y-0'>
+                      <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
                         <FormControl>
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
-                        <FormLabel className='cursor-pointer select-none text-xs font-normal'>
+                        <FormLabel className='cursor-pointer text-xs font-normal select-none'>
                           可续费
                         </FormLabel>
                       </FormItem>
@@ -764,14 +826,14 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
                   control={form.control}
                   name='force_update'
                   render={({ field }) => (
-                    <FormItem className='flex flex-row items-center space-x-2 space-y-0'>
+                    <FormItem className='flex flex-row items-center space-y-0 space-x-2'>
                       <FormControl>
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
-                      <FormLabel className='cursor-pointer select-none text-xs font-normal'>
+                      <FormLabel className='cursor-pointer text-xs font-normal select-none'>
                         强制更新用户套餐（含流量）
                       </FormLabel>
                     </FormItem>

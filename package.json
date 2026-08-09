@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:columns": "node --experimental-strip-types --test tests/table-column-preferences.test.mjs",
+    "test:site-scoping": "node --experimental-strip-types --test tests/site-scoping.test.mjs",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "knip": "knip"

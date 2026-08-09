@@ -30,7 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ASSIGN_PERIOD_MAP, assignOrder, fetchPlans } from '../api'
+import { filterPlanCandidatesBySite } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
+import { ASSIGN_PERIOD_MAP, type User, assignOrder, fetchPlans } from '../api'
 
 const formSchema = z.object({
   email: z.string().min(1, '请输入用户邮箱').email('邮箱格式有误'),
@@ -44,11 +46,11 @@ type FormValues = z.infer<typeof formSchema>
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 预填用户邮箱。 */
-  email?: string
+  /** 用户列表行内操作以 ID 精确定位，避免重复邮箱歧义。 */
+  user?: User | null
 }
 
-export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
+export function UserAssignOrderDialog({ open, onOpenChange, user }: Props) {
   const queryClient = useQueryClient()
 
   const { data: plans } = useQuery({
@@ -56,32 +58,42 @@ export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
     queryFn: fetchPlans,
     enabled: open,
   })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
     defaultValues: {
-      email: email ?? '',
+      email: user?.email ?? '',
       plan_id: '',
       period: 'month_price',
       total_amount: 0,
     },
   })
+  const availablePlans = filterPlanCandidatesBySite(
+    plans ?? [],
+    user?.site_id,
+    sites ?? []
+  )
 
   useEffect(() => {
     if (open) {
       form.reset({
-        email: email ?? '',
+        email: user?.email ?? '',
         plan_id: '',
         period: 'month_price',
         total_amount: 0,
       })
     }
-  }, [open, email, form])
+  }, [open, user, form])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       assignOrder({
-        email: values.email,
+        user_id: user?.id,
         plan_id: Number(values.plan_id),
         period: values.period,
         // 元 → 分
@@ -102,7 +114,7 @@ export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
         <DialogHeader>
           <DialogTitle>分配订单</DialogTitle>
           <DialogDescription>
-            为该用户创建一笔订单。金额单位为「元」。
+            为 {user?.site_name ?? '主站'} 用户创建一笔订单。金额单位为「元」。
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -118,7 +130,11 @@ export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
                 <FormItem>
                   <FormLabel>用户邮箱</FormLabel>
                   <FormControl>
-                    <Input placeholder='如 user@example.com' {...field} />
+                    <Input
+                      placeholder='如 user@example.com'
+                      {...field}
+                      disabled
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -137,7 +153,7 @@ export function UserAssignOrderDialog({ open, onOpenChange, email }: Props) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(plans ?? []).map((p) => (
+                      {availablePlans.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
                         </SelectItem>

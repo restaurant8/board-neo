@@ -294,7 +294,7 @@ export function ConfigPage() {
                   <div className='space-y-4'>
                     <TextField label='后台路径' placeholder='admin' description='后台管理路径，修改后将会改变原有的admin路径' value={v('secure_path') as string} onChange={(x) => set('secure_path', x)} />
                     <SwitchField label='邮箱验证' description='开启后将会强制要求用户进行邮箱验证。' value={v('email_verify') as boolean} onChange={(b) => set('email_verify', b)} />
-                    <SwitchField label='安全模式' description='开启后除了站点URL以外的绑定本站点的域名访问都将会被403。' value={v('safe_mode_enable') as boolean} onChange={(b) => set('safe_mode_enable', b)} />
+                    <SwitchField label='安全模式（强制开启）' description='多站点 Host 隔离强制开启：未绑定到主站、品牌站或分销站的域名会被拒绝访问，不能在管理端关闭。' value disabled onChange={() => undefined} />
                     <SwitchField label='邮箱后缀白名单' description='开启后在名单中的邮箱后缀才允许进行注册。' value={v('email_whitelist_enable') as boolean} onChange={(b) => set('email_whitelist_enable', b)} />
                     {(v('email_whitelist_enable') as boolean) && (
                       <TextareaField

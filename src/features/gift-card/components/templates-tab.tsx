@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Ticket } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -15,6 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { promotionScopeLabel } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
 import {
   type GiftCardTemplate,
   GIFT_CARD_TYPE_MAP,
@@ -40,6 +42,10 @@ export function TemplatesTab() {
     queryKey: ['gift-templates', page, pageSize],
     queryFn: () => fetchTemplates({ page, per_page: pageSize }),
   })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+  })
 
   const dropMutation = useMutation({
     mutationFn: (id: number) => deleteTemplate(id),
@@ -55,6 +61,8 @@ export function TemplatesTab() {
     mutationFn: (t: GiftCardTemplate) =>
       updateTemplate({
         id: t.id,
+        site_id: t.site_id,
+        is_global: t.is_global,
         name: t.name,
         description: t.description,
         type: t.type,
@@ -106,6 +114,7 @@ export function TemplatesTab() {
             <TableRow>
               <TableHead className='w-16'>ID</TableHead>
               <TableHead>名称</TableHead>
+              <TableHead className='w-32'>作用范围</TableHead>
               <TableHead className='w-28'>类型</TableHead>
               <TableHead className='w-20'>状态</TableHead>
               <TableHead className='w-24 text-end'>兑换码数</TableHead>
@@ -116,7 +125,7 @@ export function TemplatesTab() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className='h-24 text-center'>
+                <TableCell colSpan={8} className='h-24 text-center'>
                   加载中...
                 </TableCell>
               </TableRow>
@@ -127,6 +136,11 @@ export function TemplatesTab() {
                     <Badge>{t.id}</Badge>
                   </TableCell>
                   <TableCell className='whitespace-nowrap'>{t.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={t.is_global ? 'default' : 'outline'}>
+                      {promotionScopeLabel(t.site_id, t.is_global, sites)}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant='outline'>
                       {t.type_name ?? GIFT_CARD_TYPE_MAP[t.type] ?? t.type}
@@ -183,7 +197,7 @@ export function TemplatesTab() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className='h-24 text-center'>
+                <TableCell colSpan={8} className='h-24 text-center'>
                   暂无模板
                 </TableCell>
               </TableRow>

@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { adminApi } from '@/lib/api-client'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -31,14 +33,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { adminApi } from '@/lib/api-client'
-import { Checkbox } from '@/components/ui/checkbox'
+import { filterPlanCandidatesBySite } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
 import { fetchPlans, generateUsers } from '../api'
 
 const formSchema = z.object({
   email_prefix: z.string().optional(),
   email_suffix: z.string().min(1, '请输入邮箱后缀（域名）'),
   password: z.string().optional(),
+  site_id: z.string(),
   plan_id: z.string().optional(),
   expired_at: z.string().optional(),
   generate_count: z.coerce.number().int().min(1).max(500).optional(),
@@ -64,6 +67,11 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
     queryFn: fetchPlans,
     enabled: open,
   })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
@@ -71,12 +79,22 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
       email_prefix: '',
       email_suffix: '',
       password: '',
+      site_id: '',
       plan_id: '',
       expired_at: '',
       generate_count: 1,
       download_csv: false,
     },
   })
+  const selectedSiteId = useWatch({
+    control: form.control,
+    name: 'site_id',
+  })
+  const availablePlans = filterPlanCandidatesBySite(
+    plans ?? [],
+    selectedSiteId,
+    sites ?? []
+  )
 
   useEffect(() => {
     if (open) form.reset()
@@ -88,6 +106,7 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
         email_prefix: values.email_prefix?.trim() || undefined,
         email_suffix: values.email_suffix.trim(),
         password: values.password?.trim() || undefined,
+        site_id: values.site_id ? Number(values.site_id) : null,
         plan_id: values.plan_id ? Number(values.plan_id) : null,
         expired_at: inputToTs(values.expired_at),
         generate_count: values.generate_count,
@@ -131,7 +150,7 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
           <form
             id='user-generate-form'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
-            className='grid grid-cols-1 sm:grid-cols-2 gap-4'
+            className='grid grid-cols-1 gap-4 sm:grid-cols-2'
           >
             <FormField
               control={form.control}
@@ -193,6 +212,43 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
             />
             <FormField
               control={form.control}
+              name='site_id'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>归属站点</FormLabel>
+                  <Select
+                    value={field.value || 'main'}
+                    onValueChange={(value) => {
+                      field.onChange(value === 'main' ? '' : value)
+                      form.setValue('plan_id', '')
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='选择站点' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='main'>主站</SelectItem>
+                      {(sites ?? []).map((site) => (
+                        <SelectItem key={site.id} value={String(site.id)}>
+                          {site.name}
+                          {site.site_type === 'brand'
+                            ? '（品牌站）'
+                            : '（分销站）'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    同一邮箱可存在于不同站点，创建后不能直接改变归属。
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name='plan_id'
               render={({ field }) => (
                 <FormItem>
@@ -208,7 +264,7 @@ export function UserGenerateDialog({ open, onOpenChange }: Props) {
                     </FormControl>
                     <SelectContent>
                       <SelectItem value='none'>无</SelectItem>
-                      {plans?.map((p) => (
+                      {availablePlans.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
                         </SelectItem>

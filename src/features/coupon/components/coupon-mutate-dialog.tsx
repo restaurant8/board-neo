@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { MultiCheck } from '@/components/multi-check'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,12 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { MultiCheck } from '@/components/multi-check'
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_NAMES,
   type PlanPeriod,
   fetchPlans,
 } from '@/features/plan/api'
+import {
+  type PromotionScope,
+  filterPromotionPlansByScope,
+  promotionScopeFrom,
+  promotionScopePayload,
+} from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
+import { PromotionScopeSelect } from '@/features/reseller/components/promotion-scope-select'
 import {
   type Coupon,
   COUPON_TYPE_AMOUNT,
@@ -83,8 +91,36 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
   const [generateCount, setGenerateCount] = useState('')
   const [limitPlanIds, setLimitPlanIds] = useState<string[]>([])
   const [limitPeriod, setLimitPeriod] = useState<string[]>([])
+  const [scope, setScope] = useState<PromotionScope>('main')
 
-  const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
+  const { data: plans, isLoading: plansLoading } = useQuery({
+    queryKey: ['plans'],
+    queryFn: fetchPlans,
+    enabled: open,
+  })
+  const { data: sites, isLoading: sitesLoading } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
+  const planCandidates = filterPromotionPlansByScope(plans ?? [], scope)
+  const siteNames = new Map((sites ?? []).map((site) => [site.id, site.name]))
+  const planOptions = planCandidates.map((plan) => ({
+    value: String(plan.id),
+    label: `${plan.name}（${plan.site_id ? (siteNames.get(plan.site_id) ?? `站点 #${plan.site_id}`) : '主站'}）`,
+  }))
+
+  const changeScope = (nextScope: PromotionScope) => {
+    const allowedPlanIds = new Set(
+      filterPromotionPlansByScope(plans ?? [], nextScope).map((plan) =>
+        String(plan.id)
+      )
+    )
+    setLimitPlanIds((selected) =>
+      selected.filter((planId) => allowedPlanIds.has(planId))
+    )
+    setScope(nextScope)
+  }
 
   // 打开时装载：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
   const [loaded, setLoaded] = useState<{
@@ -115,6 +151,9 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
           : ''
       )
       setGenerateCount('')
+      setScope(
+        promotionScopeFrom(current?.site_id, current?.is_global ?? false)
+      )
       setLimitPlanIds((current?.limit_plan_ids ?? []).map((x) => String(x)))
       setLimitPeriod((current?.limit_period ?? []).map(normalizePeriod))
     }
@@ -126,19 +165,24 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
         type === COUPON_TYPE_AMOUNT
           ? Math.round(Number(value) * 100) // 元 → 分
           : Math.round(Number(value)) // 百分比整数
+      const allowedPlanIds = new Set(
+        planCandidates.map((plan) => String(plan.id))
+      )
+      const scopedPlanIds = limitPlanIds.filter((planId) =>
+        allowedPlanIds.has(planId)
+      )
       return generateCoupon({
         id: current?.id,
+        ...promotionScopePayload(scope),
         name,
         type,
         value: numValue,
         started_at: fromLocalInput(startedAt),
         ended_at: fromLocalInput(endedAt),
         limit_use: limitUse ? Number(limitUse) : null,
-        limit_use_with_user: limitUseWithUser
-          ? Number(limitUseWithUser)
-          : null,
-        limit_plan_ids: limitPlanIds.length
-          ? limitPlanIds.map((x) => Number(x))
+        limit_use_with_user: limitUseWithUser ? Number(limitUseWithUser) : null,
+        limit_plan_ids: scopedPlanIds.length
+          ? scopedPlanIds.map((x) => Number(x))
           : null,
         limit_period: limitPeriod.length ? limitPeriod : null,
         code: !isEdit && code ? code : undefined,
@@ -156,14 +200,14 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-lg'>
+      <DialogContent className='sm:max-w-xl'>
         <DialogHeader>
           <DialogTitle>{isEdit ? '编辑优惠券' : '添加优惠券'}</DialogTitle>
           <DialogDescription>
             金额型单位为「元」，比例型为百分比。
           </DialogDescription>
         </DialogHeader>
-        <div className='grid gap-4'>
+        <div className='grid max-h-[65vh] gap-4 overflow-y-auto pr-2'>
           <div className='grid gap-2'>
             <Label>优惠券名称</Label>
             <Input
@@ -172,7 +216,19 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          <div className='grid gap-2'>
+            <Label>作用范围</Label>
+            <PromotionScopeSelect
+              value={scope}
+              sites={sites ?? []}
+              onChange={changeScope}
+              disabled={sitesLoading || plansLoading}
+            />
+            <p className='text-xs text-muted-foreground'>
+              全站通用可用于任意站点；主站或指定站点只能绑定同归属套餐。
+            </p>
+          </div>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <div className='grid gap-2'>
               <Label>类型</Label>
               <Select
@@ -205,7 +261,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               />
             </div>
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <div className='grid gap-2'>
               <Label>开始时间</Label>
               <Input
@@ -223,7 +279,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               />
             </div>
           </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
             <div className='grid gap-2'>
               <Label>最大使用次数</Label>
               <Input
@@ -246,15 +302,12 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
           <div className='grid gap-2'>
             <Label>指定订阅</Label>
             <MultiCheck
-              options={(plans ?? []).map((p) => ({
-                value: String(p.id),
-                label: p.name,
-              }))}
+              options={planOptions}
               selected={limitPlanIds}
               onChange={setLimitPlanIds}
-              empty='暂无套餐'
+              empty={plansLoading ? '加载套餐中...' : '该范围暂无套餐'}
             />
-            <p className='text-muted-foreground text-xs'>
+            <p className='text-xs text-muted-foreground'>
               选择可以使用优惠券的订阅计划，留空表示不限制计划。
             </p>
           </div>
@@ -268,12 +321,12 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
               selected={limitPeriod}
               onChange={setLimitPeriod}
             />
-            <p className='text-muted-foreground text-xs'>
+            <p className='text-xs text-muted-foreground'>
               选择可以使用优惠券的订阅周期，留空表示不限制使用周期。
             </p>
           </div>
           {!isEdit && (
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <div className='grid gap-2'>
                 <Label>自定义优惠码</Label>
                 <Input
@@ -305,7 +358,13 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
           </Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !name || !value}
+            disabled={
+              mutation.isPending ||
+              plansLoading ||
+              sitesLoading ||
+              !name ||
+              !value
+            }
           >
             保存
           </Button>

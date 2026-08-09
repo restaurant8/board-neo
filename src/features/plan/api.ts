@@ -53,7 +53,7 @@ export type Plan = {
   id: number
   name: string
   group_id: number | null
-  /** 归属分站：null=主站套餐(处处可见)；非空=该分站专属套餐(仅其域名可见)。 */
+  /** 归属站点：null=主站套餐；非空=该品牌站或分销站的专属套餐。 */
   site_id: number | null
   /** 流量配额。注意：DB 存字节，但 fetch 直接返回 DB 原值（无转换）。 */
   transfer_enable: number
@@ -88,7 +88,7 @@ export type PlanSavePayload = {
   reset_traffic_method?: number | null
   transfer_enable: number
   prices?: Record<string, number>
-  group_id?: number | null
+  group_id: number
   site_id?: number | null
   speed_limit?: number | null
   device_limit?: number | null

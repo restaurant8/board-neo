@@ -59,12 +59,15 @@ export const PERIOD_LEGACY_TO_INTERNAL: Record<string, string> = {
 export type PlanBrief = {
   id: number
   name: string
+  site_id: number | null
 }
 
 /** v2_order 表字段（金额均以「分」存储，展示时 /100）。 */
 export type Order = {
   id: number
   user_id: number
+  /** null=主站；非空=品牌站或分销站。 */
+  site_id: number | null
   plan_id: number
   payment_id: number | null
   /** 旧版周期键，如 month_price。 */
@@ -90,7 +93,7 @@ export type Order = {
   created_at: number
   updated_at: number
   plan?: PlanBrief | null
-  /** 订单来源：null=主站，否则为分站名 */
+  /** 订单来源：null=主站，否则为品牌站或分销站名称。 */
   site_name?: string | null
 }
 
@@ -118,7 +121,10 @@ export type OrderFetchParams = {
 
 export type OrderAssignPayload = {
   plan_id: number
-  email: string
+  user_id?: number
+  email?: string
+  /** null=主站；非空=按该站点消歧邮箱。 */
+  site_id?: number | null
   /** 单位：分。 */
   total_amount: number
   period: string

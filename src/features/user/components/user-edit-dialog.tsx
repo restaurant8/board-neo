@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { filterPlanCandidatesBySite } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
 import { type User, fetchPlans, updateUser } from '../api'
 import { bytesToGiB, giBToBytes } from '../format'
 
@@ -100,6 +102,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
     queryFn: fetchPlans,
     enabled: open,
   })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
@@ -126,6 +133,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
       traffic_audit_enabled: false,
     },
   })
+  const availablePlans = filterPlanCandidatesBySite(
+    plans ?? [],
+    current?.site_id,
+    sites ?? []
+  )
 
   useEffect(() => {
     if (open && current) {
@@ -141,9 +153,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
         commission_balance: current.commission_balance,
         commission_type: String(current.commission_type ?? 0),
         commission_rate:
-          current.commission_rate != null ? String(current.commission_rate) : '',
+          current.commission_rate != null
+            ? String(current.commission_rate)
+            : '',
         discount: current.discount != null ? String(current.discount) : '',
-        speed_limit: current.speed_limit != null ? String(current.speed_limit) : '',
+        speed_limit:
+          current.speed_limit != null ? String(current.speed_limit) : '',
         device_limit:
           current.device_limit != null ? String(current.device_limit) : '',
         invite_user_email: current.invite_user?.email ?? '',
@@ -202,7 +217,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
           <form
             id='user-edit-form'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
-            className='grid grid-cols-1 sm:grid-cols-2 gap-4'
+            className='grid grid-cols-1 gap-4 sm:grid-cols-2'
           >
             <FormField
               control={form.control}
@@ -224,7 +239,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>密码</FormLabel>
                   <FormControl>
-                    <Input type='password' placeholder='留空不修改' {...field} />
+                    <Input
+                      type='password'
+                      placeholder='留空不修改'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -247,7 +266,7 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                     </FormControl>
                     <SelectContent>
                       <SelectItem value='none'>无套餐</SelectItem>
-                      {plans?.map((p) => (
+                      {availablePlans.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
                         </SelectItem>
@@ -279,7 +298,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>流量 (GB)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' placeholder='请输入流量' {...field} />
+                    <Input
+                      type='number'
+                      step='0.01'
+                      placeholder='请输入流量'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -292,7 +316,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>已用上行 (GB)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' placeholder='已用上行' {...field} />
+                    <Input
+                      type='number'
+                      step='0.01'
+                      placeholder='已用上行'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,7 +334,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>已用下行 (GB)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' placeholder='已用下行' {...field} />
+                    <Input
+                      type='number'
+                      step='0.01'
+                      placeholder='已用下行'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -318,7 +352,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>余额 (元)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' placeholder='如 9.90' {...field} />
+                    <Input
+                      type='number'
+                      step='0.01'
+                      placeholder='如 9.90'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -331,7 +370,12 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>佣金余额 (元)</FormLabel>
                   <FormControl>
-                    <Input type='number' step='0.01' placeholder='如 9.90' {...field} />
+                    <Input
+                      type='number'
+                      step='0.01'
+                      placeholder='如 9.90'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -400,7 +444,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>限速 (Mbps)</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='留空则不限速' {...field} />
+                    <Input
+                      type='number'
+                      placeholder='留空则不限速'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -413,7 +461,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem>
                   <FormLabel>设备限制</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='留空则不限制' {...field} />
+                    <Input
+                      type='number'
+                      placeholder='留空则不限制'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -428,6 +480,9 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                   <FormControl>
                     <Input placeholder='请输入邮箱，留空清除' {...field} />
                   </FormControl>
+                  <FormDescription>
+                    仅能绑定当前用户同站点内的邀请人。
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -439,7 +494,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
                 <FormItem className='col-span-2'>
                   <FormLabel>备注</FormLabel>
                   <FormControl>
-                    <Textarea rows={2} placeholder='仅管理员可见，如 VIP 客户' {...field} />
+                    <Textarea
+                      rows={2}
+                      placeholder='仅管理员可见，如 VIP 客户'
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -517,7 +576,11 @@ export function UserEditDialog({ open, onOpenChange, current }: Props) {
           >
             取消
           </Button>
-          <Button type='submit' form='user-edit-form' disabled={mutation.isPending}>
+          <Button
+            type='submit'
+            form='user-edit-form'
+            disabled={mutation.isPending}
+          >
             保存
           </Button>
         </DialogFooter>

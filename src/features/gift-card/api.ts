@@ -23,6 +23,8 @@ export const GIFT_CODE_STATUS_DISABLED = 3
 /** v2_gift_card_template 字段（templates 接口附带 codes_count / used_count）。 */
 export type GiftCardTemplate = {
   id: number
+  site_id: number | null
+  is_global: boolean
   name: string
   description: string | null
   type: number
@@ -98,6 +100,8 @@ export type GiftPageParams = {
 export type TemplateListParams = GiftPageParams & {
   type?: number
   status?: 0 | 1
+  site_id?: number | null
+  is_global?: boolean
 }
 
 export type CodeListParams = GiftPageParams & {
@@ -113,6 +117,8 @@ export type UsageListParams = GiftPageParams & {
 
 export type TemplatePayload = {
   id?: number
+  site_id: number | null
+  is_global: boolean
   name: string
   description?: string | null
   type: number

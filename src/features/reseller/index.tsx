@@ -3,12 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import {
   type ResellerSite,
   dropResellerSite,
@@ -66,7 +66,8 @@ export function ResellerPage() {
     return (
       s.name.toLowerCase().includes(kw) ||
       (s.domain ?? '').toLowerCase().includes(kw) ||
-      (s.owner_email ?? '').toLowerCase().includes(kw)
+      (s.owner_email ?? '').toLowerCase().includes(kw) ||
+      (s.frontend_theme ?? '').toLowerCase().includes(kw)
     )
   })
 
@@ -84,10 +85,10 @@ export function ResellerPage() {
         <div className='mb-2 flex items-center justify-between space-y-2'>
           <div>
             <div className='mb-2'>
-              <h2 className='text-2xl font-bold tracking-tight'>分站管理</h2>
+              <h2 className='text-2xl font-bold tracking-tight'>站点管理</h2>
             </div>
             <p className='text-muted-foreground'>
-              创建分站、绑定独立域名并指定站长。绑定域名后，该域名注册的用户与下单将自动归属对应分站。
+              统一管理平台自营品牌站与分销站，包括独立域名、品牌、主题和业务归属。
             </p>
           </div>
         </div>
@@ -105,7 +106,7 @@ export function ResellerPage() {
                     setMutateOpen(true)
                   }}
                 >
-                  <Plus className='h-4 w-4' /> <div>添加分站</div>
+                  <Plus className='h-4 w-4' /> <div>添加站点</div>
                 </Button>
                 <Input
                   placeholder='搜索名称 / 域名 / 站长邮箱...'
@@ -132,9 +133,11 @@ export function ResellerPage() {
                   <TableRow>
                     <TableHead className='w-[60px]'>ID</TableHead>
                     <TableHead className='w-[90px]'>状态</TableHead>
-                    <TableHead>分站名称</TableHead>
+                    <TableHead>站点名称</TableHead>
+                    <TableHead className='w-[100px]'>类型</TableHead>
                     <TableHead>绑定域名</TableHead>
                     <TableHead>站长</TableHead>
+                    <TableHead>主题</TableHead>
                     <TableHead className='w-[80px] text-center'>用户</TableHead>
                     <TableHead className='w-[80px] text-center'>订单</TableHead>
                     <TableHead className='w-[130px] text-end'>操作</TableHead>
@@ -159,6 +162,15 @@ export function ResellerPage() {
                           <span className='truncate font-medium'>{s.name}</span>
                         </TableCell>
                         <TableCell>
+                          <Badge
+                            variant={
+                              s.site_type === 'brand' ? 'default' : 'secondary'
+                            }
+                          >
+                            {s.site_type === 'brand' ? '品牌站' : '分销站'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           {s.domain ? (
                             <span className='flex items-center gap-1 font-mono text-xs'>
                               <Globe className='h-3 w-3 text-muted-foreground' />
@@ -180,7 +192,17 @@ export function ResellerPage() {
                         </TableCell>
                         <TableCell>
                           <span className='font-mono text-xs text-muted-foreground'>
-                            {s.owner_email ?? `#${s.owner_user_id}`}
+                            {s.site_type === 'brand'
+                              ? '平台自营'
+                              : (s.owner_email ??
+                                (s.owner_user_id
+                                  ? `#${s.owner_user_id}`
+                                  : '未指定'))}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className='font-mono text-xs text-muted-foreground'>
+                            {s.frontend_theme ?? '继承全局'}
                           </span>
                         </TableCell>
                         <TableCell className='text-center font-mono'>
@@ -227,7 +249,7 @@ export function ResellerPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className='h-24 text-center'>
+                      <TableCell colSpan={10} className='h-24 text-center'>
                         暂无数据
                       </TableCell>
                     </TableRow>
@@ -255,7 +277,7 @@ export function ResellerPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title='删除确认'
-        desc='确定要删除该分站吗？该分站下的用户将转为主站用户（套餐/订阅/账号不受影响），域名绑定与品牌将失效；历史订单/结算记录保留。此操作无法撤销。'
+        desc='确定要删除该站点吗？仅无关联用户、订单、套餐和权限组的站点可删除；域名绑定、品牌与主题配置将一并失效。此操作无法撤销。'
         confirmText='删除'
         destructive
         isLoading={dropMutation.isPending}

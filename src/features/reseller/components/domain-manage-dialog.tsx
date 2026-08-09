@@ -71,20 +71,21 @@ export function DomainManageDialog({ open, onOpenChange, site }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-w-md gap-0 overflow-hidden p-0 sm:rounded-2xl'>
-        <DialogHeader className='border-b bg-muted/20 px-6 pb-4 pt-6'>
+        <DialogHeader className='border-b bg-muted/20 px-6 pt-6 pb-4'>
           <DialogTitle className='font-mono text-lg tracking-tight'>
             域名管理 · {site?.name}
           </DialogTitle>
           <DialogDescription className='font-mono text-xs opacity-70'>
-            一个分站可绑定多个域名（自有域名 + 主站二级域名并存）。命中任一域名的访客都归属该分站。
+            一个站点可绑定多个域名（自有域名 +
+            主站二级域名并存）。命中任一域名的访客都归属该站点。
           </DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4 px-6 py-4 font-mono'>
-          {/* 主域名（在编辑分站里改，此处只读展示） */}
+          {/* 主域名（在编辑站点里改，此处只读展示） */}
           <div>
-            <Label className='text-[11px] uppercase tracking-wider text-muted-foreground'>
-              主域名（在「编辑分站」中修改）
+            <Label className='text-[11px] tracking-wider text-muted-foreground uppercase'>
+              主域名（在「编辑站点」中修改）
             </Label>
             <div className='mt-1.5 flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs'>
               <Globe className='h-3.5 w-3.5 text-muted-foreground' />
@@ -98,7 +99,7 @@ export function DomainManageDialog({ open, onOpenChange, site }: Props) {
 
           {/* 别名列表 */}
           <div>
-            <Label className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+            <Label className='text-[11px] tracking-wider text-muted-foreground uppercase'>
               额外域名
             </Label>
             <div className='mt-1.5 space-y-2'>
@@ -139,7 +140,7 @@ export function DomainManageDialog({ open, onOpenChange, site }: Props) {
           {/* 新增 */}
           <div className='flex items-end gap-2'>
             <div className='flex-1'>
-              <Label className='text-[11px] uppercase tracking-wider text-muted-foreground'>
+              <Label className='text-[11px] tracking-wider text-muted-foreground uppercase'>
                 新增域名
               </Label>
               <Input

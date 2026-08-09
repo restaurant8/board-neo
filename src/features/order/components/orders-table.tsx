@@ -219,7 +219,7 @@ export function OrdersTable({ search, navigate, handlers, onAdd }: Props) {
   // 受控搜索框（输入态），回车 / 提交后才写入 URL 触发请求
   const [searchInput, setSearchInput] = useState(tradeNo)
 
-  // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串（本地态，不进 URL）
+  // 站点归属筛选：'' 全部 / 'main' 主站 / 站点 id 字符串（本地态，不进 URL）
   const [siteSel, setSiteSel] = useState('')
   const { data: resellerSites } = useQuery({
     queryKey: ['reseller-sites'],

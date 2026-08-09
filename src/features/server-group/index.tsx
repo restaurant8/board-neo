@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -7,6 +6,7 @@ import {
   DoubleArrowRightIcon,
   Pencil1Icon,
 } from '@radix-ui/react-icons'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
@@ -17,14 +17,8 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
 import { handleServerError } from '@/lib/handle-server-error'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,10 +37,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { type ServerGroup, dropServerGroup, fetchServerGroups } from './api'
 import { GroupMutateDialog } from './components/group-mutate-dialog'
 
-type SortKey = 'id' | 'name' | 'users_count' | 'server_count'
+type SortKey = 'id' | 'name' | 'site' | 'users_count' | 'server_count'
 type SortDir = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50, 100, 500]
@@ -100,7 +100,11 @@ export function ServerGroupPage() {
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase()
     if (!kw) return groups
-    return groups.filter((g) => g.name.toLowerCase().includes(kw))
+    return groups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(kw) ||
+        (group.site_name ?? '主站').toLowerCase().includes(kw)
+    )
   }, [groups, keyword])
 
   const sorted = useMemo(() => {
@@ -112,6 +116,9 @@ export function ServerGroupPage() {
       if (sort.key === 'name') {
         av = a.name
         bv = b.name
+      } else if (sort.key === 'site') {
+        av = a.site_name ?? '主站'
+        bv = b.site_name ?? '主站'
       } else if (sort.key === 'users_count') {
         av = a.users_count ?? 0
         bv = b.users_count ?? 0
@@ -183,7 +190,7 @@ export function ServerGroupPage() {
         <Button
           variant='ghost'
           size='default'
-          className='-ml-3 flex h-8 items-center gap-2 text-nowrap font-medium hover:bg-muted/60'
+          className='-ml-3 flex h-8 items-center gap-2 font-medium text-nowrap hover:bg-muted/60'
           onClick={() => toggleSort(sortKey)}
         >
           <span>{title}</span>
@@ -230,7 +237,7 @@ export function ServerGroupPage() {
                 <span>添加权限组</span>
               </Button>
               <Input
-                placeholder='搜索权限组...'
+                placeholder='搜索权限组 / 站点...'
                 value={keyword}
                 onChange={(e) => {
                   setKeyword(e.target.value)
@@ -269,6 +276,9 @@ export function ServerGroupPage() {
                     <TableHead className='h-11 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('name', '组名称')}
                     </TableHead>
+                    <TableHead className='h-11 w-40 bg-card px-4 text-muted-foreground'>
+                      {renderSortHeader('site', '归属站点')}
+                    </TableHead>
                     <TableHead className='h-11 w-32 bg-card px-4 text-muted-foreground'>
                       {renderSortHeader('users_count', '用户数量')}
                     </TableHead>
@@ -276,7 +286,7 @@ export function ServerGroupPage() {
                       {renderSortHeader('server_count', '节点数量')}
                     </TableHead>
                     <TableHead className='h-11 w-28 bg-card px-4 text-muted-foreground'>
-                      <div className='flex items-center space-x-1 text-nowrap py-2 font-medium text-muted-foreground justify-end'>
+                      <div className='flex items-center justify-end space-x-1 py-2 font-medium text-nowrap text-muted-foreground'>
                         <span>操作</span>
                       </div>
                     </TableHead>
@@ -285,7 +295,7 @@ export function ServerGroupPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow className='animate-fade-in'>
-                      <TableCell colSpan={5} className='h-24 text-center'>
+                      <TableCell colSpan={6} className='h-24 text-center'>
                         加载中...
                       </TableCell>
                     </TableRow>
@@ -306,6 +316,15 @@ export function ServerGroupPage() {
                               {g.name}
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell className='bg-card'>
+                          <Badge
+                            variant={
+                              g.site_id == null ? 'outline' : 'secondary'
+                            }
+                          >
+                            {g.site_name ?? '主站'}
+                          </Badge>
                         </TableCell>
                         <TableCell className='bg-card'>
                           <div className='flex items-center space-x-2 px-4'>
@@ -352,7 +371,7 @@ export function ServerGroupPage() {
                     ))
                   ) : (
                     <TableRow className='animate-fade-in'>
-                      <TableCell colSpan={5} className='h-24 text-center'>
+                      <TableCell colSpan={6} className='h-24 text-center'>
                         暂无数据
                       </TableCell>
                     </TableRow>

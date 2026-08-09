@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { fetchPlans } from '@/features/plan/api'
-import { MultiCheck } from '@/components/multi-check'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -25,6 +23,16 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { MultiCheck } from '@/components/multi-check'
+import { fetchPlans } from '@/features/plan/api'
+import {
+  type PromotionScope,
+  filterPromotionPlansByScope,
+  promotionScopeFrom,
+  promotionScopePayload,
+} from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
+import { PromotionScopeSelect } from '@/features/reseller/components/promotion-scope-select'
 import {
   type GiftCardTemplate,
   GIFT_CARD_TYPE_MAP,
@@ -70,7 +78,7 @@ function Field({
     <div className='grid gap-1.5'>
       <Label className='text-xs'>{label}</Label>
       {children}
-      {hint && <p className='text-muted-foreground text-xs'>{hint}</p>}
+      {hint && <p className='text-xs text-muted-foreground'>{hint}</p>}
     </div>
   )
 }
@@ -89,7 +97,16 @@ const fromLocal = (v: string) =>
 export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
   const isEdit = !!current
   const queryClient = useQueryClient()
-  const { data: plans } = useQuery({ queryKey: ['plans'], queryFn: fetchPlans })
+  const { data: plans, isLoading: plansLoading } = useQuery({
+    queryKey: ['plans'],
+    queryFn: fetchPlans,
+    enabled: open,
+  })
+  const { data: sites, isLoading: sitesLoading } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
 
   // 基础
   const [name, setName] = useState('')
@@ -97,6 +114,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
   const [type, setType] = useState(1)
   const [status, setStatus] = useState(true)
   const [sort, setSort] = useState('0')
+  const [scope, setScope] = useState<PromotionScope>('main')
   // 奖励
   const [balance, setBalance] = useState('') // 元
   const [transferEnable, setTransferEnable] = useState('') // GB
@@ -146,8 +164,11 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
     setType(current?.type ?? 1)
     setStatus(current ? !!current.status : true)
     setSort(current?.sort != null ? String(current.sort) : '0')
+    setScope(promotionScopeFrom(current?.site_id, current?.is_global ?? false))
     setBalance(r.balance ? String(Number(r.balance) / 100) : '')
-    setTransferEnable(r.transfer_enable ? String(Number(r.transfer_enable) / GB) : '')
+    setTransferEnable(
+      r.transfer_enable ? String(Number(r.transfer_enable) / GB) : ''
+    )
     setExpireDays(num(r.expire_days))
     setDeviceLimit(num(r.device_limit))
     setResetPackage(!!r.reset_package)
@@ -159,7 +180,9 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
     setPaidUserOnly(!!c.paid_user_only)
     setRequireInvite(!!c.require_invite)
     setAllowedPlans(
-      Array.isArray(c.allowed_plans) ? c.allowed_plans.map((x) => String(x)) : []
+      Array.isArray(c.allowed_plans)
+        ? c.allowed_plans.map((x) => String(x))
+        : []
     )
     setMaxUsePerUser(num(l.max_use_per_user))
     setCooldownHours(num(l.cooldown_hours))
@@ -171,40 +194,121 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
     setBackgroundImage(current?.background_image ?? '')
   }
 
+  const planCandidates = filterPromotionPlansByScope(plans ?? [], scope)
+  const siteNames = new Map((sites ?? []).map((site) => [site.id, site.name]))
+  const planOptions = planCandidates.map((plan) => ({
+    value: String(plan.id),
+    label: `${plan.name}（${plan.site_id ? (siteNames.get(plan.site_id) ?? `站点 #${plan.site_id}`) : '主站'}）`,
+  }))
+
+  const changeScope = (nextScope: PromotionScope) => {
+    const allowedPlanIds = new Set(
+      filterPromotionPlansByScope(plans ?? [], nextScope).map((plan) =>
+        String(plan.id)
+      )
+    )
+    setPlanId((selected) => (allowedPlanIds.has(selected) ? selected : ''))
+    setAllowedPlans((selected) =>
+      selected.filter((selectedId) => allowedPlanIds.has(selectedId))
+    )
+    setScope(nextScope)
+  }
+
   const mutation = useMutation({
     mutationFn: () => {
+      const allowedPlanIds = new Set(
+        planCandidates.map((plan) => String(plan.id))
+      )
+      const scopedPlanId = allowedPlanIds.has(planId) ? planId : ''
+      const scopedAllowedPlans = allowedPlans.filter((selectedId) =>
+        allowedPlanIds.has(selectedId)
+      )
+
       // rewards（balance 元→分；transfer GB→字节）
-      const rewards: Record<string, unknown> = {}
+      const rewards: Record<string, unknown> = { ...(current?.rewards ?? {}) }
       if (n(balance)) rewards.balance = Math.round(Number(balance) * 100)
-      if (n(transferEnable))
+      else delete rewards.balance
+      if (n(transferEnable)) {
         rewards.transfer_enable = Math.round(Number(transferEnable) * GB)
+      } else delete rewards.transfer_enable
       if (n(expireDays)) rewards.expire_days = n(expireDays)
+      else delete rewards.expire_days
       if (n(deviceLimit)) rewards.device_limit = n(deviceLimit)
+      else delete rewards.device_limit
       if (resetPackage) rewards.reset_package = true
-      if (n(inviteRewardRate)) rewards.invite_reward_rate = n(inviteRewardRate)
+      else delete rewards.reset_package
+      if (n(inviteRewardRate)) {
+        rewards.invite_reward_rate = n(inviteRewardRate)
+      } else delete rewards.invite_reward_rate
       if (type === TYPE_PLAN) {
-        if (n(planId)) rewards.plan_id = n(planId)
-        if (n(planValidityDays)) rewards.plan_validity_days = n(planValidityDays)
+        if (n(scopedPlanId)) rewards.plan_id = n(scopedPlanId)
+        else delete rewards.plan_id
+        if (n(planValidityDays)) {
+          rewards.plan_validity_days = n(planValidityDays)
+        } else delete rewards.plan_validity_days
+      } else if (
+        current?.type === type &&
+        rewards.plan_id != null &&
+        allowedPlanIds.has(String(rewards.plan_id))
+      ) {
+        // Preserve a legacy/base plan reward that this form does not expose,
+        // while still enforcing the newly selected promotion scope.
+      } else {
+        delete rewards.plan_id
+        delete rewards.plan_validity_days
+      }
+      if (type === 3 && Array.isArray(rewards.random_rewards)) {
+        rewards.random_rewards = rewards.random_rewards.map((reward) => {
+          if (!reward || typeof reward !== 'object' || Array.isArray(reward)) {
+            return reward
+          }
+          const scopedReward = { ...(reward as Record<string, unknown>) }
+          if (
+            scopedReward.plan_id != null &&
+            !allowedPlanIds.has(String(scopedReward.plan_id))
+          ) {
+            delete scopedReward.plan_id
+          }
+          return scopedReward
+        })
+      } else if (type !== 3) {
+        delete rewards.random_rewards
       }
 
-      const conditions: Record<string, unknown> = {}
+      const conditions: Record<string, unknown> = {
+        ...(current?.conditions ?? {}),
+      }
       if (newUserOnly) conditions.new_user_only = true
-      if (n(newUserMaxDays)) conditions.new_user_max_days = n(newUserMaxDays)
+      else delete conditions.new_user_only
+      if (n(newUserMaxDays)) {
+        conditions.new_user_max_days = n(newUserMaxDays)
+      } else delete conditions.new_user_max_days
       if (paidUserOnly) conditions.paid_user_only = true
+      else delete conditions.paid_user_only
       if (requireInvite) conditions.require_invite = true
-      if (allowedPlans.length)
-        conditions.allowed_plans = allowedPlans.map((x) => Number(x))
+      else delete conditions.require_invite
+      if (scopedAllowedPlans.length) {
+        conditions.allowed_plans = scopedAllowedPlans.map((x) => Number(x))
+      } else delete conditions.allowed_plans
 
-      const limits: Record<string, unknown> = {}
+      const limits: Record<string, unknown> = { ...(current?.limits ?? {}) }
       if (n(maxUsePerUser)) limits.max_use_per_user = n(maxUsePerUser)
+      else delete limits.max_use_per_user
       if (n(cooldownHours)) limits.cooldown_hours = n(cooldownHours)
+      else delete limits.cooldown_hours
 
-      const special: Record<string, unknown> = {}
+      const special: Record<string, unknown> = {
+        ...(current?.special_config ?? {}),
+      }
       if (fromLocal(startTime)) special.start_time = fromLocal(startTime)
+      else delete special.start_time
       if (fromLocal(endTime)) special.end_time = fromLocal(endTime)
+      else delete special.end_time
       if (n(festivalBonus)) special.festival_bonus = n(festivalBonus)
+      else delete special.festival_bonus
 
       const payload = {
+        ...promotionScopePayload(scope),
         name,
         description: description || null,
         type,
@@ -230,11 +334,6 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
     onError: handleServerError,
   })
 
-  const planOptions = (plans ?? []).map((p) => ({
-    value: String(p.id),
-    label: p.name,
-  }))
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-2xl'>
@@ -248,7 +347,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
           <div className='grid gap-4'>
             {/* 基础配置 */}
             <Section title='基础配置'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='模板名称'>
                   <Input
                     placeholder='请输入模板名称'
@@ -274,6 +373,17 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                   </Select>
                 </Field>
               </div>
+              <Field
+                label='作用范围'
+                hint='全站通用可用于任意站点；主站或指定站点只能引用同归属套餐。'
+              >
+                <PromotionScopeSelect
+                  value={scope}
+                  sites={sites ?? []}
+                  onChange={changeScope}
+                  disabled={sitesLoading || plansLoading}
+                />
+              </Field>
               <Field label='描述'>
                 <Textarea
                   rows={2}
@@ -282,7 +392,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </Field>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='排序'>
                   <Input
                     type='number'
@@ -294,7 +404,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                 <div className='flex items-center justify-between rounded-md border p-2'>
                   <div>
                     <Label className='text-xs'>状态</Label>
-                    <p className='text-muted-foreground text-xs'>
+                    <p className='text-xs text-muted-foreground'>
                       禁用后无法生成或兑换
                     </p>
                   </div>
@@ -305,7 +415,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 奖励内容 */}
             <Section title='奖励内容'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='奖励余额 (元)'>
                   <Input
                     type='number'
@@ -341,11 +451,12 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                 </Field>
               </div>
               {type === TYPE_PLAN && (
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   <Field label='赠送套餐'>
                     <Select
                       value={planId || 'none'}
                       onValueChange={(v) => setPlanId(v === 'none' ? '' : v)}
+                      disabled={plansLoading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder='选择套餐' />
@@ -373,11 +484,14 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
               <div className='flex items-center justify-between rounded-md border p-2'>
                 <div>
                   <Label className='text-xs'>重置当月流量</Label>
-                  <p className='text-muted-foreground text-xs'>
+                  <p className='text-xs text-muted-foreground'>
                     兑换时将用户当前套餐的已用流量清零
                   </p>
                 </div>
-                <Switch checked={resetPackage} onCheckedChange={setResetPackage} />
+                <Switch
+                  checked={resetPackage}
+                  onCheckedChange={setResetPackage}
+                />
               </div>
             </Section>
 
@@ -397,11 +511,17 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
               <div className='grid grid-cols-1 gap-2 sm:grid-cols-3'>
                 <div className='flex items-center justify-between rounded-md border p-2'>
                   <Label className='text-xs'>仅限新用户</Label>
-                  <Switch checked={newUserOnly} onCheckedChange={setNewUserOnly} />
+                  <Switch
+                    checked={newUserOnly}
+                    onCheckedChange={setNewUserOnly}
+                  />
                 </div>
                 <div className='flex items-center justify-between rounded-md border p-2'>
                   <Label className='text-xs'>仅限付费用户</Label>
-                  <Switch checked={paidUserOnly} onCheckedChange={setPaidUserOnly} />
+                  <Switch
+                    checked={paidUserOnly}
+                    onCheckedChange={setPaidUserOnly}
+                  />
                 </div>
                 <div className='flex items-center justify-between rounded-md border p-2'>
                   <Label className='text-xs'>需要邀请关系</Label>
@@ -416,14 +536,14 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
                   options={planOptions}
                   selected={allowedPlans}
                   onChange={setAllowedPlans}
-                  empty='暂无套餐'
+                  empty={plansLoading ? '加载套餐中...' : '该范围暂无套餐'}
                 />
               </Field>
             </Section>
 
             {/* 使用限制 */}
             <Section title='使用限制'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='单用户最大使用次数' hint='留空则不限制'>
                   <Input
                     type='number'
@@ -457,7 +577,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 特殊配置 */}
             <Section title='特殊配置'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='活动开始时间'>
                   <Input
                     type='datetime-local'
@@ -489,7 +609,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
 
             {/* 显示效果 */}
             <Section title='显示效果'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                 <Field label='主题色'>
                   <Input
                     value={themeColor}
@@ -525,7 +645,9 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
           </Button>
           <Button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !name}
+            disabled={
+              mutation.isPending || plansLoading || sitesLoading || !name
+            }
           >
             确认
           </Button>

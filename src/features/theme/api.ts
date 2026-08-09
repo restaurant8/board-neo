@@ -26,10 +26,14 @@ export type ThemeItem = {
 export type GetThemesResult = {
   themes: Record<string, ThemeItem>
   active: string
+  inherited?: boolean
 }
 
-export function getThemes() {
-  return get<GetThemesResult>('/theme/getThemes')
+export function getThemes(siteId?: number | null) {
+  return get<GetThemesResult>(
+    '/theme/getThemes',
+    siteId ? { site_id: siteId } : undefined
+  )
 }
 
 /** POST /theme/upload — upload a zip theme package (multipart). */
@@ -53,14 +57,22 @@ export function switchTheme(name: string) {
 }
 
 /** POST /theme/getThemeConfig — current saved values for a theme. */
-export function getThemeConfig(name: string) {
-  return post<Record<string, unknown>>('/theme/getThemeConfig', { name })
+export function getThemeConfig(name: string, siteId?: number | null) {
+  return post<Record<string, unknown>>('/theme/getThemeConfig', {
+    name,
+    ...(siteId ? { site_id: siteId } : {}),
+  })
 }
 
 /** POST /theme/saveThemeConfig — persist config; returns merged config. */
-export function saveThemeConfig(name: string, config: Record<string, unknown>) {
+export function saveThemeConfig(
+  name: string,
+  config: Record<string, unknown>,
+  siteId?: number | null
+) {
   return post<Record<string, unknown>>('/theme/saveThemeConfig', {
     name,
     config,
+    ...(siteId ? { site_id: siteId } : {}),
   })
 }

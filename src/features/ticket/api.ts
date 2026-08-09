@@ -45,7 +45,7 @@ export type Ticket = {
   created_at: number
   updated_at: number
   user?: TicketUser | null
-  /** 工单来源：null=主站，否则为分站名 */
+  /** 工单来源：null=主站，否则为品牌站或分销站名称。 */
   site_name?: string | null
 }
 

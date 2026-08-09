@@ -1,10 +1,5 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { fetchAdminSettlements, fetchResellerSites } from './api'
 
 const yuan = (cents: number) => `¥${(cents / 100).toFixed(2)}`
@@ -53,6 +53,9 @@ export function ResellerSettlementsPage() {
     queryKey: ['reseller-sites'],
     queryFn: fetchResellerSites,
   })
+  const resellerSites = (sites ?? []).filter(
+    (site) => site.site_type === 'reseller'
+  )
 
   const { data } = useQuery({
     queryKey: ['reseller-settlements', siteId, page],
@@ -95,7 +98,10 @@ export function ResellerSettlementsPage() {
             label='站长利润（价差）'
             value={yuan(summary?.reseller_profit ?? 0)}
           />
-          <StatCard label='流水总额（实付）' value={yuan(summary?.gross ?? 0)} />
+          <StatCard
+            label='流水总额（实付）'
+            value={yuan(summary?.gross ?? 0)}
+          />
         </div>
 
         <div className='mb-4 flex items-center gap-2'>
@@ -112,7 +118,7 @@ export function ResellerSettlementsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='all'>全部分站</SelectItem>
-              {(sites ?? []).map((s) => (
+              {resellerSites.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>
                   {s.name}
                 </SelectItem>

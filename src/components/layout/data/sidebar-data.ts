@@ -120,7 +120,7 @@ export const sidebarData: SidebarData = {
           icon: Store,
           items: [
             { title: '分销看板', url: '/reseller/dashboard', icon: BarChart3 },
-            { title: '分站管理', url: '/reseller', icon: Store },
+            { title: '站点管理', url: '/reseller', icon: Store },
             {
               title: '站长申请',
               url: '/reseller/applications',

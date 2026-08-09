@@ -104,7 +104,7 @@ const USER_TABLE_COLUMNS = [
   { id: 'email', label: '邮箱' },
   { id: 'plan', label: '订阅' },
   { id: 'group', label: '权限组' },
-  { id: 'site', label: '分站' },
+  { id: 'site', label: '站点' },
   { id: 'expired_at', label: '到期时间' },
   { id: 'total_used', label: '已用流量' },
   { id: 'transfer_enable', label: '总流量' },
@@ -264,7 +264,7 @@ export function UserPage() {
     queryFn: fetchPlans,
   })
 
-  // 分站归属筛选：'' 全部 / 'main' 主站 / 分站 id 字符串
+  // 站点归属筛选：'' 全部 / 'main' 主站 / 站点 id 字符串
   const [siteFilter, setSiteFilter] = useState('')
   const { data: resellerSites } = useQuery({
     queryKey: ['reseller-sites'],
@@ -633,7 +633,7 @@ export function UserPage() {
                         key='site'
                         className='h-11 bg-card px-4 whitespace-nowrap text-muted-foreground'
                       >
-                        分站
+                        站点
                       </TableHead>
                     ),
                     expired_at: () => sortHead('expired_at', '到期时间'),
@@ -1113,7 +1113,7 @@ export function UserPage() {
       <UserAssignOrderDialog
         open={!!assignTarget}
         onOpenChange={(o) => !o && setAssignTarget(null)}
-        email={assignTarget?.email}
+        user={assignTarget}
       />
       <UserTrafficDialog
         open={!!trafficTarget}

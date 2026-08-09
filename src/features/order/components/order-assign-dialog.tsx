@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -31,11 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { filterPlanCandidatesBySite } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
 import { PERIOD_MAP, assignOrder } from '../api'
 
-type PlanOption = { id: number; name: string }
+type PlanOption = { id: number; name: string; site_id: number | null }
 
 const formSchema = z.object({
+  site_id: z.string(),
   email: z.string().min(1, '请输入用户邮箱').email('邮箱格式有误'),
   plan_id: z.string().min(1, '请选择订阅套餐'),
   period: z.string().min(1, '请选择订阅周期'),
@@ -57,20 +60,36 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
     queryFn: () => get<PlanOption[]>('/plan/fetch'),
     enabled: open,
   })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
+    enabled: open,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as never,
     defaultValues: {
+      site_id: '',
       email: '',
       plan_id: '',
       period: 'month_price',
       total_amount: 0,
     },
   })
+  const selectedSiteId = useWatch({
+    control: form.control,
+    name: 'site_id',
+  })
+  const availablePlans = filterPlanCandidatesBySite(
+    plans ?? [],
+    selectedSiteId,
+    sites ?? []
+  )
 
   useEffect(() => {
     if (open) {
       form.reset({
+        site_id: '',
         email: '',
         plan_id: '',
         period: 'month_price',
@@ -82,6 +101,7 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       assignOrder({
+        site_id: values.site_id ? Number(values.site_id) : null,
         email: values.email,
         plan_id: Number(values.plan_id),
         period: values.period,
@@ -113,6 +133,40 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
           >
             <FormField
               control={form.control}
+              name='site_id'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>用户归属站点</FormLabel>
+                  <Select
+                    value={field.value || 'main'}
+                    onValueChange={(value) => {
+                      field.onChange(value === 'main' ? '' : value)
+                      form.setValue('plan_id', '')
+                    }}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder='选择站点' />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value='main'>主站</SelectItem>
+                      {(sites ?? []).map((site) => (
+                        <SelectItem key={site.id} value={String(site.id)}>
+                          {site.name}
+                          {site.site_type === 'brand'
+                            ? '（品牌站）'
+                            : '（分销站）'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name='email'
               render={({ field }) => (
                 <FormItem>
@@ -130,17 +184,14 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>订阅套餐</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder='选择套餐' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(plans ?? []).map((p) => (
+                      {availablePlans.map((p) => (
                         <SelectItem key={p.id} value={String(p.id)}>
                           {p.name}
                         </SelectItem>
@@ -157,10 +208,7 @@ export function OrderAssignDialog({ open, onOpenChange }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>订阅周期</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
+                  <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder='选择周期' />

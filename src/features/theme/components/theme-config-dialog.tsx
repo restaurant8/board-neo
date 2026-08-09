@@ -11,32 +11,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { type ThemeItem, getThemeConfig, saveThemeConfig } from '../api'
+import { ThemeConfigFields } from './theme-config-fields'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   theme: ThemeItem | null
+  siteId?: number | null
 }
 
-export function ThemeConfigDialog({ open, onOpenChange, theme }: Props) {
+export function ThemeConfigDialog({
+  open,
+  onOpenChange,
+  theme,
+  siteId,
+}: Props) {
   const queryClient = useQueryClient()
   const name = theme?.name
   const [values, setValues] = useState<Record<string, unknown>>({})
 
   const { data, isLoading } = useQuery({
-    queryKey: ['theme-config', name],
-    queryFn: () => getThemeConfig(name!),
+    queryKey: ['theme-config', siteId ?? 'global', name],
+    queryFn: () => getThemeConfig(name!, siteId),
     enabled: open && !!name,
   })
 
@@ -49,10 +46,15 @@ export function ThemeConfigDialog({ open, onOpenChange, theme }: Props) {
   }
 
   const saveMutation = useMutation({
-    mutationFn: () => saveThemeConfig(name!, values),
+    mutationFn: () => saveThemeConfig(name!, values, siteId),
     onSuccess: () => {
       toast.success('主题配置已保存')
-      queryClient.invalidateQueries({ queryKey: ['theme-config', name] })
+      queryClient.invalidateQueries({
+        queryKey: ['theme-config', siteId ?? 'global', name],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['themes', siteId ?? 'global'],
+      })
       onOpenChange(false)
     },
     onError: handleServerError,
@@ -69,47 +71,12 @@ export function ThemeConfigDialog({ open, onOpenChange, theme }: Props) {
         </DialogHeader>
 
         {isLoading ? (
-          <div className='text-muted-foreground py-12 text-center'>加载中...</div>
+          <div className='py-12 text-center text-muted-foreground'>
+            加载中...
+          </div>
         ) : (
           <div className='grid max-h-[60vh] gap-4 overflow-y-auto pr-1'>
-            {(theme?.configs ?? []).length === 0 && (
-              <p className='text-muted-foreground text-sm'>该主题没有可配置项。</p>
-            )}
-            {(theme?.configs ?? []).map((f) => {
-              const val = (values[f.field_name] ?? f.default_value ?? '') as string
-              return (
-                <div key={f.field_name} className='grid gap-2'>
-                  <Label>{f.label}</Label>
-                  {f.field_type === 'textarea' ? (
-                    <Textarea
-                      rows={4}
-                      placeholder={f.placeholder}
-                      value={val}
-                      onChange={(e) => set(f.field_name, e.target.value)}
-                    />
-                  ) : f.field_type === 'select' ? (
-                    <Select value={val} onValueChange={(v) => set(f.field_name, v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={f.placeholder} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(f.select_options ?? {}).map(([k, lbl]) => (
-                          <SelectItem key={k} value={k}>
-                            {lbl}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      placeholder={f.placeholder}
-                      value={val}
-                      onChange={(e) => set(f.field_name, e.target.value)}
-                    />
-                  )}
-                </div>
-              )
-            })}
+            <ThemeConfigFields theme={theme} values={values} onChange={set} />
           </div>
         )}
 
@@ -117,7 +84,10 @@ export function ThemeConfigDialog({ open, onOpenChange, theme }: Props) {
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+          >
             保存
           </Button>
         </DialogFooter>

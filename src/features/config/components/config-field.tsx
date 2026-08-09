@@ -95,9 +95,11 @@ export function SwitchField({
   description,
   value,
   onChange,
+  disabled = false,
 }: BaseProps & {
   value: boolean | undefined
   onChange: (v: boolean) => void
+  disabled?: boolean
 }) {
   return (
     <div className='space-y-2'>
@@ -107,7 +109,7 @@ export function SwitchField({
           <p className='text-muted-foreground text-sm'>{description}</p>
         )}
       </div>
-      <Switch checked={!!value} onCheckedChange={onChange} />
+      <Switch checked={!!value} onCheckedChange={onChange} disabled={disabled} />
     </div>
   )
 }

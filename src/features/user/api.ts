@@ -4,6 +4,7 @@ import { type Paginated } from '@/lib/api-types'
 export type PlanBrief = {
   id: number
   name: string
+  site_id: number | null
 }
 
 export type UserBrief = {
@@ -23,9 +24,9 @@ export type User = {
   plan_id: number | null
   group_id: number | null
   invite_user_id: number | null
-  /** 归属分站ID，null=主站 */
+  /** 归属站点 ID，null=主站。 */
   site_id?: number | null
-  /** 归属分站名，null=主站 */
+  /** 归属站点名称，null=主站。 */
   site_name?: string | null
   /** 流量上行（字节）。 */
   u: number
@@ -162,6 +163,8 @@ export type GeneratePayload = {
   email_suffix: string
   password?: string
   plan_id?: number | null
+  /** null=主站；非空=指定站点。 */
+  site_id?: number | null
   expired_at?: number | null
   generate_count?: number
   /** 为真时后端直接以 CSV 流下载（不返回 JSON 列表）。 */
@@ -358,7 +361,10 @@ export const ASSIGN_PERIOD_MAP: Record<string, string> = {
 }
 
 export type AssignOrderPayload = {
-  email: string
+  user_id?: number
+  email?: string
+  /** null=主站；非空=按该站点消歧邮箱。 */
+  site_id?: number | null
   plan_id: number
   /** 周期键，如 month_price。 */
   period: string
@@ -462,10 +468,10 @@ export function fetchUserTraffic(userId: number, page = 1, pageSize = 20) {
 
 /** POST /traffic-reset/reset-user — 手动重置用户流量。 */
 export function resetUserTraffic(userId: number, reason?: string) {
-  return post<{ user_id: number; email: string }>(
-    '/traffic-reset/reset-user',
-    { user_id: userId, reason: reason || undefined }
-  )
+  return post<{ user_id: number; email: string }>('/traffic-reset/reset-user', {
+    user_id: userId,
+    reason: reason || undefined,
+  })
 }
 
 // ----- 套餐下拉（来自 PlanController::fetch）-----
@@ -474,6 +480,7 @@ export type Plan = {
   id: number
   name: string
   group_id: number
+  site_id: number | null
 }
 
 /** GET /plan/fetch — 套餐列表（用于编辑/筛选下拉）。 */

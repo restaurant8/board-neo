@@ -3,13 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { FileDropzone } from '@/components/file-dropzone'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,6 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { FileDropzone } from '@/components/file-dropzone'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
 import {
   type ThemeItem,
   deleteTheme,
@@ -33,15 +33,16 @@ export function ThemePage() {
   const queryClient = useQueryClient()
   const [configTheme, setConfigTheme] = useState<ThemeItem | null>(null)
   const [previewTheme, setPreviewTheme] = useState<ThemeItem | null>(null)
-  const [deleting, setDeleting] = useState<{ key: string; theme: ThemeItem } | null>(
-    null
-  )
+  const [deleting, setDeleting] = useState<{
+    key: string
+    theme: ThemeItem
+  } | null>(null)
   const [activatingKey, setActivatingKey] = useState<string | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['themes'],
-    queryFn: getThemes,
+    queryKey: ['themes', 'global'],
+    queryFn: () => getThemes(),
   })
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['themes'] })
@@ -117,7 +118,7 @@ export function ThemePage() {
 
         <section className='grid gap-6 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'>
           {isLoading ? (
-            <div className='text-muted-foreground col-span-full py-12 text-center'>
+            <div className='col-span-full py-12 text-center text-muted-foreground'>
               加载中...
             </div>
           ) : (
@@ -183,7 +184,9 @@ export function ThemePage() {
         confirmText='删除'
         destructive
         isLoading={deleteMutation.isPending}
-        handleConfirm={() => deleting && deleteMutation.mutate(deleting.theme.name)}
+        handleConfirm={() =>
+          deleting && deleteMutation.mutate(deleting.theme.name)
+        }
       />
     </>
   )

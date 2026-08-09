@@ -2,13 +2,18 @@ import { get, post } from '@/lib/api-client'
 import { type Paginated } from '@/lib/api-types'
 
 export type ResellerBrand = {
+  [key: string]: unknown
   app_name?: string
   app_description?: string
   logo?: string
   app_url?: string
   support_url?: string
   docs_url?: string
+  subscribe_domain?: 'main' | 'site'
 }
+
+export type SiteType = 'reseller' | 'brand'
+export type SiteThemeConfig = Record<string, Record<string, unknown>>
 
 export type ResellerAlias = {
   id: number
@@ -21,8 +26,12 @@ export type ResellerSite = {
   name: string
   domain: string | null
   status: number
-  owner_user_id: number
+  site_type: SiteType
+  owner_user_id: number | null
   owner_email: string | null
+  frontend_theme: string | null
+  theme_config: SiteThemeConfig | null
+  settings?: Record<string, unknown> | null
   brand: ResellerBrand | null
   aliases: ResellerAlias[]
   user_count: number
@@ -36,8 +45,12 @@ export type ResellerSavePayload = {
   name: string
   domain?: string | null
   status?: number
+  site_type: SiteType
   owner_email?: string
   owner_user_id?: number
+  frontend_theme?: string | null
+  theme_config?: SiteThemeConfig | null
+  settings?: Record<string, unknown> | null
   brand?: ResellerBrand | null
 }
 
@@ -61,12 +74,12 @@ export function dropResellerSite(id: number) {
   return post<boolean>('/reseller/drop', { id })
 }
 
-/** GET /reseller/domains?site_id= — 某分站的额外域名别名列表。 */
+/** GET /reseller/domains?site_id= — 某站点的额外域名别名列表。 */
 export function fetchResellerDomains(siteId: number) {
   return get<ResellerAlias[]>('/reseller/domains', { site_id: siteId })
 }
 
-/** POST /reseller/domains/add — 给分站新增一个域名别名。 */
+/** POST /reseller/domains/add — 给站点新增一个域名别名。 */
 export function addResellerDomain(siteId: number, domain: string) {
   return post<ResellerAlias>('/reseller/domains/add', {
     site_id: siteId,

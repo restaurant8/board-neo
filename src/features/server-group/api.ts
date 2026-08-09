@@ -3,6 +3,9 @@ import { get, post } from '@/lib/api-client'
 export type ServerGroup = {
   id: number
   name: string
+  /** null = 主站；非空 = 对应站点专属权限组。 */
+  site_id: number | null
+  site_name?: string | null
   /** withCount('users') 注入 */
   users_count?: number
   /** Controller 手动注入 server_count */
@@ -14,6 +17,7 @@ export type ServerGroup = {
 export type ServerGroupSavePayload = {
   id?: number
   name: string
+  site_id?: number | null
 }
 
 /** GET /server/group/fetch — 返回全部权限组（按 id 倒序），带 users_count / server_count。 */

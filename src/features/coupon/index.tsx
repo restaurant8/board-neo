@@ -3,13 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleServerError } from '@/lib/handle-server-error'
-import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { ConfirmDialog } from '@/components/confirm-dialog'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -21,6 +14,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ConfigDrawer } from '@/components/config-drawer'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Header } from '@/components/layout/header'
+import { Main } from '@/components/layout/main'
+import { ProfileDropdown } from '@/components/profile-dropdown'
+import { ThemeSwitch } from '@/components/theme-switch'
+import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
+import { promotionScopeLabel } from '@/features/plan/plan-site'
+import { fetchResellerSites } from '@/features/reseller/api'
 import {
   type Coupon,
   COUPON_TYPE_AMOUNT,
@@ -49,6 +51,10 @@ export function CouponPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['coupons', page, pageSize],
     queryFn: () => fetchCoupons({ current: page, pageSize }),
+  })
+  const { data: sites } = useQuery({
+    queryKey: ['reseller-sites'],
+    queryFn: fetchResellerSites,
   })
 
   const toggleMutation = useMutation({
@@ -84,7 +90,7 @@ export function CouponPage() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>优惠券管理</h2>
-            <p className='text-muted-foreground mt-2'>
+            <p className='mt-2 text-muted-foreground'>
               在这里可以查看优惠券，包括增加、查看、删除等操作。
             </p>
           </div>
@@ -105,6 +111,7 @@ export function CouponPage() {
                 <TableHead className='w-16'>ID</TableHead>
                 <TableHead className='w-20'>启用</TableHead>
                 <TableHead className='w-44'>卷名称</TableHead>
+                <TableHead className='w-32'>作用范围</TableHead>
                 <TableHead className='w-24'>类型</TableHead>
                 <TableHead className='w-40'>卷码</TableHead>
                 <TableHead className='w-24 text-end'>面值</TableHead>
@@ -117,7 +124,7 @@ export function CouponPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className='h-24 text-center'>
+                  <TableCell colSpan={11} className='h-24 text-center'>
                     加载中...
                   </TableCell>
                 </TableRow>
@@ -133,7 +140,14 @@ export function CouponPage() {
                         onCheckedChange={() => toggleMutation.mutate(c.id)}
                       />
                     </TableCell>
-                    <TableCell className='whitespace-nowrap'>{c.name}</TableCell>
+                    <TableCell className='whitespace-nowrap'>
+                      {c.name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={c.is_global ? 'default' : 'outline'}>
+                        {promotionScopeLabel(c.site_id, c.is_global, sites)}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant='outline'>
                         {COUPON_TYPE_BADGE_MAP[c.type] ?? c.type}
@@ -163,13 +177,13 @@ export function CouponPage() {
                         <Button
                           variant='ghost'
                           size='icon'
-                          className='hover:bg-muted h-8 w-8'
+                          className='h-8 w-8 hover:bg-muted'
                           onClick={() => {
                             setCurrent(c)
                             setMutateOpen(true)
                           }}
                         >
-                          <Pencil className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                          <Pencil className='h-4 w-4 text-muted-foreground hover:text-foreground' />
                           <span className='sr-only'>编辑</span>
                         </Button>
                         <Button
@@ -178,7 +192,7 @@ export function CouponPage() {
                           className='h-8 w-8 hover:bg-red-100 dark:hover:bg-red-900'
                           onClick={() => setDeleting(c)}
                         >
-                          <Trash2 className='text-muted-foreground h-4 w-4 hover:text-red-600 dark:hover:text-red-400' />
+                          <Trash2 className='h-4 w-4 text-muted-foreground hover:text-red-600 dark:hover:text-red-400' />
                           <span className='sr-only'>删除</span>
                         </Button>
                       </div>
@@ -187,7 +201,7 @@ export function CouponPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className='h-24 text-center'>
+                  <TableCell colSpan={11} className='h-24 text-center'>
                     暂无优惠券
                   </TableCell>
                 </TableRow>
