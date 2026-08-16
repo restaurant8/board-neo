@@ -11,7 +11,9 @@ export default defineConfig(({ command, mode }) => {
   // backend (`/assets/admin/`). 'standalone' builds a self-hosted SPA served at
   // root on a separate server/CDN that talks to the backend purely over the
   // cross-origin API. Set via `.env.standalone` or `VITE_DEPLOY_MODE`.
-  const isStandalone = (env.VITE_DEPLOY_MODE || 'embed') === 'standalone'
+  const deployMode =
+    env.VITE_DEPLOY_MODE || (mode === 'standalone' ? 'standalone' : 'embed')
+  const isStandalone = deployMode === 'standalone'
   return {
   // Embedded build is served from the backend's `/assets/admin/` directory, so
   // assets must resolve under that base. Standalone build and the dev server
