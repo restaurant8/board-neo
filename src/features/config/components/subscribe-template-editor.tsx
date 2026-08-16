@@ -52,6 +52,13 @@ const CLIENTS: Array<{
     desc: '配置 Surfboard 订阅模版',
     lang: 'ini',
   },
+  {
+    key: 'subscribe_template_quantumultx',
+    tab: 'Quantumult X',
+    title: 'Quantumult X（圈X）订阅模板',
+    desc: '配置 Quantumult X 完整配置模板，留空则仅下发节点列表',
+    lang: 'ini',
+  },
 ]
 
 type Props = {

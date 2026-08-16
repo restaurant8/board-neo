@@ -161,6 +161,7 @@ export type ConfigData = {
     subscribe_template_stash?: string
     subscribe_template_surge?: string
     subscribe_template_surfboard?: string
+    subscribe_template_quantumultx?: string
   }
 }
 
