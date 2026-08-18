@@ -60,6 +60,10 @@ export type ConfigData = {
     renew_order_event_id?: number
     change_order_event_id?: number
     show_info_to_server_enable?: boolean
+    /** 订阅信息中展示的项目，取值见 SUBSCRIBE_INFO_ITEMS。 */
+    show_info_to_server_items?: string[]
+    /** 订阅信息里「官网」一行展示的内容，留空则不展示该行。 */
+    show_info_to_server_website?: string
     show_filtered_count_to_server_enable?: boolean
     show_protocol_to_server_enable?: boolean
     default_remind_expire?: boolean
