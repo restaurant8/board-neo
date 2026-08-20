@@ -12,12 +12,19 @@ import {
   mergeSiteSettings,
   siteSettingsToForm,
 } from '../src/features/reseller/site-settings.ts'
+import { resolvePlanStatusFloor } from '../src/features/reseller/pricing-state.ts'
 
 const groups = [
   { id: 1, name: 'Main', site_id: null },
   { id: 2, name: 'Brand A', site_id: 8 },
   { id: 3, name: 'Brand B', site_id: 9 },
 ]
+
+test('batch plan status preserves an explicit zero floor', () => {
+  assert.equal(resolvePlanStatusFloor('0', 1500, 2000), '0')
+  assert.equal(resolvePlanStatusFloor('', 1500, 2000), '15')
+  assert.equal(resolvePlanStatusFloor(undefined, null, 2000), '20')
+})
 
 test('main-site plans only receive main-site groups', () => {
   assert.deepEqual(
@@ -111,6 +118,7 @@ test('site business settings preserve inherit versus explicit disable semantics'
     payment_ids: [],
     trial_plan_id: 'inherit',
     allow_main_plans: false,
+    reseller_theme_names: [],
   })
 
   assert.deepEqual(
@@ -124,7 +132,14 @@ test('site business settings preserve inherit versus explicit disable semantics'
       payment_ids: [],
       trial_plan_id: 'none',
       allow_main_plans: true,
+      reseller_theme_names: [],
     }
+  )
+
+  assert.deepEqual(
+    siteSettingsToForm({ reseller_theme_names: ['NextSpring'] })
+      .reseller_theme_names,
+    ['NextSpring']
   )
 })
 
@@ -137,6 +152,7 @@ test('site business settings merge preserves unknown keys and normalizes ids', (
         payment_ids: ['2', '2', 'invalid', '3'],
         trial_plan_id: '7',
         allow_main_plans: true,
+        reseller_theme_names: ['NextSpring'],
       },
       'brand'
     ),
@@ -156,6 +172,7 @@ test('site business settings merge preserves unknown keys and normalizes ids', (
         payment_ids: [],
         trial_plan_id: 'none',
         allow_main_plans: false,
+        reseller_theme_names: [],
       },
       'brand'
     ),
@@ -180,9 +197,10 @@ test('site business settings merge preserves unknown keys and normalizes ids', (
         payment_ids: [],
         trial_plan_id: 'inherit',
         allow_main_plans: true,
+        reseller_theme_names: ['NextSpring', 'NextSpring', '../unsafe'],
       },
       'reseller'
     ),
-    { untouched: 'keep' }
+    { untouched: 'keep', reseller_theme_names: ['NextSpring'] }
   )
 })

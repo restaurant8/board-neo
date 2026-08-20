@@ -31,8 +31,10 @@ import {
   type ResellerPricePlan,
   fetchResellerPrices,
   fetchResellerSites,
+  saveResellerPlanStatus,
   saveResellerPrice,
 } from './api'
+import { resolvePlanStatusFloor } from './pricing-state'
 
 const PERIOD_LABELS: Record<string, string> = {
   monthly: '月付',
@@ -167,6 +169,39 @@ export function ResellerPricingPage() {
     onError: handleServerError,
   })
 
+  const planStatusMutation = useMutation({
+    mutationFn: ({
+      plan,
+      enabled,
+    }: {
+      plan: ResellerPricePlan
+      enabled: boolean
+    }) => saveResellerPlanStatus(siteId as number, plan.id, enabled),
+    onSuccess: (result, { plan, enabled }) => {
+      setEdits((previous) => {
+        const next = { ...previous }
+        plan.periods.forEach((period) => {
+          const key = `${plan.id}:${period.period}`
+          const currentFloor = next[key]?.floor
+          next[key] = {
+            floor: resolvePlanStatusFloor(
+              currentFloor,
+              period.floor_price,
+              period.main_price
+            ),
+            enabled,
+          }
+        })
+        return next
+      })
+      toast.success(
+        `${plan.name} 已${enabled ? '上架' : '下架'} ${result.updated} 个周期`
+      )
+      queryClient.invalidateQueries({ queryKey: ['reseller-prices', siteId] })
+    },
+    onError: handleServerError,
+  })
+
   const plans = useMemo(() => {
     if (!pricing) return [] as ResellerPricePlan[]
     const kw = search.trim().toLowerCase()
@@ -283,6 +318,9 @@ export function ResellerPricingPage() {
             <div className='space-y-2'>
               {plans.map((plan) => {
                 const open = !!expanded[plan.id]
+                const allEnabled =
+                  plan.periods.length > 0 &&
+                  enabledCount(plan) === plan.periods.length
                 return (
                   <div
                     key={plan.id}
@@ -308,14 +346,31 @@ export function ResellerPricingPage() {
                         {enabledCount(plan)}/{plan.periods.length} 上架 ·{' '}
                         {plan.periods.length} 个周期
                       </span>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        className='shrink-0'
-                        onClick={() => fillFloorFromMain(plan)}
-                      >
-                        底价填主站价
-                      </Button>
+                      <div className='flex shrink-0 items-center gap-2'>
+                        <Button
+                          variant={allEnabled ? 'secondary' : 'default'}
+                          size='sm'
+                          disabled={
+                            plan.periods.length === 0 ||
+                            planStatusMutation.isPending
+                          }
+                          onClick={() =>
+                            planStatusMutation.mutate({
+                              plan,
+                              enabled: !allEnabled,
+                            })
+                          }
+                        >
+                          {allEnabled ? '全部下架' : '一键上架'}
+                        </Button>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => fillFloorFromMain(plan)}
+                        >
+                          底价填主站价
+                        </Button>
+                      </div>
                     </div>
 
                     {open && (

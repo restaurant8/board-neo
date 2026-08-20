@@ -3,6 +3,7 @@ export type SiteBusinessSettingsForm = {
   payment_ids: string[]
   trial_plan_id: string
   allow_main_plans: boolean
+  reseller_theme_names: string[]
 }
 
 const hasOwn = (value: Record<string, unknown>, key: string) =>
@@ -17,6 +18,19 @@ function positiveIntegerStrings(value: unknown): string[] {
         .map(Number)
         .filter((item) => Number.isSafeInteger(item) && item > 0)
         .map(String)
+    ),
+  ]
+}
+
+function validThemeNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+
+  return [
+    ...new Set(
+      value.filter(
+        (item): item is string =>
+          typeof item === 'string' && /^[A-Za-z0-9_-]+$/.test(item)
+      )
     ),
   ]
 }
@@ -45,6 +59,9 @@ export function siteSettingsToForm(
         ? String(trialPlanId)
         : 'none',
     allow_main_plans: !!settings.allow_main_plans,
+    reseller_theme_names: hasOwn(settings, 'reseller_theme_names')
+      ? validThemeNames(settings.reseller_theme_names)
+      : [],
   }
 }
 
@@ -77,8 +94,10 @@ export function mergeSiteSettings(
 
   if (siteType === 'brand') {
     settings.allow_main_plans = values.allow_main_plans
+    delete settings.reseller_theme_names
   } else {
     delete settings.allow_main_plans
+    settings.reseller_theme_names = validThemeNames(values.reseller_theme_names)
   }
 
   return settings

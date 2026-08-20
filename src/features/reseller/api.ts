@@ -174,6 +174,19 @@ export function saveResellerPrice(payload: ResellerSavePricePayload) {
   return post<boolean>('/reseller/prices/save', payload)
 }
 
+/** POST /reseller/prices/plan-status — 原子上下架某套餐的全部有效周期。 */
+export function saveResellerPlanStatus(
+  siteId: number,
+  planId: number,
+  enabled: boolean
+) {
+  return post<{ updated: number }>('/reseller/prices/plan-status', {
+    site_id: siteId,
+    plan_id: planId,
+    enabled,
+  })
+}
+
 export type AdminSettlement = {
   id: number
   site_id: number

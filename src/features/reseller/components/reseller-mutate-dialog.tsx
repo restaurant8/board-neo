@@ -64,6 +64,7 @@ const formSchema = z
         '请选择有效的试用套餐'
       ),
     allow_main_plans: z.boolean(),
+    reseller_theme_names: z.array(z.string()),
     status: z.boolean(),
     app_name: z.string().optional(),
     app_description: z.string().optional(),
@@ -109,6 +110,7 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
       payment_ids: [],
       trial_plan_id: 'inherit',
       allow_main_plans: false,
+      reseller_theme_names: [],
       status: true,
       app_name: '',
       app_description: '',
@@ -216,6 +218,12 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
   })
   const themesData = current?.id ? siteThemesData : globalThemesData
   const themesLoading = current?.id ? siteThemesLoading : globalThemesLoading
+  const resellerThemeOptions = Object.entries(
+    globalThemesData?.themes ?? {}
+  ).map(([name, theme]) => ({
+    value: name,
+    label: `${theme.name || name}${theme.version ? ` v${theme.version}` : ''}`,
+  }))
   const selectedTheme = frontendTheme
     ? (themesData?.themes[frontendTheme] ?? null)
     : null
@@ -770,6 +778,33 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
                 <p className='mb-3 text-[11px] tracking-wider text-muted-foreground uppercase'>
                   站点主题
                 </p>
+                {siteType === 'reseller' && (
+                  <FormField
+                    control={form.control}
+                    name='reseller_theme_names'
+                    render={({ field }) => (
+                      <FormItem className='mb-4'>
+                        <FormLabel className='text-[11px] tracking-wider text-muted-foreground uppercase'>
+                          站长可用主题
+                        </FormLabel>
+                        <MultiCheck
+                          options={resellerThemeOptions}
+                          selected={field.value}
+                          onChange={field.onChange}
+                          empty={
+                            globalThemesLoading
+                              ? '加载主题中...'
+                              : '当前没有已安装主题'
+                          }
+                        />
+                        <FormDescription className='text-[10px]'>
+                          仅勾选的主题会出现在该站长的主题外观中；全部不选表示不开放主题选择。
+                        </FormDescription>
+                        <FormMessage className='text-[10px]' />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name='frontend_theme'
@@ -893,7 +928,10 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
                   type='submit'
                   className='h-8 px-8 font-mono text-xs font-bold'
                   disabled={
-                    mutation.isPending || paymentsLoading || plansLoading
+                    mutation.isPending ||
+                    paymentsLoading ||
+                    plansLoading ||
+                    globalThemesLoading
                   }
                 >
                   提交
