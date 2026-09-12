@@ -409,7 +409,7 @@ export function ConfigPage() {
                     )}
                     <SwitchField label='在订阅中提示被过滤的线路数' description='开启后按协议订阅时，若有线路被过滤，将插入一条「过滤掉N条线路」的提示节点。' value={v('show_filtered_count_to_server_enable') as boolean} onChange={(b) => set('show_filtered_count_to_server_enable', b)} />
                     <SwitchField label='在订阅中线路名称中显示协议名称' description='开启后订阅线路会附带协议名称（例如: [Hy2]香港）' value={v('show_protocol_to_server_enable') as boolean} onChange={(b) => set('show_protocol_to_server_enable', b)} />
-                    <SwitchField label='在订阅节点名称中显示倍率' description='开启后在订阅节点名称后显示倍率（例如：香港 [1.5x]），按客户端更新订阅时生效的倍率显示。' value={v('show_rate_to_server_enable') as boolean} onChange={(b) => set('show_rate_to_server_enable', b)} />
+                    <SwitchField label='在订阅节点名称中显示倍率' description='开启后固定倍率节点显示如 [1.5x]；动态倍率节点显示如 [动态1-2x]，表示倍率按时段在此范围内变化。修改倍率规则后需更新订阅。' value={v('show_rate_to_server_enable') as boolean} onChange={(b) => set('show_rate_to_server_enable', b)} />
                     <SwitchField label='默认到期提醒' description='开启后默认向用户发送订阅到期提醒。' value={v('default_remind_expire') as boolean} onChange={(b) => set('default_remind_expire', b)} />
                     <SwitchField label='默认流量提醒' description='开启后默认向用户发送订阅流量不足提醒。' value={v('default_remind_traffic') as boolean} onChange={(b) => set('default_remind_traffic', b)} />
                     <SelectField
