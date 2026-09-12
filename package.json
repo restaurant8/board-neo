@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test:columns": "node --experimental-strip-types --test tests/table-column-preferences.test.mjs",
     "test:site-scoping": "node --experimental-strip-types --test tests/site-scoping.test.mjs",
+    "test:node-rate": "node --experimental-strip-types --test tests/node-rate.test.mjs",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "knip": "knip"

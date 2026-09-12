@@ -1,4 +1,5 @@
 import { get, post } from '@/lib/api-client'
+import { type NodeRateSettings, updateNodeRates } from './rate'
 
 /** 后端 Server::VALID_TYPES */
 export const SERVER_TYPES = [
@@ -183,6 +184,14 @@ export function batchUpdateNodes(payload: {
   machine_id?: number | null
 }) {
   return post<boolean>('/server/manage/batchUpdate', payload)
+}
+
+/** 批量修改倍率，复用既有 save 接口并返回每个节点的保存结果。 */
+export function batchUpdateNodeRates(payload: {
+  ids: number[]
+  settings: NodeRateSettings
+}) {
+  return updateNodeRates(payload.ids, payload.settings, { getNodes, saveNode })
 }
 
 export type BatchReplaceField = 'host' | 'port' | 'server_port'

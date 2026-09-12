@@ -96,6 +96,7 @@ import {
   batchResetTraffic,
   batchUpdateCertificate,
   batchUpdateNodeGroups,
+  batchUpdateNodeRates,
   batchUpdateNodes,
   copyNode,
   dropNode,
@@ -106,6 +107,7 @@ import {
 } from './api'
 import { BatchCertificateDialog } from './components/batch-certificate-dialog'
 import { BatchGroupsDialog } from './components/batch-groups-dialog'
+import { BatchRateDialog } from './components/batch-rate-dialog'
 import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
@@ -255,6 +257,7 @@ export function ServerManagePage() {
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
   const [batchResetOpen, setBatchResetOpen] = useState(false)
   const [batchGroupsOpen, setBatchGroupsOpen] = useState(false)
+  const [batchRateNodes, setBatchRateNodes] = useState<Server[] | null>(null)
   const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
   const [batchCertificateOpen, setBatchCertificateOpen] = useState(false)
 
@@ -390,6 +393,27 @@ export function ServerManagePage() {
       setSelected([])
     },
     onError: handleServerError,
+  })
+
+  const batchRateMutation = useMutation({
+    mutationFn: batchUpdateNodeRates,
+    onSuccess: (result) => {
+      const failedIds = result.failures.map((failure) => failure.id)
+      setSelected(failedIds)
+      if (failedIds.length > 0) {
+        toast.warning(
+          `倍率修改：成功 ${result.succeededIds.length} 个，失败 ${failedIds.length} 个`
+        )
+        setBatchRateNodes((previous) =>
+          previous?.filter((node) => failedIds.includes(node.id)) ?? null
+        )
+      } else {
+        toast.success(`已修改 ${result.succeededIds.length} 个节点的倍率`)
+        setBatchRateNodes(null)
+      }
+    },
+    onError: handleServerError,
+    onSettled: invalidate,
   })
 
   const batchReplaceMutation = useMutation({
@@ -883,6 +907,16 @@ export function ServerManagePage() {
                     <DropdownMenuItem onClick={() => setBatchGroupsOpen(true)}>
                       调整权限组
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        batchRateMutation.reset()
+                        setBatchRateNodes(
+                          nodes.filter((node) => selected.includes(node.id))
+                        )
+                      }}
+                    >
+                      批量修改倍率
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setBatchResetOpen(true)}>
                       重置流量
                     </DropdownMenuItem>
@@ -1030,7 +1064,7 @@ export function ServerManagePage() {
                       id: () => (
                         <TableHead
                           key='id'
-                          className='h-11 w-20 bg-card px-4 text-muted-foreground'
+                          className='h-11 w-28 bg-card px-4 text-muted-foreground'
                         >
                           <Button
                             variant='ghost'
@@ -1548,12 +1582,44 @@ export function ServerManagePage() {
                             ),
                             rate: () => (
                               <TableCell key='rate' className='bg-card px-4'>
-                                <Badge
-                                  variant='secondary'
-                                  className='font-medium'
-                                >
-                                  {n.rate} x
-                                </Badge>
+                                {n.rate_time_enable ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        tabIndex={0}
+                                        className='inline-flex flex-col gap-1'
+                                      >
+                                        <Badge variant='outline'>动态倍率</Badge>
+                                        <span className='text-xs text-muted-foreground whitespace-nowrap'>
+                                          基础 {n.rate} x
+                                        </span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className='space-y-1'>
+                                        <p>
+                                          按服务器时间生效，未命中时使用基础{' '}
+                                          {n.rate} x
+                                        </p>
+                                        {(n.rate_time_ranges ?? []).map(
+                                          (range, index) => (
+                                            <p key={index}>
+                                              {range.start}–{range.end}：
+                                              {range.rate} x
+                                            </p>
+                                          )
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <Badge
+                                    variant='secondary'
+                                    className='font-medium'
+                                  >
+                                    静态 {n.rate} x
+                                  </Badge>
+                                )}
                               </TableCell>
                             ),
                             groups: () => (
@@ -1753,6 +1819,24 @@ export function ServerManagePage() {
         isLoading={batchGroupsMutation.isPending}
         onConfirm={(payload) => batchGroupsMutation.mutate(payload)}
       />
+
+      {batchRateNodes && (
+        <BatchRateDialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !batchRateMutation.isPending) setBatchRateNodes(null)
+          }}
+          nodes={batchRateNodes}
+          isLoading={batchRateMutation.isPending}
+          failures={batchRateMutation.data?.failures}
+          onConfirm={(settings) =>
+            batchRateMutation.mutate({
+              ids: batchRateNodes.map((node) => node.id),
+              settings,
+            })
+          }
+        />
+      )}
 
       {batchReplaceOpen && (
         <BatchReplaceDialog

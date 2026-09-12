@@ -908,7 +908,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                       启用动态倍率
                     </Label>
                     <div className='font-mono text-[11px] text-muted-foreground opacity-70'>
-                      根据时间段设置不同的倍率乘数
+                      按服务器时间使用对应时段倍率，未命中时使用基础倍率
                     </div>
                   </div>
                   <Switch
@@ -975,7 +975,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
                               className='h-8 px-2 font-mono text-xs'
                             />
                           </Field>
-                          <Field label='倍率乘数' labelClassName='text-[11px]'>
+                          <Field label='时段倍率' labelClassName='text-[11px]'>
                             <Input
                               type='number'
                               min='0'
