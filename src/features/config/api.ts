@@ -66,6 +66,7 @@ export type ConfigData = {
     show_info_to_server_website?: string
     show_filtered_count_to_server_enable?: boolean
     show_protocol_to_server_enable?: boolean
+    show_rate_to_server_enable?: boolean
     default_remind_expire?: boolean
     default_remind_traffic?: boolean
     subscribe_path?: string
