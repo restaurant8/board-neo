@@ -423,7 +423,7 @@ export type InvitedUser = {
 
 /** GET /user/fetch — 按 invite_user_id 过滤该用户邀请的下级。 */
 export function fetchInvitedUsers(userId: number, current = 1, pageSize = 20) {
-  return getPaginated<InvitedUser>('/user/fetch', {
+  return getPaginated<User>('/user/fetch', {
     current,
     pageSize,
     filter: [{ id: 'invite_user_id', value: `eq:${userId}` }],

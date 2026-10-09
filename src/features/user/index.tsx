@@ -76,6 +76,7 @@ import {
   destroyUser,
   fetchPlans,
   fetchUsers,
+  fetchInvitedUsers,
   resetSecret,
   resetUserTraffic,
 } from './api'
@@ -274,14 +275,19 @@ export function UserPage() {
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
     if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
-    if (inviteUserId != null)
-      f.push({ id: 'invite_user_id', value: `eq:${inviteUserId}` })
+    // 当使用 fetchInvitedUsers 时，不在这里添加 invite_user_id 过滤
+    // 因为该函数会直接使用 inviteUserId 参数
     if (siteFilter) f.push({ id: 'site_id', value: siteFilter })
     f.push(...advancedFilter)
     return f
-  }, [appliedEmail, inviteUserId, siteFilter, advancedFilter])
+  }, [appliedEmail, siteFilter, advancedFilter])
 
   const hasFilter = filter.length > 0
+
+  // 当有 inviteUserId 时，确保转换为整数
+  const parsedInviteUserId = inviteUserId != null
+    ? (typeof inviteUserId === 'string' ? parseInt(inviteUserId, 10) : inviteUserId)
+    : null
 
   const params = {
     current: page,
@@ -290,9 +296,15 @@ export function UserPage() {
     sort: sort.length ? sort : undefined,
   }
 
+  // 当浏览邀请的用户时，使用专门的 fetchInvitedUsers API
   const { data, isLoading } = useQuery({
-    queryKey: ['users', params],
-    queryFn: () => fetchUsers(params),
+    queryKey: parsedInviteUserId != null
+      ? ['invited-users', parsedInviteUserId, page, pageSize]
+      : ['users', params],
+    queryFn: () =>
+      parsedInviteUserId != null
+        ? fetchInvitedUsers(parsedInviteUserId, page, pageSize)
+        : fetchUsers(params),
   })
 
   const total = data?.total ?? 0
@@ -535,10 +547,13 @@ export function UserPage() {
         </div>
 
         {/* 「TA的邀请」跳转筛选提示（invite_user_id） */}
-        {inviteUserId != null && (
+        {parsedInviteUserId != null && (
           <div className='flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm'>
             <Users className='size-4 text-muted-foreground' />
-            <span>仅显示 邀请人 #{inviteUserId} 邀请的用户</span>
+            <span>
+              仅显示邀请人 #{parsedInviteUserId} 邀请的用户
+              {rows.length === 0 && <span className='text-muted-foreground'>（该用户未邀请任何用户）</span>}
+            </span>
             <Button
               variant='ghost'
               size='sm'
