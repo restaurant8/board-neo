@@ -68,11 +68,18 @@ export type User = {
   plan?: PlanBrief | null
   invite_user?: UserBrief | null
   group?: { id: number; name: string } | null
-  /** 订阅类记录的去重归属地数量（>1 视为异地）。fetch 注入。 */
+  /** 订阅类记录的去重城市数（>1 视为异地；同城不同运营商、IPv6 不重复计）。fetch 注入。 */
   subscribe_locations?: number
   /** 连接类记录的去重归属地数量（>1 视为异地）。fetch 注入。 */
   connect_locations?: number
+  /** 订阅去重城市明细（国家 省 市，不含运营商；按 IP 数降序，最多 30 条）。 */
+  subscribe_cities?: RemoteCity[]
+  /** 连接去重城市明细，同上。 */
+  connect_cities?: RemoteCity[]
 }
+
+/** 异地统计的单个城市：city = 「国家 省份 城市」，count = 该城市出现的 IP 数。 */
+export type RemoteCity = { city: string; count: number }
 
 /** 过滤条件项：value 支持 "eq:1"、"like" 默认模糊、数组（in）。 */
 export type UserFilter = { id: string; value: unknown; logic?: 'and' | 'or' }

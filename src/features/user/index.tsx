@@ -59,6 +59,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
@@ -69,6 +74,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { fetchResellerSites } from '@/features/reseller/api'
 import {
+  type RemoteCity,
   type User,
   type UserFilter,
   type UserSort,
@@ -219,17 +225,39 @@ export function UserPage() {
       </TableHead>
     )
   }
-  // 异地登录单元格：去重地区数 >1 标红「异地·N」，=1 显示 1，0 显示 —
-  const remoteCell = (n?: number) => {
+  // 异地登录单元格：去重城市数 >1 标红「异地·N」，=1 显示 1，0 显示 —；悬停列出各城市及 IP 数
+  const remoteCell = (n?: number, cities?: RemoteCity[]) => {
     const c = n ?? 0
     if (c <= 0) return <span className='text-muted-foreground'>—</span>
-    if (c > 1)
-      return (
+    const content =
+      c > 1 ? (
         <Badge variant='destructive' className='whitespace-nowrap'>
           异地 · {c}
         </Badge>
+      ) : (
+        <span>{c}</span>
       )
-    return <span>{c}</span>
+    if (!cities?.length) return content
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className='cursor-help'>{content}</span>
+        </TooltipTrigger>
+        <TooltipContent side='left' className='max-w-xs'>
+          <div className='grid gap-0.5 text-xs'>
+            {cities.map((x) => (
+              <div key={x.city} className='flex justify-between gap-3'>
+                <span>{x.city}</span>
+                <span className='tabular-nums opacity-70'>{x.count} IP</span>
+              </div>
+            ))}
+            {c > cities.length && (
+              <div className='opacity-70'>…另有 {c - cities.length} 个城市</div>
+            )}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    )
   }
 
   // 多选（当前页选中的用户 id）
@@ -927,12 +955,12 @@ export function UserPage() {
                               key='subscribe_remote'
                               className='bg-card'
                             >
-                              {remoteCell(u.subscribe_locations)}
+                              {remoteCell(u.subscribe_locations, u.subscribe_cities)}
                             </TableCell>
                           ),
                           connect_remote: () => (
                             <TableCell key='connect_remote' className='bg-card'>
-                              {remoteCell(u.connect_locations)}
+                              {remoteCell(u.connect_locations, u.connect_cities)}
                             </TableCell>
                           ),
                           banned: () => (
