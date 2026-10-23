@@ -1,23 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   type PaginationState,
-  flexRender,
+  type SortingState,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { useQuery } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { DataTablePagination } from '@/components/data-table'
 import { type DiagResult, fetchTrafficDiagnostics } from '../api'
 import { getDiagnosticsColumns } from './diagnostics-columns'
+import { PagedTable } from './paged-table'
+import { toOrder } from './traffic-columns'
 
 type Props = {
   range: { start: number; end: number }
@@ -31,19 +23,24 @@ export function DiagnosticsTable({ range, mode, keyword, onSummary }: Props) {
     pageIndex: 0,
     pageSize: 20,
   })
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: 'total', desc: true },
+  ])
+  const order = toOrder(sorting)
 
-  // 过滤条件变化时回到第一页
+  // 过滤/排序条件变化时回到第一页
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }))
-  }, [range.start, range.end, mode, keyword])
+  }, [range.start, range.end, mode, keyword, order.order_by, order.order_dir])
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: [
       'traffic-diag',
       range.start,
       range.end,
       mode,
       keyword,
+      order,
       pagination.pageIndex,
       pagination.pageSize,
     ],
@@ -53,11 +50,12 @@ export function DiagnosticsTable({ range, mode, keyword, onSummary }: Props) {
         end_time: range.end,
         mode,
         server_keyword: keyword || undefined,
-        order_by: 'total',
-        order_dir: 'desc',
+        ...order,
         page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
       }),
+    // 翻页/排序时保留上一页数据，避免整表闪成「加载中」
+    placeholderData: keepPreviousData,
   })
 
   useEffect(() => {
@@ -76,85 +74,24 @@ export function DiagnosticsTable({ range, mode, keyword, onSummary }: Props) {
   const table = useReactTable({
     data: rows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     manualPagination: true,
+    manualSorting: true,
+    enableSortingRemoval: false,
     pageCount,
     rowCount: total,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
   })
 
   return (
-    <div className='flex flex-1 flex-col gap-4'>
-      <div className='overflow-hidden rounded-md border'>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className='group/row'>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    className={cn(header.column.columnDef.meta?.className)}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className='h-24 text-center'>
-                  加载中...
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className='text-muted-foreground h-24 text-center'
-                >
-                  暂无数据（需在「系统配置 →
-                  服务器」开启流量统计模式，或该后端未启用此功能）。
-                </TableCell>
-              </TableRow>
-            ) : rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className='group/row'>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(cell.column.columnDef.meta?.className)}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className='text-muted-foreground h-24 text-center'
-                >
-                  暂无数据
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <DataTablePagination table={table} className='mt-auto' />
-    </div>
+    <PagedTable
+      table={table}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      isError={isError}
+      errorText='暂无数据（需在「系统配置 → 服务器」开启流量统计模式，或该后端未启用此功能）。'
+    />
   )
 }

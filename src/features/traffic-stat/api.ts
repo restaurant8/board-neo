@@ -111,6 +111,10 @@ export type UserAuditParams = {
   main_domain?: string
   source_ip_keyword?: string
   destination?: string
+  /** detail = 用户×节点×源IP×目的地明细（默认）；user = 每个用户一行总流量 */
+  group_by?: 'detail' | 'user'
+  /** 0 = 跳过下拉筛选项计算（接口耗时大头），面板未使用这些下拉 */
+  with_filters?: 0 | 1
   order_by?: 'total' | 'u' | 'd'
   order_dir?: 'asc' | 'desc'
   page?: number
@@ -135,6 +139,37 @@ export async function fetchUserTrafficAudit(params: UserAuditParams) {
   const r = await get<{ data: UserAuditResult }>(
     '/stat/getUserTrafficAudit',
     params,
+    { timeout: 120000 }
+  )
+  return r.data
+}
+
+/** 用户审计「按用户汇总」单行：group_by=user 时每个用户一行。 */
+export type UserAuditSummaryRow = {
+  user_id: number
+  user_email: string
+  /** 区间内使用过的节点数 */
+  server_count: number
+  /** 区间内出现过的源 IP 数，多可能是共享账号 */
+  source_ip_count: number
+  first_record_at: number
+  last_record_at: number
+  u: number
+  d: number
+  total: number
+}
+
+export type UserAuditSummaryResult = Omit<UserAuditResult, 'list'> & {
+  list: UserAuditSummaryRow[]
+}
+
+/** GET /stat/getUserTrafficAudit?group_by=user — 每个用户的总流量，可按 u/d/total 排序。 */
+export async function fetchUserTrafficAuditByUser(
+  params: Omit<UserAuditParams, 'group_by'>
+) {
+  const r = await get<{ data: UserAuditSummaryResult }>(
+    '/stat/getUserTrafficAudit',
+    { ...params, group_by: 'user' },
     { timeout: 120000 }
   )
   return r.data

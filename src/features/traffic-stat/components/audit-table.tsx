@@ -1,165 +1,180 @@
 import { useEffect, useMemo, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
+  type ColumnDef,
   type PaginationState,
-  flexRender,
+  type SortingState,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { useQuery } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { DataTablePagination } from '@/components/data-table'
-import { type UserAuditResult, fetchUserTrafficAudit } from '../api'
-import { getAuditColumns } from './audit-columns'
+  type UserAuditParams,
+  type UserAuditResult,
+  fetchUserTrafficAudit,
+  fetchUserTrafficAuditByUser,
+} from '../api'
+import { getAuditColumns, getAuditUserColumns } from './audit-columns'
+import { PagedTable } from './paged-table'
+import { toOrder } from './traffic-columns'
+
+type Summary = UserAuditResult['summary']
 
 type Props = {
   range: { start: number; end: number }
   mode: 'all' | 'privacy' | 'diagnostic'
   userKeyword: string
   serverKeyword: string
-  onSummary: (summary: UserAuditResult['summary']) => void
+  onSummary: (summary: Summary) => void
 }
 
-export function AuditTable({
+const ERROR_TEXT =
+  '暂无数据（用户流量审计需在「系统配置 → 服务器」开启授权诊断模式，或该后端未启用此功能）。'
+
+/**
+ * 用户审计：默认「按用户汇总」每个用户一行总流量；可切到「明细」看
+ * 用户×节点×源IP×目的地粒度。两种视图均按 上行/下行/合计 服务端排序。
+ */
+export function AuditTable(props: Props) {
+  const [view, setView] = useState<'user' | 'detail'>('user')
+
+  return (
+    <div className='flex flex-1 flex-col gap-3'>
+      <div className='flex gap-1'>
+        <Button
+          size='sm'
+          variant={view === 'user' ? 'secondary' : 'ghost'}
+          onClick={() => setView('user')}
+        >
+          按用户汇总
+        </Button>
+        <Button
+          size='sm'
+          variant={view === 'detail' ? 'secondary' : 'ghost'}
+          onClick={() => setView('detail')}
+        >
+          明细
+        </Button>
+      </div>
+      {view === 'user' ? (
+        // key 区分视图：强制重挂载，避免 keepPreviousData 把另一视图的数据套到新列上
+        <AuditView
+          key='user'
+          {...props}
+          queryKey='traffic-audit-user'
+          fetcher={fetchUserTrafficAuditByUser}
+          columns={getAuditUserColumns}
+        />
+      ) : (
+        <AuditView
+          key='detail'
+          {...props}
+          queryKey='traffic-audit-detail'
+          fetcher={fetchUserTrafficAudit}
+          columns={getAuditColumns}
+        />
+      )}
+    </div>
+  )
+}
+
+function AuditView<T>({
   range,
   mode,
   userKeyword,
   serverKeyword,
   onSummary,
-}: Props) {
+  queryKey,
+  fetcher,
+  columns: getColumns,
+}: Props & {
+  queryKey: string
+  fetcher: (
+    params: UserAuditParams
+  ) => Promise<{ list: T[]; total: number; summary: Summary }>
+  columns: () => ColumnDef<T>[]
+}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
   })
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: 'total', desc: true },
+  ])
+  const order = toOrder(sorting)
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }))
-  }, [range.start, range.end, mode, userKeyword, serverKeyword])
+  }, [
+    range.start,
+    range.end,
+    mode,
+    userKeyword,
+    serverKeyword,
+    order.order_by,
+    order.order_dir,
+  ])
 
-  const { data, isLoading, isError } = useQuery({
+  // fetcher 与 queryKey 字符串一一对应（由父组件按视图成对传入），无需单独进 key
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: [
+      // 前缀统一为 traffic-audit，清理数据时一次失效两种视图
       'traffic-audit',
+      queryKey,
       range.start,
       range.end,
       mode,
       userKeyword,
       serverKeyword,
+      order,
       pagination.pageIndex,
       pagination.pageSize,
     ],
     queryFn: () =>
-      fetchUserTrafficAudit({
+      fetcher({
         start_time: range.start,
         end_time: range.end,
         mode,
         user_keyword: userKeyword || undefined,
         server_keyword: serverKeyword || undefined,
-        order_by: 'total',
-        order_dir: 'desc',
+        // 面板不使用下拉筛选项，跳过这部分最耗时的聚合
+        with_filters: 0,
+        ...order,
         page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
       }),
+    placeholderData: keepPreviousData,
   })
 
   useEffect(() => {
     if (data?.summary) onSummary(data.summary)
   }, [data, onSummary])
 
-  const columns = useMemo(() => getAuditColumns(), [])
+  const columns = useMemo(() => getColumns(), [getColumns])
 
-  const rows = data?.list ?? []
   const total = data?.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize))
-
   const table = useReactTable({
-    data: rows,
+    data: data?.list ?? [],
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     manualPagination: true,
-    pageCount,
+    manualSorting: true,
+    enableSortingRemoval: false,
+    pageCount: Math.max(1, Math.ceil(total / pagination.pageSize)),
     rowCount: total,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
   })
 
   return (
-    <div className='flex flex-1 flex-col gap-4'>
-      <div className='overflow-hidden rounded-md border'>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className='group/row'>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    className={cn(header.column.columnDef.meta?.className)}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className='h-24 text-center'>
-                  加载中...
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className='text-muted-foreground h-24 text-center'
-                >
-                  暂无数据（用户流量审计需在「系统配置 →
-                  服务器」开启授权诊断模式，或该后端未启用此功能）。
-                </TableCell>
-              </TableRow>
-            ) : rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className='group/row'>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(cell.column.columnDef.meta?.className)}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className='text-muted-foreground h-24 text-center'
-                >
-                  暂无数据
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <DataTablePagination table={table} className='mt-auto' />
-    </div>
+    <PagedTable
+      table={table}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      isError={isError}
+      errorText={ERROR_TEXT}
+    />
   )
 }

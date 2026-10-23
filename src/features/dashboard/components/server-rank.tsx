@@ -94,7 +94,14 @@ export function RankRow({ item, max }: { item: TrafficRankItem; max: number }) {
                 />
               </div>
               <span className='text-xs text-muted-foreground'>
-                {formatBytes(item.value)}
+                {item.rawValue === undefined ? (
+                  formatBytes(item.value)
+                ) : (
+                  <>
+                    扣除 {formatBytes(item.value)} · 实际{' '}
+                    {formatBytes(item.rawValue)}
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -102,9 +109,22 @@ export function RankRow({ item, max }: { item: TrafficRankItem; max: number }) {
       </TooltipTrigger>
       <TooltipContent side='right' className='space-y-2 p-4'>
         <div className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
-          <span className='text-muted-foreground'>当前流量：</span>
-          <span className='font-medium'>{formatBytes(item.value)}</span>
-          <span className='text-muted-foreground'>上期流量：</span>
+          {item.rawValue === undefined ? (
+            <>
+              <span className='text-muted-foreground'>当前流量：</span>
+              <span className='font-medium'>{formatBytes(item.value)}</span>
+            </>
+          ) : (
+            <>
+              <span className='text-muted-foreground'>扣除流量：</span>
+              <span className='font-medium'>{formatBytes(item.value)}</span>
+              <span className='text-muted-foreground'>实际流量：</span>
+              <span className='font-medium'>{formatBytes(item.rawValue)}</span>
+            </>
+          )}
+          <span className='text-muted-foreground'>
+            {item.rawValue === undefined ? '上期流量：' : '上期扣除：'}
+          </span>
           <span className='font-medium'>{formatBytes(item.previousValue)}</span>
           <span className='text-muted-foreground'>变化率：</span>
           <span

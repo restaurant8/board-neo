@@ -165,7 +165,10 @@ export function fetchServerYesterdayRank() {
 export type TrafficRankItem = {
   id: string
   name: string
+  /** 节点：节点实际流量；用户：乘过节点倍率的流量（即实际扣除的流量） */
   value: number
+  /** 仅用户排行：倍率前的实际使用流量（倍率为 0 的节点无法反推，不计入） */
+  rawValue?: number
   previousValue: number
   change: number
   timestamp: string

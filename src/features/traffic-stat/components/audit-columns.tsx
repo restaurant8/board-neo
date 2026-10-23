@@ -1,7 +1,7 @@
 import { type ColumnDef } from '@tanstack/react-table'
-import { formatBytes } from '@/features/dashboard/format'
 import { Badge } from '@/components/ui/badge'
-import { type UserAuditRow } from '../api'
+import { type UserAuditRow, type UserAuditSummaryRow } from '../api'
+import { trafficColumns } from './traffic-columns'
 
 /** 秒级时间戳 → 本地时间字符串。 */
 function fmtTime(ts?: number | null): string {
@@ -95,31 +95,66 @@ export function getAuditColumns(): ColumnDef<UserAuditRow>[] {
         </div>
       ),
     },
+    ...trafficColumns<UserAuditRow>(),
+  ]
+}
+
+/** 用户审计「按用户汇总」列：每个用户一行总流量。 */
+export function getAuditUserColumns(): ColumnDef<UserAuditSummaryRow>[] {
+  return [
     {
-      accessorKey: 'u',
-      header: () => <div className='text-end'>上行</div>,
+      id: 'rank',
+      header: () => <div className='w-8'>#</div>,
+      cell: ({ row, table }) => {
+        const { pageIndex, pageSize } = table.getState().pagination
+        return (
+          <div className='text-muted-foreground w-8 tabular-nums'>
+            {pageIndex * pageSize + row.index + 1}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: 'user_email',
+      header: () => <div>用户</div>,
       cell: ({ row }) => (
-        <div className='text-end'>{formatBytes(row.original.u)}</div>
+        <div className='grid'>
+          <span className='font-medium'>
+            {row.original.user_email || `User ${row.original.user_id}`}
+          </span>
+          <span className='text-muted-foreground text-xs'>
+            UID:{row.original.user_id}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'server_count',
+      header: () => <div className='text-end'>节点数</div>,
+      cell: ({ row }) => (
+        <div className='text-end tabular-nums'>{row.original.server_count}</div>
       ),
       meta: { className: 'text-end' },
     },
     {
-      accessorKey: 'd',
-      header: () => <div className='text-end'>下行</div>,
+      accessorKey: 'source_ip_count',
+      header: () => <div className='text-end'>源 IP 数</div>,
       cell: ({ row }) => (
-        <div className='text-end'>{formatBytes(row.original.d)}</div>
-      ),
-      meta: { className: 'text-end' },
-    },
-    {
-      accessorKey: 'total',
-      header: () => <div className='text-end'>合计</div>,
-      cell: ({ row }) => (
-        <div className='text-end font-medium'>
-          {formatBytes(row.original.total)}
+        <div className='text-end tabular-nums'>
+          {row.original.source_ip_count}
         </div>
       ),
       meta: { className: 'text-end' },
     },
+    {
+      accessorKey: 'last_record_at',
+      header: () => <div>最近记录</div>,
+      cell: ({ row }) => (
+        <div className='text-muted-foreground text-xs'>
+          {fmtTime(row.original.last_record_at)}
+        </div>
+      ),
+    },
+    ...trafficColumns<UserAuditSummaryRow>(),
   ]
 }
