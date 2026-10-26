@@ -24,6 +24,8 @@ export type DiagResult = {
 }
 
 export type DiagParams = {
+  /** 0 = 跳过下拉筛选项计算，面板未使用这些下拉 */
+  with_filters?: 0 | 1
   start_time?: number
   end_time?: number
   mode?: 'all' | 'privacy' | 'diagnostic'
@@ -150,8 +152,6 @@ export type UserAuditSummaryRow = {
   user_email: string
   /** 区间内使用过的节点数 */
   server_count: number
-  /** 区间内出现过的源 IP 数，多可能是共享账号 */
-  source_ip_count: number
   first_record_at: number
   last_record_at: number
   u: number

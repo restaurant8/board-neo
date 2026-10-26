@@ -50,6 +50,8 @@ type Props<T> = {
   isFetching: boolean
   isError: boolean
   errorText: ReactNode
+  /** 行可点击（如下钻到明细） */
+  onRowClick?: (row: T) => void
 }
 
 /** 流量统计各表共用的表格 + 分页外壳。 */
@@ -59,6 +61,7 @@ export function PagedTable<T>({
   isFetching,
   isError,
   errorText,
+  onRowClick,
 }: Props<T>) {
   const colSpan = table.getAllLeafColumns().length
   const rows = table.getRowModel().rows
@@ -110,7 +113,11 @@ export function PagedTable<T>({
               </TableRow>
             ) : rows.length ? (
               rows.map((row) => (
-                <TableRow key={row.id} className='group/row'>
+                <TableRow
+                  key={row.id}
+                  className={cn('group/row', onRowClick && 'cursor-pointer')}
+                  onClick={onRowClick && (() => onRowClick(row.original))}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}

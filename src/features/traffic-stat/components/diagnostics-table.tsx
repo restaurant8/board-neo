@@ -50,6 +50,8 @@ export function DiagnosticsTable({ range, mode, keyword, onSummary }: Props) {
         end_time: range.end,
         mode,
         server_keyword: keyword || undefined,
+        // 面板不使用下拉筛选项，跳过这部分聚合
+        with_filters: 0,
         ...order,
         page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,

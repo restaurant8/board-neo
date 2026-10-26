@@ -20,23 +20,9 @@ function destinationText(row: UserAuditRow): string {
   return '—'
 }
 
-/** 用户流量审计列（用户维度明细）。 */
+/** 单个用户的流量明细列（从按用户汇总下钻，用户已知故不再单列）。 */
 export function getAuditColumns(): ColumnDef<UserAuditRow>[] {
   return [
-    {
-      accessorKey: 'user_email',
-      header: () => <div>用户</div>,
-      cell: ({ row }) => (
-        <div className='grid'>
-          <span className='font-medium'>
-            {row.original.user_email || `User ${row.original.user_id}`}
-          </span>
-          <span className='text-muted-foreground text-xs'>
-            UID:{row.original.user_id}
-          </span>
-        </div>
-      ),
-    },
     {
       accessorKey: 'server_name',
       header: () => <div>节点</div>,
@@ -44,13 +30,6 @@ export function getAuditColumns(): ColumnDef<UserAuditRow>[] {
         <div className='whitespace-nowrap'>
           {row.original.server_name || `#${row.original.server_id}`}
         </div>
-      ),
-    },
-    {
-      accessorKey: 'source_ip',
-      header: () => <div>源 IP</div>,
-      cell: ({ row }) => (
-        <div className='font-mono text-xs'>{row.original.source_ip || '—'}</div>
       ),
     },
     {
@@ -99,7 +78,7 @@ export function getAuditColumns(): ColumnDef<UserAuditRow>[] {
   ]
 }
 
-/** 用户审计「按用户汇总」列：每个用户一行总流量。 */
+/** 用户审计「按用户汇总」列：每个用户一行总流量，点击行下钻到该用户明细。 */
 export function getAuditUserColumns(): ColumnDef<UserAuditSummaryRow>[] {
   return [
     {
@@ -119,7 +98,7 @@ export function getAuditUserColumns(): ColumnDef<UserAuditSummaryRow>[] {
       header: () => <div>用户</div>,
       cell: ({ row }) => (
         <div className='grid'>
-          <span className='font-medium'>
+          <span className='text-primary font-medium group-hover/row:underline'>
             {row.original.user_email || `User ${row.original.user_id}`}
           </span>
           <span className='text-muted-foreground text-xs'>
@@ -133,16 +112,6 @@ export function getAuditUserColumns(): ColumnDef<UserAuditSummaryRow>[] {
       header: () => <div className='text-end'>节点数</div>,
       cell: ({ row }) => (
         <div className='text-end tabular-nums'>{row.original.server_count}</div>
-      ),
-      meta: { className: 'text-end' },
-    },
-    {
-      accessorKey: 'source_ip_count',
-      header: () => <div className='text-end'>源 IP 数</div>,
-      cell: ({ row }) => (
-        <div className='text-end tabular-nums'>
-          {row.original.source_ip_count}
-        </div>
       ),
       meta: { className: 'text-end' },
     },

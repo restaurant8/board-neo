@@ -7,10 +7,12 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   type UserAuditParams,
   type UserAuditResult,
+  type UserAuditSummaryRow,
   fetchUserTrafficAudit,
   fetchUserTrafficAuditByUser,
 } from '../api'
@@ -32,49 +34,51 @@ const ERROR_TEXT =
   '暂无数据（用户流量审计需在「系统配置 → 服务器」开启授权诊断模式，或该后端未启用此功能）。'
 
 /**
- * 用户审计：默认「按用户汇总」每个用户一行总流量；可切到「明细」看
- * 用户×节点×源IP×目的地粒度。两种视图均按 上行/下行/合计 服务端排序。
+ * 用户审计：先看「按用户汇总」（每个用户一行总流量，读日汇总表，毫秒级），
+ * 点击某个用户再看他的 节点×目的地 明细（按 user_id 走索引）。
+ * 不再提供全体用户的明细：那需要扫描区间内全部明细行，数据一多就要几十秒到几分钟。
  */
 export function AuditTable(props: Props) {
-  const [view, setView] = useState<'user' | 'detail'>('user')
+  const [drillUser, setDrillUser] = useState<UserAuditSummaryRow | null>(null)
 
-  return (
-    <div className='flex flex-1 flex-col gap-3'>
-      <div className='flex gap-1'>
-        <Button
-          size='sm'
-          variant={view === 'user' ? 'secondary' : 'ghost'}
-          onClick={() => setView('user')}
-        >
-          按用户汇总
-        </Button>
-        <Button
-          size='sm'
-          variant={view === 'detail' ? 'secondary' : 'ghost'}
-          onClick={() => setView('detail')}
-        >
-          明细
-        </Button>
-      </div>
-      {view === 'user' ? (
-        // key 区分视图：强制重挂载，避免 keepPreviousData 把另一视图的数据套到新列上
+  if (drillUser) {
+    return (
+      <div className='flex flex-1 flex-col gap-3'>
+        <div className='flex items-center gap-2'>
+          <Button size='sm' variant='outline' onClick={() => setDrillUser(null)}>
+            <ArrowLeft className='me-1 size-4' />
+            返回用户列表
+          </Button>
+          <span className='text-sm'>
+            <span className='font-medium'>{drillUser.user_email}</span>
+            <span className='text-muted-foreground'>
+              {' '}
+              (UID:{drillUser.user_id}) 的流量明细
+            </span>
+          </span>
+        </div>
         <AuditView
-          key='user'
+          key={`detail-${drillUser.user_id}`}
           {...props}
-          queryKey='traffic-audit-user'
-          fetcher={fetchUserTrafficAuditByUser}
-          columns={getAuditUserColumns}
-        />
-      ) : (
-        <AuditView
-          key='detail'
-          {...props}
+          userId={drillUser.user_id}
           queryKey='traffic-audit-detail'
           fetcher={fetchUserTrafficAudit}
           columns={getAuditColumns}
         />
-      )}
-    </div>
+      </div>
+    )
+  }
+
+  return (
+    // key 区分视图：强制重挂载，避免 keepPreviousData 把另一视图的数据套到新列上
+    <AuditView
+      key='user'
+      {...props}
+      queryKey='traffic-audit-user'
+      fetcher={fetchUserTrafficAuditByUser}
+      columns={getAuditUserColumns}
+      onRowClick={setDrillUser}
+    />
   )
 }
 
@@ -87,7 +91,12 @@ function AuditView<T>({
   queryKey,
   fetcher,
   columns: getColumns,
+  userId,
+  onRowClick,
 }: Props & {
+  /** 下钻：只看该用户（此时忽略用户关键字） */
+  userId?: number
+  onRowClick?: (row: T) => void
   queryKey: string
   fetcher: (
     params: UserAuditParams
@@ -127,6 +136,7 @@ function AuditView<T>({
       mode,
       userKeyword,
       serverKeyword,
+      userId,
       order,
       pagination.pageIndex,
       pagination.pageSize,
@@ -136,7 +146,8 @@ function AuditView<T>({
         start_time: range.start,
         end_time: range.end,
         mode,
-        user_keyword: userKeyword || undefined,
+        user_id: userId,
+        user_keyword: userId ? undefined : userKeyword || undefined,
         server_keyword: serverKeyword || undefined,
         // 面板不使用下拉筛选项，跳过这部分最耗时的聚合
         with_filters: 0,
@@ -175,6 +186,7 @@ function AuditView<T>({
       isFetching={isFetching}
       isError={isError}
       errorText={ERROR_TEXT}
+      onRowClick={onRowClick}
     />
   )
 }

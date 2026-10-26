@@ -37,14 +37,16 @@ const RANGES = [
 
 const EMPTY_SUMMARY: Summary = { u: 0, d: 0, total: 0 }
 
-/** 按天数算查询区间：0 = 今日 0 点起，否则往前推 N 天。 */
+/**
+ * 按自然日算查询区间：0 = 今日 0 点起；N = 含今天在内的最近 N 天（从 N-1 天前的 0 点起）。
+ * 后端节点统计与用户日汇总按自然日落库，区间对齐到 0 点结果才精确。
+ */
 function calcRange(days: number) {
   const end = Math.floor(Date.now() / 1000)
-  const start =
-    days === 0
-      ? Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-      : end - days * 86400
-  return { start, end }
+  const startDate = new Date()
+  startDate.setHours(0, 0, 0, 0)
+  if (days > 0) startDate.setDate(startDate.getDate() - (days - 1))
+  return { start: Math.floor(startDate.getTime() / 1000), end }
 }
 
 export function TrafficStatPage() {
