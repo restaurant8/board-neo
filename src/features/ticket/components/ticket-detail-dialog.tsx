@@ -101,7 +101,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
       <DialogContent className='flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl'>
         <DialogHeader className='space-y-2 border-b p-4 pe-12 text-start'>
           <div className='flex flex-wrap items-center gap-2'>
-            <DialogTitle className='text-lg'>
+            <DialogTitle className='min-w-0 text-lg [overflow-wrap:anywhere]'>
               {data ? data.subject : '工单详情'}
             </DialogTitle>
             {data && <StatusBadge data={data} />}
@@ -138,7 +138,8 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className='min-h-0 flex-1 px-4'>
+        {/* Radix 视口内层默认 display:table，会被长串（链接、订阅地址）撑宽导致文字溢出气泡，改为 block */}
+        <ScrollArea className='min-h-0 flex-1 px-4 [&_[data-slot=scroll-area-viewport]>div]:block!'>
           {isLoading ? (
             <p className='text-muted-foreground py-8 text-center'>加载中...</p>
           ) : (
@@ -165,7 +166,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
                     )}
                     <span className='ms-2'>{time(m.created_at)}</span>
                   </div>
-                  <div className='break-words whitespace-pre-wrap'>
+                  <div className='whitespace-pre-wrap [overflow-wrap:anywhere]'>
                     {m.message}
                   </div>
                 </div>
