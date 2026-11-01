@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   type WinbackLogsParams,
   fetchWinbackLogs,
@@ -180,7 +181,7 @@ export function WinbackPage() {
                   <TableRow key={log.id}>
                     <TableCell>{log.id}</TableCell>
                     <TableCell>
-                      <div className='font-medium'>{log.email}</div>
+                      <UserEmailLink email={log.email} className='font-medium' />
                       <div className='text-muted-foreground text-xs'>
                         ID {log.user_id}
                       </div>

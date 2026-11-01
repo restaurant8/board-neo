@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { UserEmailLink } from '@/components/user-email-link'
 import { fetchTrafficRank } from '../api'
 import { RankRow } from './server-rank'
 import { TimeRangeSelect, useTimeRange } from './time-range'
@@ -43,7 +44,19 @@ export function UserRank() {
           <ScrollArea className='h-[400px] pr-4'>
             <div className='space-y-3'>
               {rows.map((e) => (
-                <RankRow key={e.id} item={e} max={max} />
+                <RankRow
+                  key={e.id}
+                  item={e}
+                  max={max}
+                  renderName={(item) =>
+                    // 后端查不到用户时回退为 "User {id}"，此时不做跳转
+                    item.name.includes('@') ? (
+                      <UserEmailLink email={item.name} />
+                    ) : (
+                      item.name
+                    )
+                  }
+                />
               ))}
             </div>
           </ScrollArea>

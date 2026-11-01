@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   TICKET_LEVEL_META,
   TICKET_STATUS_CLOSED,
@@ -122,7 +123,11 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
               <>
                 <span className='inline-flex items-center gap-1'>
                   <Mail className='size-3.5' />
-                  {data.user?.email ?? data.user_id}
+                  <UserEmailLink
+                    email={data.user?.email}
+                    fallback={data.user_id}
+                    onNavigate={() => onOpenChange(false)}
+                  />
                 </span>
                 <span className='inline-flex items-center gap-1'>
                   <Clock className='size-3.5' />
@@ -149,7 +154,15 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
                   )}
                 >
                   <div className='mb-1 text-xs opacity-70'>
-                    {m.is_from_admin ? '管理员' : (m.user?.email ?? '用户')}
+                    {m.is_from_admin ? (
+                      '管理员'
+                    ) : (
+                      <UserEmailLink
+                        email={m.user?.email}
+                        fallback='用户'
+                        onNavigate={() => onOpenChange(false)}
+                      />
+                    )}
                     <span className='ms-2'>{time(m.created_at)}</span>
                   </div>
                   <div className='break-words whitespace-pre-wrap'>

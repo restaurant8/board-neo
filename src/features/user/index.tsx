@@ -263,6 +263,17 @@ export function UserPage() {
   // 多选（当前页选中的用户 id）
   const [selected, setSelected] = useState<number[]>([])
 
+  // URL 的 email 与已应用的快速搜索保持一致。本页弹窗里点用户邮箱跳转时组件不会重新挂载，
+  // 需要在渲染期间按 URL 派生重置（React 官方模式）。
+  const [syncedEmail, setSyncedEmail] = useState(emailFromUrl)
+  if (emailFromUrl !== syncedEmail) {
+    setSyncedEmail(emailFromUrl)
+    setEmailInput(emailFromUrl ?? '')
+    setAppliedEmail(emailFromUrl ?? '')
+    setSelected([])
+    setPage(1)
+  }
+
   // 弹窗状态
   const [editing, setEditing] = useState<User | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -354,9 +365,16 @@ export function UserPage() {
     )
 
   const applyQuickSearch = () => {
-    setAppliedEmail(emailInput.trim())
+    const email = emailInput.trim()
+    setAppliedEmail(email)
+    setSyncedEmail(email || undefined)
     setSelected([])
     setPage(1)
+    navigate({
+      to: '/user',
+      search: (prev) => ({ ...prev, email: email || undefined }),
+      replace: true,
+    })
   }
 
   // 应用高级筛选：保存条件与生成的 filter 项

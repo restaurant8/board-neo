@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { UserEmailLink } from '@/components/user-email-link'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   type SubscriptionRecord,
@@ -388,7 +389,11 @@ export function SubscriptionRecordsDialog({
                             className='max-w-[190px] truncate'
                             title={record.user_email || `#${record.user_id}`}
                           >
-                            {record.user_email || `#${record.user_id}`}
+                            <UserEmailLink
+                              email={record.user_email}
+                              fallback={`#${record.user_id}`}
+                              onNavigate={() => onOpenChange(false)}
+                            />
                           </div>
                           <div className='text-xs text-muted-foreground'>
                             ID {record.user_id}

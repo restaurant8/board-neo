@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UserEmailLink } from '@/components/user-email-link'
 import { fetchUsages } from '../api'
 import { SimplePagination } from './simple-pagination'
 
@@ -69,9 +70,11 @@ export function UsagesTab() {
                   <TableCell className='whitespace-nowrap'>
                     {u.template_name}
                   </TableCell>
-                  <TableCell className='text-xs'>{u.user_email}</TableCell>
                   <TableCell className='text-xs'>
-                    {u.invite_user_email ?? '-'}
+                    <UserEmailLink email={u.user_email} />
+                  </TableCell>
+                  <TableCell className='text-xs'>
+                    <UserEmailLink email={u.invite_user_email} />
                   </TableCell>
                   <TableCell className='max-w-xs truncate text-xs'>
                     {brief(u.rewards_given)}

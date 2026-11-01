@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UserEmailLink } from '@/components/user-email-link'
 import { type LogsParams, fetchResetLogs } from './api'
 import { ResetStatsCards } from './components/reset-stats-cards'
 import { ResetUserDialog } from './components/reset-user-dialog'
@@ -224,7 +225,7 @@ export function TrafficResetPage() {
                   <TableRow key={log.id}>
                     <TableCell>{log.id}</TableCell>
                     <TableCell>
-                      <div className='font-medium'>{log.user_email}</div>
+                      <UserEmailLink email={log.user_email} className='font-medium' />
                       <div className='text-xs text-muted-foreground'>
                         ID {log.user_id}
                       </div>

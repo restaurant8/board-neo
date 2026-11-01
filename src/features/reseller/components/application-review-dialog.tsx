@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   type ResellerApplication,
   reviewResellerApplication,
@@ -82,7 +83,14 @@ export function ApplicationReviewDialog({
         </DialogHeader>
         <div className='space-y-4 px-6 py-4 font-mono'>
           <div className='rounded-md border bg-muted/20 p-3 text-xs'>
-            <div>申请人：{application?.user_email ?? `#${application?.user_id}`}</div>
+            <div>
+              申请人：
+              <UserEmailLink
+                email={application?.user_email}
+                fallback={`#${application?.user_id}`}
+                onNavigate={() => onOpenChange(false)}
+              />
+            </div>
             <div>期望分站名：{application?.desired_name}</div>
             {application?.contact && <div>联系方式：{application.contact}</div>}
             {application?.remark && <div>理由：{application.remark}</div>}

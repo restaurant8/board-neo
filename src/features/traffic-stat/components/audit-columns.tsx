@@ -1,5 +1,6 @@
 import { type ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
+import { UserEmailLink } from '@/components/user-email-link'
 import { type UserAuditRow, type UserAuditSummaryRow } from '../api'
 import { trafficColumns } from './traffic-columns'
 
@@ -98,9 +99,11 @@ export function getAuditUserColumns(): ColumnDef<UserAuditSummaryRow>[] {
       header: () => <div>用户</div>,
       cell: ({ row }) => (
         <div className='grid'>
-          <span className='text-primary font-medium group-hover/row:underline'>
-            {row.original.user_email || `User ${row.original.user_id}`}
-          </span>
+          <UserEmailLink
+            email={row.original.user_email}
+            fallback={`User ${row.original.user_id}`}
+            className='font-medium'
+          />
           <span className='text-muted-foreground text-xs'>
             UID:{row.original.user_id}
           </span>

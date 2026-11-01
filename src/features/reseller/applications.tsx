@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   type ResellerApplication,
   fetchResellerApplications,
@@ -161,7 +162,10 @@ export function ResellerApplicationsPage() {
                       </TableCell>
                       <TableCell>
                         <span className='font-mono text-xs'>
-                          {a.user_email ?? `#${a.user_id}`}
+                          <UserEmailLink
+                            email={a.user_email}
+                            fallback={`#${a.user_id}`}
+                          />
                         </span>
                       </TableCell>
                       <TableCell className='whitespace-nowrap'>

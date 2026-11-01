@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UserEmailLink } from '@/components/user-email-link'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   getAuditLog,
@@ -241,7 +242,12 @@ export function SystemPage() {
                     audit.data.map((a) => (
                       <TableRow key={a.id}>
                         <TableCell>{a.id}</TableCell>
-                        <TableCell>{a.admin?.email ?? a.admin_id}</TableCell>
+                        <TableCell>
+                          <UserEmailLink
+                            email={a.admin?.email}
+                            fallback={a.admin_id}
+                          />
+                        </TableCell>
                         <TableCell>{a.action ?? '—'}</TableCell>
                         <TableCell className='max-w-xs truncate' title={a.uri}>
                           {a.method ? (

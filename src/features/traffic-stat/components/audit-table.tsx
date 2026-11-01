@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   type UserAuditParams,
   type UserAuditResult,
@@ -50,7 +51,11 @@ export function AuditTable(props: Props) {
             返回用户列表
           </Button>
           <span className='text-sm'>
-            <span className='font-medium'>{drillUser.user_email}</span>
+            <UserEmailLink
+              email={drillUser.user_email}
+              fallback={`User ${drillUser.user_id}`}
+              className='font-medium'
+            />
             <span className='text-muted-foreground'>
               {' '}
               (UID:{drillUser.user_id}) 的流量明细

@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UserEmailLink } from '@/components/user-email-link'
 import { fetchUserHistory } from '../api'
 
 type Props = {
@@ -36,9 +37,17 @@ export function UserHistoryDialog({ userId, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>用户重置历史</DialogTitle>
           <DialogDescription>
-            {data?.user
-              ? `${data.user.email} · 累计重置 ${data.user.reset_count ?? 0} 次`
-              : '查询该用户的流量重置历史。'}
+            {data?.user ? (
+              <>
+                <UserEmailLink
+                  email={data.user.email}
+                  onNavigate={() => onOpenChange(false)}
+                />
+                {` · 累计重置 ${data.user.reset_count ?? 0} 次`}
+              </>
+            ) : (
+              '查询该用户的流量重置历史。'
+            )}
           </DialogDescription>
         </DialogHeader>
 

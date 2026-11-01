@@ -29,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { UserEmailLink } from '@/components/user-email-link'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   type UsageOrderBy,
@@ -373,7 +374,11 @@ export function UsageRecordsDialog({
                           className='truncate'
                           title={r.user_email || `#${r.user_id}`}
                         >
-                          {r.user_email || `#${r.user_id}`}
+                          <UserEmailLink
+                            email={r.user_email}
+                            fallback={`#${r.user_id}`}
+                            onNavigate={() => onOpenChange(false)}
+                          />
                         </div>
                         <div className='text-xs text-muted-foreground'>
                           ID {r.user_id}

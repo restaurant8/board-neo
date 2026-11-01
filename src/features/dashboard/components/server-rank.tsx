@@ -63,7 +63,15 @@ export function ServerRank() {
   )
 }
 
-export function RankRow({ item, max }: { item: TrafficRankItem; max: number }) {
+export function RankRow({
+  item,
+  max,
+  renderName,
+}: {
+  item: TrafficRankItem
+  max: number
+  renderName?: (item: TrafficRankItem) => React.ReactNode
+}) {
   const up = item.change >= 0
   return (
     <Tooltip>
@@ -71,7 +79,9 @@ export function RankRow({ item, max }: { item: TrafficRankItem; max: number }) {
         <div className='flex cursor-pointer items-center justify-between space-x-2 rounded-lg bg-muted/50 p-2 transition-colors hover:bg-muted/70'>
           <div className='min-w-0 flex-1'>
             <div className='flex items-center justify-between'>
-              <span className='truncate text-sm font-medium'>{item.name}</span>
+              <span className='truncate text-sm font-medium'>
+                {renderName ? renderName(item) : item.name}
+              </span>
               <span
                 className={cn(
                   'ml-2 flex items-center text-xs font-medium',

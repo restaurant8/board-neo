@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UserEmailLink } from '@/components/user-email-link'
 import { fetchResellerDashboard } from './api'
 
 const yuan = (cents: number) => `¥${(cents / 100).toFixed(2)}`
@@ -115,7 +116,7 @@ export function ResellerDashboardPage() {
                         {s.site_name}
                       </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
-                        {s.owner_email ?? '—'}
+                        <UserEmailLink email={s.owner_email} fallback='—' />
                       </TableCell>
                       <TableCell className='text-center font-mono'>
                         {s.order_count}

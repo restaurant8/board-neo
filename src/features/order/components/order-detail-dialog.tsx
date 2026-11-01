@@ -1,6 +1,4 @@
-import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   COMMISSION_STATUS_MAP,
   ORDER_STATUS_MAP,
@@ -87,30 +86,6 @@ function Field({
   )
 }
 
-/** 用户/邀请人邮箱：点击跳转到用户管理并按邮箱过滤（对齐原版）。 */
-function UserLink({
-  email,
-  fallback,
-  onNavigate,
-}: {
-  email?: string | null
-  fallback: React.ReactNode
-  onNavigate: () => void
-}) {
-  if (!email) return <>{fallback}</>
-  return (
-    <Link
-      to='/user'
-      search={{ email }}
-      onClick={onNavigate}
-      className='text-primary group inline-flex items-center gap-1 hover:underline'
-    >
-      {email}
-      <ExternalLink className='size-3.5 opacity-0 transition-opacity group-hover:opacity-100' />
-    </Link>
-  )
-}
-
 export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ['order-detail', orderId],
@@ -147,7 +122,7 @@ export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
               <Field
                 label='用户邮箱'
                 value={
-                  <UserLink
+                  <UserEmailLink
                     email={data.user?.email}
                     fallback={data.user_id}
                     onNavigate={() => onOpenChange(false)}
@@ -252,7 +227,7 @@ export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
                     <Field
                       label='邀请人'
                       value={
-                        <UserLink
+                        <UserEmailLink
                           email={data.invite_user.email}
                           fallback={data.invite_user_id ?? '-'}
                           onNavigate={() => onOpenChange(false)}

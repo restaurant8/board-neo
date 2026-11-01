@@ -22,6 +22,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { UserEmailLink } from '@/components/user-email-link'
 import { fetchAdminSettlements, fetchResellerSites } from './api'
 
 const yuan = (cents: number) => `¥${(cents / 100).toFixed(2)}`
@@ -150,7 +151,7 @@ export function ResellerSettlementsPage() {
                         {s.site_name ?? `#${s.site_id}`}
                       </TableCell>
                       <TableCell className='font-mono text-xs text-muted-foreground'>
-                        {s.owner_email ?? '—'}
+                        <UserEmailLink email={s.owner_email} fallback='—' />
                       </TableCell>
                       <TableCell className='font-mono'>
                         {yuan(s.order_amount)}

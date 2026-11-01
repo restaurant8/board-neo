@@ -21,6 +21,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { UserEmailLink } from '@/components/user-email-link'
 import {
   type ResellerSite,
   dropResellerSite,
@@ -194,10 +195,16 @@ export function ResellerPage() {
                           <span className='font-mono text-xs text-muted-foreground'>
                             {s.site_type === 'brand'
                               ? '平台自营'
-                              : (s.owner_email ??
-                                (s.owner_user_id
-                                  ? `#${s.owner_user_id}`
-                                  : '未指定'))}
+                              : (
+                                <UserEmailLink
+                                  email={s.owner_email}
+                                  fallback={
+                                    s.owner_user_id
+                                      ? `#${s.owner_user_id}`
+                                      : '未指定'
+                                  }
+                                />
+                              )}
                           </span>
                         </TableCell>
                         <TableCell>
