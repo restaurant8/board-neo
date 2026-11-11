@@ -22,6 +22,7 @@ import {
   Trash2,
   X,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
@@ -74,6 +75,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import { fetchResellerSites } from '@/features/reseller/api'
 import {
+  type BalanceLogAccount,
   type RemoteCity,
   type User,
   type UserFilter,
@@ -93,6 +95,7 @@ import {
   type FilterCondition,
 } from './components/user-advanced-filter'
 import { UserAssignOrderDialog } from './components/user-assign-order-dialog'
+import { UserBalanceLogDialog } from './components/user-balance-log-dialog'
 import { UserEditDialog } from './components/user-edit-dialog'
 import { UserGenerateDialog } from './components/user-generate-dialog'
 import { UserSendMailDialog } from './components/user-send-mail-dialog'
@@ -291,6 +294,10 @@ export function UserPage() {
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
   const [trafficTarget, setTrafficTarget] = useState<User | null>(null)
+  const [balanceLogTarget, setBalanceLogTarget] = useState<{
+    user: User
+    account: BalanceLogAccount | ''
+  } | null>(null)
   const [resetTrafficTarget, setResetTrafficTarget] = useState<User | null>(
     null
   )
@@ -918,14 +925,24 @@ export function UserPage() {
                               key='balance'
                               className='bg-card whitespace-nowrap'
                             >
-                              <div className='flex items-center gap-1 font-medium'>
+                              <button
+                                type='button'
+                                title='查看资金记录'
+                                className='flex cursor-pointer items-center gap-1 font-medium hover:underline'
+                                onClick={() =>
+                                  setBalanceLogTarget({
+                                    user: u,
+                                    account: 'balance',
+                                  })
+                                }
+                              >
                                 <span className='text-sm text-muted-foreground'>
                                   ¥
                                 </span>
                                 <span className='text-foreground tabular-nums'>
                                   {Number(u.balance ?? 0).toFixed(2)}
                                 </span>
-                              </div>
+                              </button>
                             </TableCell>
                           ),
                           commission_balance: () => (
@@ -933,14 +950,24 @@ export function UserPage() {
                               key='commission_balance'
                               className='bg-card whitespace-nowrap'
                             >
-                              <div className='flex items-center gap-1 font-medium'>
+                              <button
+                                type='button'
+                                title='查看资金记录'
+                                className='flex cursor-pointer items-center gap-1 font-medium hover:underline'
+                                onClick={() =>
+                                  setBalanceLogTarget({
+                                    user: u,
+                                    account: 'commission',
+                                  })
+                                }
+                              >
                                 <span className='text-sm text-muted-foreground'>
                                   ¥
                                 </span>
                                 <span className='text-foreground tabular-nums'>
                                   {Number(u.commission_balance ?? 0).toFixed(2)}
                                 </span>
-                              </div>
+                              </button>
                             </TableCell>
                           ),
                           online_count: () => (
@@ -1062,6 +1089,13 @@ export function UserPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
+                                setBalanceLogTarget({ user: u, account: '' })
+                              }
+                            >
+                              <Wallet className='size-4' /> 资金记录
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
                                 navigate({
                                   to: '/user',
                                   search: { invite_user_id: u.id },
@@ -1175,6 +1209,12 @@ export function UserPage() {
         open={!!assignTarget}
         onOpenChange={(o) => !o && setAssignTarget(null)}
         user={assignTarget}
+      />
+      <UserBalanceLogDialog
+        open={!!balanceLogTarget}
+        onOpenChange={(o) => !o && setBalanceLogTarget(null)}
+        user={balanceLogTarget?.user ?? null}
+        initialAccount={balanceLogTarget?.account}
       />
       <UserTrafficDialog
         open={!!trafficTarget}

@@ -33,6 +33,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { MultiCheck } from '@/components/multi-check'
+import { SubscribeInfoItems } from '@/features/config/components/subscribe-info-items'
+import {
+  SUBSCRIBE_INFO_DEFAULT_ITEMS,
+  SUBSCRIBE_INFO_ITEMS,
+} from '@/features/config/subscribe-info-options'
 import { fetchPayments } from '@/features/payment/api'
 import { fetchPlans } from '@/features/plan/api'
 import { filterPlanCandidatesBySite } from '@/features/plan/plan-site'
@@ -73,6 +78,10 @@ const formSchema = z
     support_url: z.string().optional(),
     docs_url: z.string().optional(),
     subscribe_domain: z.enum(['main', 'site']),
+    subscribe_info_mode: z.enum(['inherit', 'custom']),
+    subscribe_info_enable: z.boolean(),
+    subscribe_info_items: z.array(z.string()),
+    subscribe_info_website: z.string().max(255, '最多 255 个字符'),
   })
   .superRefine((values, context) => {
     if (values.site_type === 'reseller' && !values.owner_email) {
@@ -119,9 +128,25 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
       support_url: '',
       docs_url: '',
       subscribe_domain: 'main',
+      subscribe_info_mode: 'inherit',
+      subscribe_info_enable: true,
+      subscribe_info_items: SUBSCRIBE_INFO_DEFAULT_ITEMS,
+      subscribe_info_website: '',
     },
   })
   const siteType = useWatch({ control: form.control, name: 'site_type' })
+  const subscribeInfoMode = useWatch({
+    control: form.control,
+    name: 'subscribe_info_mode',
+  })
+  const subscribeInfoEnable = useWatch({
+    control: form.control,
+    name: 'subscribe_info_enable',
+  })
+  const subscribeInfoItems = useWatch({
+    control: form.control,
+    name: 'subscribe_info_items',
+  })
   const frontendTheme = useWatch({
     control: form.control,
     name: 'frontend_theme',
@@ -287,6 +312,13 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
             : current?.site_type === 'brand'
               ? 'site'
               : 'main',
+        subscribe_info_mode: current?.brand?.subscribe_info
+          ? 'custom'
+          : 'inherit',
+        subscribe_info_enable: current?.brand?.subscribe_info?.enable ?? true,
+        subscribe_info_items:
+          current?.brand?.subscribe_info?.items ?? SUBSCRIBE_INFO_DEFAULT_ITEMS,
+        subscribe_info_website: current?.brand?.subscribe_info?.website ?? '',
       })
     }
   }, [open, current, form])
@@ -312,6 +344,18 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
       if (!hasExplicitSubscribeDomain) delete brand.subscribe_domain
       if (form.getFieldState('subscribe_domain').isDirty) {
         brand.subscribe_domain = values.subscribe_domain
+      }
+      // 订阅信息展示：单独设置则整体覆盖；跟随主站时显式传 null 让后端清掉旧设置
+      if (values.subscribe_info_mode === 'custom') {
+        brand.subscribe_info = {
+          enable: values.subscribe_info_enable,
+          items: values.subscribe_info_items,
+          website: values.subscribe_info_website.trim(),
+        }
+      } else if (current?.brand?.subscribe_info) {
+        brand.subscribe_info = null
+      } else {
+        delete brand.subscribe_info
       }
       const newSiteThemeConfig =
         themeConfigDirty && values.frontend_theme
@@ -356,7 +400,7 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-2xl gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+      <DialogContent className='max-w-2xl flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:rounded-2xl'>
         <DialogHeader className='border-b bg-muted/20 px-6 pt-6 pb-4'>
           <DialogTitle className='font-mono text-lg tracking-tight'>
             {isEdit ? '编辑站点' : '添加站点'}
@@ -368,6 +412,7 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
         <Form {...form}>
           <form
             id='reseller-form'
+            className='flex min-h-0 flex-1 flex-col'
             onSubmit={form.handleSubmit((values) => {
               const selectedTrialPlanId = Number(values.trial_plan_id)
               if (
@@ -385,7 +430,7 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
               mutation.mutate(values)
             })}
           >
-            <div className='max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4 font-mono'>
+            <div className='min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4 font-mono'>
               <div className='grid gap-4 md:grid-cols-2'>
                 <FormField
                   control={form.control}
@@ -618,6 +663,89 @@ export function ResellerMutateDialog({ open, onOpenChange, current }: Props) {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name='subscribe_info_mode'
+                  render={({ field }) => (
+                    <FormItem className='mt-4'>
+                      <FormLabel className='text-[11px] tracking-wider text-muted-foreground uppercase'>
+                        在订阅中展示订阅信息
+                      </FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className='h-9 text-xs'>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value='inherit'>
+                            跟随主站（不展示官网）
+                          </SelectItem>
+                          <SelectItem value='custom'>本站单独设置</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className='text-[10px]'>
+                        跟随主站时沿用系统设置里的开关和展示项，但主站填写的官网不会出现在本站用户的订阅里。
+                      </FormDescription>
+                      <FormMessage className='text-[10px]' />
+                    </FormItem>
+                  )}
+                />
+                {subscribeInfoMode === 'custom' && (
+                  <div className='mt-3 space-y-3 rounded-md bg-muted/40 p-3'>
+                    <div className='flex items-center justify-between gap-3'>
+                      <span className='text-xs'>
+                        向本站用户的订阅输出订阅信息
+                      </span>
+                      <Switch
+                        checked={subscribeInfoEnable}
+                        onCheckedChange={(checked) =>
+                          form.setValue('subscribe_info_enable', checked, {
+                            shouldDirty: true,
+                          })
+                        }
+                      />
+                    </div>
+                    {subscribeInfoEnable && (
+                      <>
+                        <SubscribeInfoItems
+                          options={SUBSCRIBE_INFO_ITEMS}
+                          selected={subscribeInfoItems}
+                          onChange={(next) =>
+                            form.setValue('subscribe_info_items', next, {
+                              shouldDirty: true,
+                            })
+                          }
+                        />
+                        <FormField
+                          control={form.control}
+                          name='subscribe_info_website'
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className='text-[11px] tracking-wider text-muted-foreground uppercase'>
+                                官网
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder='例如：example.com'
+                                  className='h-9 text-xs'
+                                />
+                              </FormControl>
+                              <FormDescription className='text-[10px]'>
+                                勾选「官网」后展示的内容，可填本站网址或任意文案；留空则不展示该行。
+                              </FormDescription>
+                              <FormMessage className='text-[10px]' />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className='rounded-md border border-dashed p-3'>

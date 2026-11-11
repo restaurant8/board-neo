@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { UserEmailLink } from '@/components/user-email-link'
 import {
@@ -98,7 +97,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-2xl'>
+      <DialogContent className='flex max-h-[85dvh] flex-col gap-0 p-0 sm:max-w-2xl'>
         <DialogHeader className='space-y-2 border-b p-4 pe-12 text-start'>
           <div className='flex flex-wrap items-center gap-2'>
             <DialogTitle className='min-w-0 text-lg [overflow-wrap:anywhere]'>
@@ -138,8 +137,9 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Radix 视口内层默认 display:table，会被长串（链接、订阅地址）撑宽导致文字溢出气泡，改为 block */}
-        <ScrollArea className='min-h-0 flex-1 px-4 [&_[data-slot=scroll-area-viewport]>div]:block!'>
+        {/* 用原生滚动而不是 Radix ScrollArea：对话框只有 max-height（高度不确定），ScrollArea 视口的
+            height:100% 会退化成 auto，长消息把视口撑出对话框、盖住下面的输入框并拦截点击。 */}
+        <div className='min-h-0 flex-1 overflow-y-auto overscroll-contain px-4'>
           {isLoading ? (
             <p className='text-muted-foreground py-8 text-center'>加载中...</p>
           ) : (
@@ -176,7 +176,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <div className='space-y-2 border-t p-4'>
           {isClosed ? (
@@ -187,6 +187,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticketId }: Props) {
             <>
               <Textarea
                 rows={3}
+                className='max-h-40 overflow-y-auto'
                 placeholder='输入回复内容...'
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}

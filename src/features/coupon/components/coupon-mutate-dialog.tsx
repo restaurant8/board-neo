@@ -207,7 +207,7 @@ export function CouponMutateDialog({ open, onOpenChange, current }: Props) {
             金额型单位为「元」，比例型为百分比。
           </DialogDescription>
         </DialogHeader>
-        <div className='grid max-h-[65vh] gap-4 overflow-y-auto pr-2'>
+        <div className='grid max-h-[65dvh] gap-4 overflow-y-auto pr-2'>
           <div className='grid gap-2'>
             <Label>优惠券名称</Label>
             <Input

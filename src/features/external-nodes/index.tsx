@@ -630,7 +630,7 @@ function ExternalNodesPreview({
 
   return (
     <Dialog open={!!source} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-4xl'>
+      <DialogContent className='max-h-[85dvh] overflow-y-auto sm:max-w-4xl'>
         <DialogHeader>
           <DialogTitle>{source?.name} · 已导入节点</DialogTitle>
           <DialogDescription>
@@ -782,7 +782,7 @@ function ExternalNodeSelectionEditor({
         placeholder='搜索名称、地址或协议'
       />
 
-      <div className='max-h-[52vh] overflow-auto rounded-md border'>
+      <div className='max-h-[52dvh] overflow-auto rounded-md border'>
         <Table>
           <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>

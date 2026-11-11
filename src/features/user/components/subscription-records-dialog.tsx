@@ -189,7 +189,7 @@ export function SubscriptionRecordsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex h-[85vh] max-h-[85vh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
+      <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
         <DialogHeader>
           <DialogTitle>{selected ? '订阅时间明细' : '订阅记录'}</DialogTitle>
           <DialogDescription>

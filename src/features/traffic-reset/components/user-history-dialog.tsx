@@ -64,7 +64,7 @@ export function UserHistoryDialog({ userId, onOpenChange }: Props) {
           </div>
         ) : null}
 
-        <div className='max-h-[50vh] overflow-auto rounded-md border'>
+        <div className='max-h-[50dvh] overflow-auto rounded-md border'>
           <Table>
             <TableHeader>
               <TableRow>

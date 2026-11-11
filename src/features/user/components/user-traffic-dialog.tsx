@@ -65,7 +65,7 @@ export function UserTrafficDialog({ open, onOpenChange, user }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex h-[85vh] max-h-[85vh] w-[95vw] max-w-3xl flex-col gap-3 sm:max-w-3xl'>
+      <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-3xl flex-col gap-3 sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>流量使用记录</DialogTitle>
           <DialogDescription>{user?.email}</DialogDescription>

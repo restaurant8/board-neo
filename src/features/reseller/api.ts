@@ -10,6 +10,12 @@ export type ResellerBrand = {
   support_url?: string
   docs_url?: string
   subscribe_domain?: 'main' | 'site'
+  /** 分站自己的订阅信息展示设置；缺省 = 跟随主站（不含官网）。保存时传 null 清除。 */
+  subscribe_info?: {
+    enable: boolean
+    items: string[]
+    website: string
+  } | null
 }
 
 export type SiteType = 'reseller' | 'brand'

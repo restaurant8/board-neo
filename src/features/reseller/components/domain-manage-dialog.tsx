@@ -70,7 +70,7 @@ export function DomainManageDialog({ open, onOpenChange, site }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-md gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+      <DialogContent className='max-w-md gap-0 overflow-y-auto p-0 sm:rounded-2xl'>
         <DialogHeader className='border-b bg-muted/20 px-6 pt-6 pb-4'>
           <DialogTitle className='font-mono text-lg tracking-tight'>
             域名管理 · {site?.name}

@@ -166,6 +166,10 @@ export function OrderDetailDialog({ open, onOpenChange, orderId }: Props) {
                 valueClassName='text-green-600'
               />
               <Field label='折抵金额' value={yuan(data.surplus_amount)} />
+              <Field
+                label='折抵返还余额'
+                value={yuan(data.surplus_credit)}
+              />
             </Section>
 
             <Section title='时间信息'>

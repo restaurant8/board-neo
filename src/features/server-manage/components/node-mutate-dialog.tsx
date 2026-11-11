@@ -866,7 +866,7 @@ export function NodeMutateDialog({ open, onOpenChange, current }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className='flex h-[75vh] min-h-[500px] flex-col'>
+        <div className='flex h-[75dvh] min-h-[500px] flex-col'>
           <div className='flex-1 space-y-8 overflow-y-auto px-6 py-6'>
             {/* ----------------------------- 基础信息 ----------------------------- */}
             <div className='space-y-4'>

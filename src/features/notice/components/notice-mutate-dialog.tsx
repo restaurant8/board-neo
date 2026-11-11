@@ -98,7 +98,7 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-4xl gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+      <DialogContent className='max-w-4xl flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:rounded-2xl'>
         <DialogHeader className='border-b bg-muted/20 px-6 pb-4 pt-6'>
           <DialogTitle className='font-mono text-lg tracking-tight'>
             {isEdit ? '编辑公告' : '添加公告'}
@@ -110,9 +110,10 @@ export function NoticeMutateDialog({ open, onOpenChange, current }: Props) {
         <Form {...form}>
           <form
             id='notice-form'
+            className='flex min-h-0 flex-1 flex-col'
             onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
           >
-            <div className='max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4 font-mono'>
+            <div className='min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4 font-mono'>
               <FormField
                 control={form.control}
                 name='title'

@@ -343,7 +343,7 @@ export function TemplateMutateDialog({ open, onOpenChange, current }: Props) {
             填写礼品卡模板信息，奖励/条件可按需留空。
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className='max-h-[65vh] pr-4'>
+        <ScrollArea className='max-h-[65dvh] pr-4'>
           <div className='grid gap-4'>
             {/* 基础配置 */}
             <Section title='基础配置'>

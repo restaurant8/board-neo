@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 
-export type SubscribeInfoOption = { value: string; label: string }
+import { type SubscribeInfoOption } from '../subscribe-info-options'
 
 /**
  * 订阅信息展示项：勾选决定是否下发，箭头决定在订阅里的先后顺序。

@@ -177,8 +177,8 @@ export function AdvancedConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-2xl gap-0 overflow-hidden p-0 sm:rounded-2xl'>
-        <Tabs defaultValue='tls' className='w-full'>
+      <DialogContent className='max-w-2xl flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:rounded-2xl'>
+        <Tabs defaultValue='tls' className='flex min-h-0 w-full flex-1 flex-col'>
           <DialogHeader className='px-6 pb-2 pt-6'>
             <div className='mb-2 flex items-center justify-between'>
               <DialogTitle className='font-mono text-sm tracking-wide'>
@@ -221,7 +221,7 @@ export function AdvancedConfigDialog({
           </DialogHeader>
 
           {/* 中间内容区可滚动，避免证书内容过长把底部 Save 顶出视口 */}
-          <div className='max-h-[60vh] min-h-[350px] overflow-y-auto px-6 py-4'>
+          <div className='min-h-0 flex-1 overflow-y-auto px-6 py-4 sm:min-h-[350px]'>
           {hasMultiplex && (
             <TabsContent
               value='multiplex'

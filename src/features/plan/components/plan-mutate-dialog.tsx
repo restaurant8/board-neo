@@ -319,7 +319,7 @@ export function PlanMutateDialog({ open, onOpenChange, current }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex max-h-[90vh] max-w-xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
+      <DialogContent className='flex max-h-[90dvh] max-w-xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
         <DialogHeader className='flex-shrink-0 border-b px-6 pt-6 pb-4'>
           <DialogTitle className='text-lg tracking-tight'>
             {isEdit ? '编辑套餐' : '添加套餐'}

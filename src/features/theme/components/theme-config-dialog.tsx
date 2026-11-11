@@ -75,7 +75,7 @@ export function ThemeConfigDialog({
             加载中...
           </div>
         ) : (
-          <div className='grid max-h-[60vh] gap-4 overflow-y-auto pr-1'>
+          <div className='grid max-h-[60dvh] gap-4 overflow-y-auto pr-1'>
             <ThemeConfigFields theme={theme} values={values} onChange={set} />
           </div>
         )}

@@ -110,7 +110,7 @@ export function JobDetailCard() {
       </CardContent>
 
       <Dialog open={failedOpen} onOpenChange={setFailedOpen}>
-        <DialogContent className='flex max-h-[85vh] w-[95vw] max-w-4xl flex-col gap-3 sm:max-w-4xl'>
+        <DialogContent className='flex max-h-[85dvh] w-[95vw] max-w-4xl flex-col gap-3 sm:max-w-4xl'>
           <DialogHeader>
             <DialogTitle>失败任务详情</DialogTitle>
             <DialogDescription>

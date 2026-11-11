@@ -208,6 +208,49 @@ export function sendMail(payload: SendMailPayload) {
   return post<boolean>('/user/sendMail', payload)
 }
 
+// ----- 资金记录（balanceLogs）-----
+
+export type BalanceLogAccount = 'balance' | 'commission'
+
+/** 一笔余额/佣金变动。金额单位为分（与用户列表的元不同）。 */
+export type BalanceLog = {
+  id: number
+  account: BalanceLogAccount
+  /** 变动来源，对齐后端 UserBalanceLog::TYPE_* */
+  type: string
+  amount: number
+  before: number
+  after: number
+  trade_no: string | null
+  related_user_id: number | null
+  related_user_email: string | null
+  operator_id: number | null
+  operator_email: string | null
+  remark: string | null
+  created_at: number
+}
+
+export type BalanceLogsResult = {
+  data: BalanceLog[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/** GET /user/balanceLogs — 单个用户的余额/佣金变动明细。 */
+export function fetchBalanceLogs(params: {
+  user_id: number
+  account?: BalanceLogAccount | ''
+  page?: number
+  page_size?: number
+}) {
+  const clean: Record<string, unknown> = {}
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v
+  })
+  return get<BalanceLogsResult>('/user/balanceLogs', clean)
+}
+
 // ----- 使用记录（usageRecords / clearUsageRecords）-----
 
 export type UsageRecordType = 'connect' | 'subscribe'

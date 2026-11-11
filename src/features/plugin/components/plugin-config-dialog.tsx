@@ -87,7 +87,7 @@ export function PluginConfigDialog({ open, onOpenChange, plugin }: Props) {
         {isLoading ? (
           <div className='text-muted-foreground py-12 text-center'>加载中...</div>
         ) : (
-          <div className='grid max-h-[60vh] gap-4 overflow-y-auto pr-1'>
+          <div className='grid max-h-[60dvh] gap-4 overflow-y-auto pr-1'>
             {data && Object.keys(data).length === 0 && (
               <p className='text-muted-foreground text-sm'>该插件没有可配置项。</p>
             )}

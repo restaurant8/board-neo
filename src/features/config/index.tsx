@@ -47,6 +47,7 @@ import {
 } from './components/config-field'
 import { SectionNav, type SectionNavItem } from './components/section-nav'
 import { SubscribeInfoItems } from './components/subscribe-info-items'
+import { SUBSCRIBE_INFO_ITEMS } from './subscribe-info-options'
 import { SubscribeTemplateEditor } from './components/subscribe-template-editor'
 
 /** Flatten the grouped config into a single key→value map for editing. */
@@ -57,14 +58,6 @@ function flatten(data: ConfigData): Record<string, unknown> {
   })
   return out
 }
-
-/** 订阅信息可勾选项；此处顺序仅为选项列表顺序，实际展示顺序由后台排序结果决定。 */
-const SUBSCRIBE_INFO_ITEMS = [
-  { value: 'remaining_traffic', label: '剩余流量' },
-  { value: 'reset_day', label: '下次重置时间' },
-  { value: 'expire_date', label: '到期日期' },
-  { value: 'website', label: '官网' },
-]
 
 const sectionItems: SectionNavItem[] = [
   { key: 'site', title: '站点设置', icon: <Globe size={18} /> },
@@ -385,7 +378,7 @@ export function ConfigPage() {
                     />
                     <SwitchField label='允许用户更改订阅' description='开启后用户将会可以对订阅计划进行变更。' value={v('plan_change_enable') as boolean} onChange={(b) => set('plan_change_enable', b)} />
                     <SwitchField label='开启折抵方案' description='开启后用户更换订阅将会由系统对原有订阅进行折抵，方案参考文档。' value={v('surplus_enable') as boolean} onChange={(b) => set('surplus_enable', b)} />
-                    <SwitchField label='在订阅中展示订阅信息' description='开启后将会在用户订阅节点时输出订阅信息。' value={v('show_info_to_server_enable') as boolean} onChange={(b) => set('show_info_to_server_enable', b)} />
+                    <SwitchField label='在订阅中展示订阅信息' description='开启后将会在用户订阅节点时输出订阅信息。此处只对主站用户生效；分站在「分站管理 → 编辑」里单独设置，未单独设置的分站跟随这里的开关和展示项，但不会展示主站官网。' value={v('show_info_to_server_enable') as boolean} onChange={(b) => set('show_info_to_server_enable', b)} />
                     {(v('show_info_to_server_enable') as boolean) && (
                       <>
                         <FieldRow

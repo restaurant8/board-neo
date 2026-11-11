@@ -114,7 +114,7 @@ export function UserSendMailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
+      <DialogContent className='flex max-h-[90dvh] max-w-2xl flex-col gap-0 overflow-hidden border-border/50 p-0 shadow-none sm:rounded-xl'>
         <DialogHeader className='flex-shrink-0 border-b px-6 pb-4 pt-6'>
           <DialogTitle className='text-lg tracking-tight'>发送邮件</DialogTitle>
           <DialogDescription className='text-xs opacity-70'>
