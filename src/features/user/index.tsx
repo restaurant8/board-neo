@@ -283,9 +283,7 @@ export function UserPage() {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [mailOpen, setMailOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
-  const [usagePrefill, setUsagePrefill] = useState<string | undefined>(
-    undefined
-  )
+  const [usagePrefill, setUsagePrefill] = useState<User>()
   const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
   const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] = useState<
     string | undefined
@@ -471,7 +469,7 @@ export function UserPage() {
   }
 
   const openUsageForUser = (u: User) => {
-    setUsagePrefill(u.email)
+    setUsagePrefill(u)
     setUsageOpen(true)
   }
 
@@ -1197,7 +1195,7 @@ export function UserPage() {
       <UsageRecordsDialog
         open={usageOpen}
         onOpenChange={setUsageOpen}
-        prefillKeyword={usagePrefill}
+        prefillUser={usagePrefill}
       />
       <SubscriptionRecordsDialog
         open={subscriptionRecordsOpen}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getCookie, setCookie } from '@/lib/cookies'
 import { handleServerError } from '@/lib/handle-server-error'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -41,20 +44,26 @@ import {
 import { formatTimestamp } from '../format'
 
 const DEFAULT_PAGE_SIZE = 50
+const MODE_COOKIE = 'usage_records_mode'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 行内入口预填的关键词（用户邮箱或 ID）。 */
-  prefillKeyword?: string
+  prefillUser?: { id: number; email: string }
 }
 
-export function UsageRecordsDialog({
-  open,
-  onOpenChange,
-  prefillKeyword,
-}: Props) {
+export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
   const queryClient = useQueryClient()
+  const [mode, setMode] = useState<'strict' | 'relaxed'>(() =>
+    getCookie(MODE_COOKIE) === 'strict' ? 'strict' : 'relaxed'
+  )
+  const [detail, setDetail] = useState<{
+    id: number
+    userId: number
+    location: string
+    page: number
+  } | null>(null)
+  const relaxed = mode === 'relaxed' && !detail
 
   // 表单输入（待提交）
   const [keywordInput, setKeywordInput] = useState('')
@@ -103,13 +112,14 @@ export function UsageRecordsDialog({
   // 打开时重置并应用预填：渲染期间派生重置（React 官方模式），避免 effect 里同步 setState
   const [loaded, setLoaded] = useState<{
     open: boolean
-    prefillKeyword?: string
+    userId?: number
   } | null>(null)
 
-  if (loaded?.open !== open || loaded?.prefillKeyword !== prefillKeyword) {
-    setLoaded({ open, prefillKeyword })
+  if (loaded?.open !== open || loaded?.userId !== prefillUser?.id) {
+    setLoaded({ open, userId: prefillUser?.id })
     if (open) {
-      const kw = prefillKeyword ?? ''
+      setDetail(null)
+      const kw = prefillUser?.email ?? ''
       setKeywordInput(kw)
       setIpInput('')
       setTypeInput('')
@@ -124,8 +134,15 @@ export function UsageRecordsDialog({
     }
   }
 
+  const userFilter =
+    prefillUser && applied.keyword === prefillUser.email
+      ? { user_id: prefillUser.id }
+      : { keyword: applied.keyword || undefined }
   const queryParams = {
-    keyword: applied.keyword || undefined,
+    mode: detail ? ('strict' as const) : mode,
+    location_record_id: detail?.id,
+    ...userFilter,
+    user_id: detail?.userId ?? userFilter.user_id,
     ip: applied.ip || undefined,
     type: applied.type || undefined,
     ...timeRange,
@@ -135,7 +152,7 @@ export function UsageRecordsDialog({
     page_size: pageSize,
   }
 
-  const { data, isFetching, refetch } = useQuery({
+  const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ['usage-records', queryParams],
     queryFn: () => fetchUsageRecords(queryParams),
     enabled: open,
@@ -181,7 +198,7 @@ export function UsageRecordsDialog({
         mode === 'all'
           ? {}
           : {
-              keyword: applied.keyword || undefined,
+              ...userFilter,
               ip: applied.ip || undefined,
               type: applied.type || undefined,
               ...timeRange,
@@ -217,115 +234,153 @@ export function UsageRecordsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
           <DialogHeader>
-            <DialogTitle>使用记录</DialogTitle>
+            <DialogTitle>
+              {detail
+                ? `使用记录 · ${detail.location || '未知归属地'}`
+                : '使用记录'}
+            </DialogTitle>
             <DialogDescription>
-              用户连接 / 订阅过的真实 IP、归属地与 User-Agent。
+              {relaxed
+                ? '同一账号的完整归属地相同则合并，点击 IP 可看明细。涉及地区按国内城市、国外国家或地区统计。'
+                : '严格模式显示每个账号的原始 IP、类型和节点记录。'}
             </DialogDescription>
           </DialogHeader>
 
           {/* 筛选条 */}
           <div className='flex flex-wrap items-center gap-2'>
-            {hasFilter && (
-              <Button variant='outline' size='sm' onClick={resetFilters}>
-                <ArrowLeft className='size-4' /> 返回全部
+            {detail ? (
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => {
+                  setPage(detail.page)
+                  setDetail(null)
+                }}
+              >
+                <ArrowLeft className='size-4' /> 返回归属地汇总
               </Button>
+            ) : (
+              <div className='flex items-center gap-2'>
+                <Switch
+                  id='usage-records-strict-mode'
+                  checked={mode === 'strict'}
+                  onCheckedChange={(checked) => {
+                    const next = checked ? 'strict' : 'relaxed'
+                    setMode(next)
+                    setCookie(MODE_COOKIE, next, 365 * 86400)
+                    setPage(1)
+                  }}
+                />
+                <Label htmlFor='usage-records-strict-mode'>严格模式</Label>
+              </div>
             )}
-            <Select
-              value={rangeMode}
-              onValueChange={(v) => {
-                setRangeMode(v)
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className='h-8 w-28'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='today'>今天</SelectItem>
-                <SelectItem value='7d'>最近7天</SelectItem>
-                <SelectItem value='15d'>最近15天</SelectItem>
-                <SelectItem value='30d'>最近30天</SelectItem>
-                <SelectItem value='all'>全部时间</SelectItem>
-                <SelectItem value='custom'>自定义范围</SelectItem>
-              </SelectContent>
-            </Select>
-            {rangeMode === 'custom' && (
+            {!detail && (
               <>
-                <Input
-                  type='date'
-                  className='h-8 w-[140px]'
-                  value={customStart}
-                  onChange={(e) => {
-                    setCustomStart(e.target.value)
+                {hasFilter && (
+                  <Button variant='outline' size='sm' onClick={resetFilters}>
+                    <ArrowLeft className='size-4' /> 返回全部
+                  </Button>
+                )}
+                <Select
+                  value={rangeMode}
+                  onValueChange={(v) => {
+                    setRangeMode(v)
                     setPage(1)
                   }}
-                />
-                <span className='text-sm text-muted-foreground'>至</span>
+                >
+                  <SelectTrigger className='h-8 w-28'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='today'>今天</SelectItem>
+                    <SelectItem value='7d'>最近7天</SelectItem>
+                    <SelectItem value='15d'>最近15天</SelectItem>
+                    <SelectItem value='30d'>最近30天</SelectItem>
+                    <SelectItem value='all'>全部时间</SelectItem>
+                    <SelectItem value='custom'>自定义范围</SelectItem>
+                  </SelectContent>
+                </Select>
+                {rangeMode === 'custom' && (
+                  <>
+                    <Input
+                      type='date'
+                      className='h-8 w-[140px]'
+                      value={customStart}
+                      onChange={(e) => {
+                        setCustomStart(e.target.value)
+                        setPage(1)
+                      }}
+                    />
+                    <span className='text-sm text-muted-foreground'>至</span>
+                    <Input
+                      type='date'
+                      className='h-8 w-[140px]'
+                      value={customEnd}
+                      onChange={(e) => {
+                        setCustomEnd(e.target.value)
+                        setPage(1)
+                      }}
+                    />
+                  </>
+                )}
                 <Input
-                  type='date'
-                  className='h-8 w-[140px]'
-                  value={customEnd}
-                  onChange={(e) => {
-                    setCustomEnd(e.target.value)
-                    setPage(1)
-                  }}
+                  className='h-8 w-44'
+                  placeholder='用户邮箱 / ID'
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                 />
+                <Input
+                  className='h-8 w-40'
+                  placeholder='IP（可模糊）'
+                  value={ipInput}
+                  onChange={(e) => setIpInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                />
+                <Select
+                  value={typeInput || 'all'}
+                  onValueChange={(v) =>
+                    setTypeInput(v === 'all' ? '' : (v as UsageRecordType))
+                  }
+                >
+                  <SelectTrigger className='h-8 w-32'>
+                    <SelectValue placeholder='全部类型' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='all'>全部类型</SelectItem>
+                    <SelectItem value='connect'>连接</SelectItem>
+                    <SelectItem value='subscribe'>订阅</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size='sm' onClick={applyFilters}>
+                  查询
+                </Button>
               </>
             )}
-            <Input
-              className='h-8 w-44'
-              placeholder='用户邮箱 / ID'
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
-            <Input
-              className='h-8 w-40'
-              placeholder='IP（可模糊）'
-              value={ipInput}
-              onChange={(e) => setIpInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
-            <Select
-              value={typeInput || 'all'}
-              onValueChange={(v) =>
-                setTypeInput(v === 'all' ? '' : (v as UsageRecordType))
-              }
-            >
-              <SelectTrigger className='h-8 w-32'>
-                <SelectValue placeholder='全部类型' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='all'>全部类型</SelectItem>
-                <SelectItem value='connect'>连接</SelectItem>
-                <SelectItem value='subscribe'>订阅</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button size='sm' onClick={applyFilters}>
-              查询
-            </Button>
             <Button variant='outline' size='sm' onClick={() => refetch()}>
               <RefreshCw className='size-4' /> 刷新
             </Button>
-            <div className='ms-auto flex gap-2'>
-              {clearScoped && (
+            {!detail && (
+              <div className='ms-auto flex gap-2'>
+                {clearScoped && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='text-destructive'
+                    onClick={() => setClearMode('scoped')}
+                  >
+                    <Trash2 className='size-4' /> 清理当前范围
+                  </Button>
+                )}
                 <Button
-                  variant='outline'
+                  variant='destructive'
                   size='sm'
-                  className='text-destructive'
-                  onClick={() => setClearMode('scoped')}
+                  onClick={() => setClearMode('all')}
                 >
-                  <Trash2 className='size-4' /> 清理当前范围
+                  <Trash2 className='size-4' /> 清空全部
                 </Button>
-              )}
-              <Button
-                variant='destructive'
-                size='sm'
-                onClick={() => setClearMode('all')}
-              >
-                <Trash2 className='size-4' /> 清空全部
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
 
           {/* 表格 */}
@@ -338,18 +393,24 @@ export function UsageRecordsDialog({
                     className='w-[72px] cursor-pointer whitespace-nowrap select-none'
                     onClick={() => toggleSort('online')}
                   >
-                    在线IP{sortIcon('online')}
+                    在线 IP{sortIcon('online')}
                   </TableHead>
                   <TableHead className='whitespace-nowrap'>类型</TableHead>
                   <TableHead className='whitespace-nowrap'>IP</TableHead>
                   <TableHead className='whitespace-nowrap'>归属地</TableHead>
-                  <TableHead className='whitespace-nowrap'>节点</TableHead>
-                  <TableHead className='max-w-[280px]'>User-Agent</TableHead>
+                  {!relaxed && (
+                    <>
+                      <TableHead className='whitespace-nowrap'>节点</TableHead>
+                      <TableHead className='max-w-[280px]'>
+                        User-Agent
+                      </TableHead>
+                    </>
+                  )}
                   <TableHead
                     className='w-[64px] cursor-pointer whitespace-nowrap select-none'
                     onClick={() => toggleSort('count')}
                   >
-                    次数{sortIcon('count')}
+                    累计次数{sortIcon('count')}
                   </TableHead>
                   <TableHead
                     className='w-[170px] cursor-pointer whitespace-nowrap select-none'
@@ -362,8 +423,20 @@ export function UsageRecordsDialog({
               <TableBody>
                 {isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={9} className='h-24 text-center'>
+                    <TableCell
+                      colSpan={relaxed ? 7 : 9}
+                      className='h-24 text-center'
+                    >
                       加载中...
+                    </TableCell>
+                  </TableRow>
+                ) : isError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={relaxed ? 7 : 9}
+                      className='h-24 text-center'
+                    >
+                      使用记录加载失败，请点击刷新重试。
                     </TableCell>
                   </TableRow>
                 ) : rows.length > 0 ? (
@@ -383,6 +456,20 @@ export function UsageRecordsDialog({
                         <div className='text-xs text-muted-foreground'>
                           ID {r.user_id}
                         </div>
+                        {relaxed && r.region_count != null && (
+                          <div
+                            className={
+                              r.region_count > 1
+                                ? 'text-xs font-medium text-amber-700 dark:text-amber-400'
+                                : 'text-xs text-muted-foreground'
+                            }
+                            title='当前筛选范围内，该账号所有记录中可识别的不同地区数'
+                          >
+                            {r.region_count
+                              ? `涉及 ${r.region_count} 个地区`
+                              : '地区未知'}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span
@@ -396,11 +483,12 @@ export function UsageRecordsDialog({
                         </span>
                       </TableCell>
                       <TableCell>
-                        {r.type === 'subscribe' ? (
+                        {r.type !== 'connect' && (
                           <Badge variant='secondary' className='text-blue-600'>
                             订阅
                           </Badge>
-                        ) : (
+                        )}
+                        {r.type !== 'subscribe' && (
                           <Badge
                             variant='secondary'
                             className='text-emerald-600'
@@ -413,28 +501,55 @@ export function UsageRecordsDialog({
                         className='font-mono text-xs whitespace-nowrap'
                         title={r.ip}
                       >
-                        {r.ip}
+                        {relaxed ? (
+                          <Button
+                            variant='link'
+                            size='sm'
+                            className='h-auto p-0 font-mono text-xs'
+                            onClick={() => {
+                              setDetail({
+                                id: r.id,
+                                userId: r.user_id,
+                                location: r.location ?? '',
+                                page,
+                              })
+                              setPage(1)
+                            }}
+                          >
+                            {(r.ip_count ?? 0) > 1
+                              ? `${r.ip_count} 个 IP`
+                              : r.ip}
+                          </Button>
+                        ) : (
+                          r.ip
+                        )}
                       </TableCell>
                       <TableCell
                         className='whitespace-nowrap'
                         title={r.location || ''}
                       >
                         {r.location || (
-                          <span className='text-muted-foreground'>—</span>
+                          <span className='text-muted-foreground'>
+                            {relaxed ? '未知归属地' : '—'}
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell
-                        className='text-sm whitespace-nowrap text-muted-foreground'
-                        title={r.server_name || ''}
-                      >
-                        {r.server_name || '—'}
-                      </TableCell>
-                      <TableCell
-                        className='max-w-[280px] truncate text-xs text-muted-foreground'
-                        title={r.ua ?? ''}
-                      >
-                        {r.ua || '—'}
-                      </TableCell>
+                      {!relaxed && (
+                        <>
+                          <TableCell
+                            className='text-sm whitespace-nowrap text-muted-foreground'
+                            title={r.server_name || ''}
+                          >
+                            {r.server_name || '—'}
+                          </TableCell>
+                          <TableCell
+                            className='max-w-[280px] truncate text-xs text-muted-foreground'
+                            title={r.ua ?? ''}
+                          >
+                            {r.ua || '—'}
+                          </TableCell>
+                        </>
+                      )}
                       <TableCell>{r.count || 1}</TableCell>
                       <TableCell className='whitespace-nowrap'>
                         <div>{formatTimestamp(r.record_at)}</div>
@@ -446,7 +561,10 @@ export function UsageRecordsDialog({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className='h-24 text-center'>
+                    <TableCell
+                      colSpan={relaxed ? 7 : 9}
+                      className='h-24 text-center'
+                    >
                       暂无记录
                     </TableCell>
                   </TableRow>
@@ -458,6 +576,7 @@ export function UsageRecordsDialog({
           {/* 分页页脚 */}
           <SimplePagination
             page={page}
+            left={relaxed ? `共 ${total} 组归属地` : undefined}
             totalPages={maxPage}
             total={total}
             pageSize={pageSize}

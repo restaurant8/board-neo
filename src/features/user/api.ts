@@ -262,12 +262,14 @@ export type UsageRecord = {
   user_id: number
   user_email: string | null
   online_ip_count: number
-  type: UsageRecordType
+  type: UsageRecordType | 'mixed'
   ip: string
+  ip_count?: number
+  region_count?: number
   location: string | null
-  server_id: number
-  server_name: string
-  ua: string | null
+  server_id?: number
+  server_name?: string
+  ua?: string | null
   first_at: number
   record_at: number
   count: number
@@ -281,6 +283,8 @@ export type UsageRecordsResult = {
 }
 
 export type UsageRecordsParams = {
+  mode?: 'strict' | 'relaxed'
+  location_record_id?: number
   user_id?: number
   keyword?: string
   type?: UsageRecordType | ''
