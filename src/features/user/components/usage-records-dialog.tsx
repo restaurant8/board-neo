@@ -47,12 +47,20 @@ const DEFAULT_PAGE_SIZE = 50
 const MODE_COOKIE = 'usage_records_mode'
 
 type Props = {
+  includeForeignLocations: boolean
+  onForeignLocationsChange: (enabled: boolean) => void
   open: boolean
   onOpenChange: (open: boolean) => void
   prefillUser?: { id: number; email: string }
 }
 
-export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
+export function UsageRecordsDialog({
+  open,
+  onOpenChange,
+  prefillUser,
+  includeForeignLocations,
+  onForeignLocationsChange,
+}: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'strict' | 'relaxed'>(() =>
     getCookie(MODE_COOKIE) === 'strict' ? 'strict' : 'relaxed'
@@ -139,6 +147,7 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
       ? { user_id: prefillUser.id }
       : { keyword: applied.keyword || undefined }
   const queryParams = {
+    include_foreign_locations: Number(includeForeignLocations),
     mode: detail ? ('strict' as const) : mode,
     location_record_id: detail?.id,
     ...userFilter,
@@ -160,7 +169,8 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
 
   const hasFilter = !!(applied.keyword || applied.ip || applied.type)
   // 一键清除是否被限定范围（除关键词/IP/类型外，非「全部时间」也算限定）
-  const clearScoped = hasFilter || rangeMode !== 'all'
+  const clearScoped =
+    hasFilter || rangeMode !== 'all' || !includeForeignLocations
   const total = data?.total ?? 0
   const rows = data?.data ?? []
   const maxPage = Math.max(1, Math.ceil(total / pageSize))
@@ -198,6 +208,7 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
         mode === 'all'
           ? {}
           : {
+              include_foreign_locations: Number(includeForeignLocations),
               ...userFilter,
               ip: applied.ip || undefined,
               type: applied.type || undefined,
@@ -241,7 +252,7 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
             </DialogTitle>
             <DialogDescription>
               {relaxed
-                ? '同一账号的完整归属地相同则合并，点击 IP 可看明细。涉及地区按国内城市、国外国家或地区统计。'
+                ? '同一账号的完整归属地相同则合并，点击 IP 可看明细。'
                 : '严格模式显示每个账号的原始 IP、类型和节点记录。'}
             </DialogDescription>
           </DialogHeader>
@@ -276,6 +287,22 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
             )}
             {!detail && (
               <>
+                <div
+                  className='flex items-center gap-2'
+                  title='同时影响订阅异地、连接异地和使用记录'
+                >
+                  <Switch
+                    id='usage-records-include-foreign'
+                    checked={includeForeignLocations}
+                    onCheckedChange={(enabled) => {
+                      onForeignLocationsChange(enabled)
+                      setPage(1)
+                    }}
+                  />
+                  <Label htmlFor='usage-records-include-foreign'>
+                    计入其他国家
+                  </Label>
+                </div>
                 {hasFilter && (
                   <Button variant='outline' size='sm' onClick={resetFilters}>
                     <ArrowLeft className='size-4' /> 返回全部
@@ -595,8 +622,8 @@ export function UsageRecordsDialog({ open, onOpenChange, prefillUser }: Props) {
         title='清除使用记录'
         desc={
           clearMode === 'scoped'
-            ? '确认清除【当前筛选条件（含所选时间范围）】下的所有使用记录？此操作不可恢复。'
-            : '确认清除【全部】使用记录？此操作不可恢复！'
+            ? '确认清除当前筛选范围内的使用记录（含时间和国家范围）？此操作不可恢复。'
+            : '确认清除所有国家的全部使用记录？此操作不可恢复！'
         }
         confirmText='清除'
         destructive

@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { adminApi } from '@/lib/api-client'
+import { getCookie, setCookie } from '@/lib/cookies'
 import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
 import {
@@ -84,7 +85,6 @@ import {
   destroyUser,
   fetchPlans,
   fetchUsers,
-  fetchInvitedUsers,
   resetSecret,
   resetUserTraffic,
 } from './api'
@@ -108,6 +108,8 @@ import {
 } from './format'
 
 const route = getRouteApi('/_authenticated/user/')
+
+const FOREIGN_LOCATIONS_COOKIE = 'usage_records_include_foreign_locations'
 
 const USER_TABLE_COLUMNS = [
   { id: 'id', label: 'ID' },
@@ -283,6 +285,15 @@ export function UserPage() {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [mailOpen, setMailOpen] = useState(false)
   const [usageOpen, setUsageOpen] = useState(false)
+  const [includeForeignLocations, setIncludeForeignLocations] = useState(
+    () => getCookie(FOREIGN_LOCATIONS_COOKIE) === '1'
+  )
+  const changeForeignLocations = (enabled: boolean) => {
+    setIncludeForeignLocations(enabled)
+    setCookie(FOREIGN_LOCATIONS_COOKIE, enabled ? '1' : '0', 365 * 86400)
+    setPage(1)
+    setSelected([])
+  }
   const [usagePrefill, setUsagePrefill] = useState<User>()
   const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
   const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] = useState<
@@ -319,36 +330,26 @@ export function UserPage() {
   const filter = useMemo<UserFilter[]>(() => {
     const f: UserFilter[] = []
     if (appliedEmail) f.push({ id: 'email', value: `like:${appliedEmail}` })
-    // 当使用 fetchInvitedUsers 时，不在这里添加 invite_user_id 过滤
-    // 因为该函数会直接使用 inviteUserId 参数
+    if (inviteUserId != null)
+      f.push({ id: 'invite_user_id', value: `eq:${inviteUserId}` })
     if (siteFilter) f.push({ id: 'site_id', value: siteFilter })
     f.push(...advancedFilter)
     return f
-  }, [appliedEmail, siteFilter, advancedFilter])
+  }, [appliedEmail, inviteUserId, siteFilter, advancedFilter])
 
   const hasFilter = filter.length > 0
 
-  // 当有 inviteUserId 时，确保转换为整数
-  const parsedInviteUserId = inviteUserId != null
-    ? (typeof inviteUserId === 'string' ? parseInt(inviteUserId, 10) : inviteUserId)
-    : null
-
   const params = {
+    include_foreign_locations: Number(includeForeignLocations),
     current: page,
     pageSize,
     filter: hasFilter ? filter : undefined,
     sort: sort.length ? sort : undefined,
   }
 
-  // 当浏览邀请的用户时，使用专门的 fetchInvitedUsers API
   const { data, isLoading } = useQuery({
-    queryKey: parsedInviteUserId != null
-      ? ['invited-users', parsedInviteUserId, page, pageSize]
-      : ['users', params],
-    queryFn: () =>
-      parsedInviteUserId != null
-        ? fetchInvitedUsers(parsedInviteUserId, page, pageSize)
-        : fetchUsers(params),
+    queryKey: ['users', params],
+    queryFn: () => fetchUsers(params),
   })
 
   const total = data?.total ?? 0
@@ -410,6 +411,7 @@ export function UserPage() {
   const batchBanMutation = useMutation({
     mutationFn: (scope: 'selected' | 'filtered' | 'all') =>
       banUsers({
+        include_foreign_locations: Number(includeForeignLocations),
         scope,
         user_ids: scope === 'selected' ? selected : undefined,
         filter: scope === 'filtered' && hasFilter ? filter : undefined,
@@ -450,6 +452,7 @@ export function UserPage() {
       const res = await adminApi.post(
         '/user/dumpCSV',
         {
+          include_foreign_locations: Number(includeForeignLocations),
           scope,
           user_ids: scope === 'selected' ? selected : undefined,
           filter: scope === 'filtered' ? filter : undefined,
@@ -598,11 +601,11 @@ export function UserPage() {
         </div>
 
         {/* 「TA的邀请」跳转筛选提示（invite_user_id） */}
-        {parsedInviteUserId != null && (
+        {inviteUserId != null && (
           <div className='flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm'>
             <Users className='size-4 text-muted-foreground' />
             <span>
-              仅显示邀请人 #{parsedInviteUserId} 邀请的用户
+              仅显示邀请人 #{inviteUserId} 邀请的用户
               {rows.length === 0 && <span className='text-muted-foreground'>（该用户未邀请任何用户）</span>}
             </span>
             <Button
@@ -1189,6 +1192,7 @@ export function UserPage() {
         open={mailOpen}
         onOpenChange={setMailOpen}
         filter={filter}
+        includeForeignLocations={includeForeignLocations}
         selectedIds={selected}
         sort={sort}
       />
@@ -1196,6 +1200,8 @@ export function UserPage() {
         open={usageOpen}
         onOpenChange={setUsageOpen}
         prefillUser={usagePrefill}
+        includeForeignLocations={includeForeignLocations}
+        onForeignLocationsChange={changeForeignLocations}
       />
       <SubscriptionRecordsDialog
         open={subscriptionRecordsOpen}

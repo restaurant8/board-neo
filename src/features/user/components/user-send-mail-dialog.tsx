@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,6 +43,7 @@ const SYSTEM_NOTICE_CONTENT =
   '尊敬的用户 {{user.email}} 您好：\n\n这里是来自 {{app.name}} 的系统通知。\n\n如有问题请访问：{{app.url}}\n'
 
 type Props = {
+  includeForeignLocations: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   /** 当前筛选条件；为空则发送全部。 */
@@ -54,6 +55,7 @@ type Props = {
 }
 
 export function UserSendMailDialog({
+  includeForeignLocations,
   open,
   onOpenChange,
   filter,
@@ -69,13 +71,17 @@ export function UserSendMailDialog({
     selectedCount > 0 ? 'selected' : hasFilter ? 'filtered' : 'all'
   const [scope, setScope] = useState<BulkScope>(defaultScope)
 
-  useEffect(() => {
-    if (open) setScope(defaultScope)
-  }, [open, defaultScope])
+  const activeDefault = open ? defaultScope : null
+  const [previousDefault, setPreviousDefault] = useState(activeDefault)
+  if (previousDefault !== activeDefault) {
+    setPreviousDefault(activeDefault)
+    if (activeDefault) setScope(activeDefault)
+  }
 
   const mutation = useMutation({
     mutationFn: () =>
       sendMail({
+        include_foreign_locations: Number(includeForeignLocations),
         subject,
         content,
         scope,

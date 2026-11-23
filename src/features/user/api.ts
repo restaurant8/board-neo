@@ -86,6 +86,7 @@ export type UserFilter = { id: string; value: unknown; logic?: 'and' | 'or' }
 export type UserSort = { id: string; desc: boolean }
 
 export type UserFetchParams = {
+  include_foreign_locations?: number
   current?: number
   pageSize?: number
   filter?: UserFilter[]
@@ -143,6 +144,7 @@ export type BulkScope = 'selected' | 'filtered' | 'all'
 
 /** POST /user/ban — 封禁（按范围）。 */
 export function banUsers(params: {
+  include_foreign_locations?: number
   scope?: BulkScope
   user_ids?: number[]
   filter?: UserFilter[]
@@ -193,6 +195,7 @@ export function generateUsers(payload: GeneratePayload) {
 }
 
 export type SendMailPayload = {
+  include_foreign_locations?: number
   subject: string
   content: string
   scope?: BulkScope
@@ -283,6 +286,7 @@ export type UsageRecordsResult = {
 }
 
 export type UsageRecordsParams = {
+  include_foreign_locations?: number
   mode?: 'strict' | 'relaxed'
   location_record_id?: number
   user_id?: number
@@ -307,6 +311,7 @@ export function fetchUsageRecords(params: UsageRecordsParams) {
 }
 
 export type ClearUsageParams = {
+  include_foreign_locations?: number
   user_id?: number
   keyword?: string
   type?: UsageRecordType | ''
