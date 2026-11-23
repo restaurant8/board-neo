@@ -284,3 +284,43 @@ export function generateEchKey(publicName?: string) {
     publicName ? { public_name: publicName } : undefined
   )
 }
+
+export type ManagedCertificateDomain = {
+  domain: string
+  enabled: boolean
+  additional_names: string[]
+  expires_at: number | null
+  last_check_at: number | null
+  last_deployed_at: number | null
+  next_check_at: number | null
+  status:
+    'pending' | 'watching' | 'checking' | 'deployed' | 'failed' | 'empty' | null
+  last_error: string | null
+  nodes: {
+    id: number
+    name: string
+    expires_at: number | null
+    expiry_error: 'missing' | 'invalid' | null
+    matches_managed_certificate: boolean | null
+  }[]
+}
+
+export function fetchManagedCertificates() {
+  return get<{
+    server_time: number
+    cloudflare_configured: boolean
+    domains: ManagedCertificateDomain[]
+  }>('/server/certificates/domains')
+}
+
+export function configureManagedCertificate(payload: {
+  domain: string
+  enabled: boolean
+  additional_names: string[]
+}) {
+  return post<boolean>('/server/certificates/configure', payload)
+}
+
+export function retryManagedCertificate(domain: string) {
+  return post<boolean>('/server/certificates/retry', { domain })
+}

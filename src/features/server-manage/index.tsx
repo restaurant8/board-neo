@@ -110,6 +110,7 @@ import { BatchGroupsDialog } from './components/batch-groups-dialog'
 import { BatchRateDialog } from './components/batch-rate-dialog'
 import { BatchReplaceDialog } from './components/batch-replace-dialog'
 import { InstallCommandDialog } from './components/install-command-dialog'
+import { ManagedCertificatesDialog } from './components/managed-certificates-dialog'
 import { NodeMutateDialog } from './components/node-mutate-dialog'
 
 const NODE_TABLE_COLUMNS = [
@@ -259,6 +260,7 @@ export function ServerManagePage() {
   const [batchGroupsOpen, setBatchGroupsOpen] = useState(false)
   const [batchRateNodes, setBatchRateNodes] = useState<Server[] | null>(null)
   const [batchReplaceOpen, setBatchReplaceOpen] = useState(false)
+  const [managedCertificatesOpen, setManagedCertificatesOpen] = useState(false)
   const [batchCertificateOpen, setBatchCertificateOpen] = useState(false)
 
   // 筛选（胶囊多选）
@@ -831,6 +833,14 @@ export function ServerManagePage() {
                 >
                   <ShieldCheck className='size-4' />
                   批量证书
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='h-8'
+                  onClick={() => setManagedCertificatesOpen(true)}
+                >
+                  证书托管
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -1848,6 +1858,10 @@ export function ServerManagePage() {
           isLoading={batchReplaceMutation.isPending}
           onConfirm={(payload) => batchReplaceMutation.mutate(payload)}
         />
+      )}
+
+      {managedCertificatesOpen && (
+        <ManagedCertificatesDialog onOpenChange={setManagedCertificatesOpen} />
       )}
 
       {batchCertificateOpen && (
