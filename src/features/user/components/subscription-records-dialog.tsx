@@ -34,6 +34,8 @@ import { UserEmailLink } from '@/components/user-email-link'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
   type SubscriptionRecord,
+  type SubscriptionTarget,
+  type User,
   type SubscriptionRecordOrderBy,
   type UsageOrderDir,
   clearUsageRecords,
@@ -41,24 +43,50 @@ import {
   fetchSubscriptionRecords,
 } from '../api'
 import { formatTimestamp } from '../format'
+import { AccessAudit, AccessOverview } from './subscription-access'
+import { PolicyPanel } from './subscription-policy'
+
+const globalTabs = {
+  overview: '访问概览',
+  history: '历史汇总',
+  policy: '全站规则',
+  audit: '操作记录',
+}
+const userTabs = {
+  events: '请求明细',
+  policy: '用户规则与操作',
+  audit: '操作记录',
+}
+const decisions = {
+  allowed: '规则放行',
+  observed: '观察命中 · 放行',
+  limited: '限频拦截',
+  paused: '人工暂停',
+  unavailable: '账户或套餐不可用',
+}
+type SelectedUser = SubscriptionTarget & Partial<SubscriptionRecord>
 
 const DEFAULT_PAGE_SIZE = 50
 
 type ClearTarget =
   | { kind: 'filtered'; keyword: string }
-  | { kind: 'user'; record: SubscriptionRecord }
+  | { kind: 'user'; record: SubscriptionTarget }
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  prefillKeyword?: string
+  prefillUser?: Pick<User, 'id' | 'email'>
 }
 
-export function SubscriptionRecordsDialog({
-  open,
-  onOpenChange,
-  prefillKeyword,
-}: Props) {
+export function SubscriptionRecordsDialog(props: Props) {
+  return props.open ? (
+    <RecordsContent key={props.prefillUser?.id ?? 'all'} {...props} />
+  ) : null
+}
+
+function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
+  const [tab, setTab] = useState<keyof typeof globalTabs>('overview')
+  const [userTab, setUserTab] = useState<keyof typeof userTabs>('events')
   const queryClient = useQueryClient()
   const [keywordInput, setKeywordInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -66,31 +94,14 @@ export function SubscriptionRecordsDialog({
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [orderBy, setOrderBy] = useState<SubscriptionRecordOrderBy>('record_at')
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
-  const [selected, setSelected] = useState<SubscriptionRecord | null>(null)
+  const [selected, setSelected] = useState<SelectedUser | null>(
+    prefillUser
+      ? { user_id: prefillUser.id, user_email: prefillUser.email }
+      : null
+  )
   const [eventPage, setEventPage] = useState(1)
   const [eventPageSize, setEventPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null)
-
-  const [loaded, setLoaded] = useState<{
-    open: boolean
-    prefillKeyword?: string
-  } | null>(null)
-
-  if (loaded?.open !== open || loaded?.prefillKeyword !== prefillKeyword) {
-    setLoaded({ open, prefillKeyword })
-    if (open) {
-      const initialKeyword = prefillKeyword ?? ''
-      setKeywordInput(initialKeyword)
-      setKeyword(initialKeyword)
-      setPage(1)
-      setPageSize(DEFAULT_PAGE_SIZE)
-      setOrderBy('record_at')
-      setOrderDir('desc')
-      setSelected(null)
-      setEventPage(1)
-      setEventPageSize(DEFAULT_PAGE_SIZE)
-    }
-  }
 
   const queryParams = {
     keyword: keyword || undefined,
@@ -102,10 +113,11 @@ export function SubscriptionRecordsDialog({
   const summaryQuery = useQuery({
     queryKey: ['subscription-records', queryParams],
     queryFn: () => fetchSubscriptionRecords(queryParams),
-    enabled: open && !selected,
+    enabled: open && !selected && tab === 'history',
   })
 
   const eventQuery = useQuery({
+    staleTime: 0,
     queryKey: [
       'subscription-record-events',
       selected?.user_id,
@@ -118,7 +130,7 @@ export function SubscriptionRecordsDialog({
         page: eventPage,
         page_size: eventPageSize,
       }),
-    enabled: open && !!selected,
+    enabled: open && !!selected && userTab === 'events',
   })
 
   const clearMutation = useMutation({
@@ -141,6 +153,8 @@ export function SubscriptionRecordsDialog({
         setEventPage(1)
       }
       setPage(1)
+      queryClient.invalidateQueries({ queryKey: ['subscription-access'] })
+      queryClient.invalidateQueries({ queryKey: ['subscription-audit'] })
       queryClient.invalidateQueries({ queryKey: ['subscription-records'] })
       queryClient.invalidateQueries({
         queryKey: ['subscription-record-events'],
@@ -175,7 +189,8 @@ export function SubscriptionRecordsDialog({
     setPage(1)
   }
 
-  const openEvents = (record: SubscriptionRecord) => {
+  const openEvents = (record: SelectedUser) => {
+    setUserTab('events')
     setSelected(record)
     setEventPage(1)
   }
@@ -191,116 +206,214 @@ export function SubscriptionRecordsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
         <DialogHeader>
-          <DialogTitle>{selected ? '订阅时间明细' : '订阅记录'}</DialogTitle>
+          <DialogTitle>
+            {selected
+              ? selected.user_email || `用户 #${selected.user_id}`
+              : '订阅记录'}
+          </DialogTitle>
           <DialogDescription>
             {selected
-              ? `${selected.user_email || `用户 #${selected.user_id}`}：逐次拉取订阅的时间、IP 与客户端。`
-              : '按用户统计订阅拉取次数、来源 IP、首次与最近订阅时间；同一用户和 IP 在 30 秒内重复拉取只计一次。'}
+              ? `订阅记录 · 用户 #${selected.user_id}`
+              : tab === 'history'
+                ? '历史汇总按用户和 IP 去重，同一来源 30 秒内计一次。'
+                : '查看近 24 小时的请求、管理订阅下载和拉取频率。'}
           </DialogDescription>
         </DialogHeader>
-
-        {selected ? (
-          <>
-            <div className='flex flex-wrap items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-1 border-b pb-2'>
+          {selected ? (
+            <>
               <Button
-                variant='outline'
+                variant='ghost'
                 size='sm'
                 onClick={() => setSelected(null)}
               >
-                <ArrowLeft className='size-4' /> 返回订阅统计
+                <ArrowLeft className='size-4' />
+                返回列表
               </Button>
-              <Badge variant='secondary'>
-                累计 {selected.subscribe_count} 次
-              </Badge>
-              <Badge variant='outline'>{selected.ip_count} 个 IP</Badge>
-              <span className='text-xs text-muted-foreground'>
-                历史汇总：{formatTimestamp(selected.first_at)} 至{' '}
-                {formatTimestamp(selected.record_at)}
-              </span>
-              <Button
-                variant='destructive'
-                size='sm'
-                className='ms-auto'
-                onClick={() =>
-                  setClearTarget({ kind: 'user', record: selected })
-                }
-              >
-                <Trash2 className='size-4' /> 清理此用户
-              </Button>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={() => eventQuery.refetch()}
-              >
-                <RefreshCw className='size-4' /> 刷新
-              </Button>
-            </div>
+              {(Object.keys(userTabs) as (keyof typeof userTabs)[]).map(
+                (key) => (
+                  <Button
+                    key={key}
+                    variant={userTab === key ? 'secondary' : 'ghost'}
+                    aria-pressed={userTab === key}
+                    size='sm'
+                    onClick={() => setUserTab(key)}
+                  >
+                    {userTabs[key]}
+                  </Button>
+                )
+              )}
+            </>
+          ) : (
+            (Object.keys(globalTabs) as (keyof typeof globalTabs)[]).map(
+              (key) => (
+                <Button
+                  key={key}
+                  variant={tab === key ? 'secondary' : 'ghost'}
+                  aria-pressed={tab === key}
+                  size='sm'
+                  onClick={() => setTab(key)}
+                >
+                  {globalTabs[key]}
+                </Button>
+              )
+            )
+          )}
+        </div>
+        {selected ? (
+          userTab === 'policy' ? (
+            <PolicyPanel user={selected} />
+          ) : userTab === 'audit' ? (
+            <AccessAudit userId={selected.user_id} />
+          ) : (
+            <>
+              <div className='flex flex-wrap items-center gap-2'>
+                {selected.subscribe_count !== undefined && (
+                  <>
+                    <Badge variant='secondary'>
+                      累计 {selected.subscribe_count} 次
+                    </Badge>
+                    <Badge variant='outline'>{selected.ip_count} 个 IP</Badge>
+                    <span className='text-xs text-muted-foreground'>
+                      历史汇总：{formatTimestamp(selected.first_at)} 至{' '}
+                      {formatTimestamp(selected.record_at)}
+                    </span>
+                  </>
+                )}
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  className='ms-auto'
+                  onClick={() =>
+                    setClearTarget({ kind: 'user', record: selected })
+                  }
+                >
+                  <Trash2 className='size-4' /> 清理访问记录
+                </Button>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => eventQuery.refetch()}
+                >
+                  <RefreshCw className='size-4' /> 刷新
+                </Button>
+              </div>
 
-            <div className='flex-1 overflow-x-auto overflow-y-auto rounded-md border'>
-              <Table className='w-max min-w-full'>
-                <TableHeader className='sticky top-0 z-10 bg-background'>
-                  <TableRow>
-                    <TableHead className='w-[180px] whitespace-nowrap'>
-                      订阅时间
-                    </TableHead>
-                    <TableHead className='whitespace-nowrap'>IP</TableHead>
-                    <TableHead className='whitespace-nowrap'>归属地</TableHead>
-                    <TableHead className='max-w-[420px]'>User-Agent</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {eventQuery.isFetching ? (
+              <div className='flex-1 overflow-x-auto overflow-y-auto rounded-md border'>
+                <Table className='w-max min-w-full'>
+                  <TableHeader className='sticky top-0 z-10 bg-background'>
                     <TableRow>
-                      <TableCell colSpan={4} className='h-24 text-center'>
-                        加载中...
-                      </TableCell>
+                      <TableHead className='w-[180px] whitespace-nowrap'>
+                        订阅时间
+                      </TableHead>
+                      <TableHead>结果 / 原因</TableHead>
+                      <TableHead className='whitespace-nowrap'>IP</TableHead>
+                      <TableHead className='whitespace-nowrap'>
+                        归属地
+                      </TableHead>
+                      <TableHead className='max-w-[420px]'>
+                        User-Agent
+                      </TableHead>
                     </TableRow>
-                  ) : eventRows.length > 0 ? (
-                    eventRows.map((event) => (
-                      <TableRow key={event.id}>
-                        <TableCell className='whitespace-nowrap'>
-                          {formatTimestamp(event.record_at)}
-                        </TableCell>
-                        <TableCell className='font-mono text-xs whitespace-nowrap'>
-                          {event.ip}
-                        </TableCell>
-                        <TableCell className='whitespace-nowrap'>
-                          {event.location || '—'}
-                        </TableCell>
-                        <TableCell
-                          className='max-w-[420px] truncate text-xs text-muted-foreground'
-                          title={event.ua || ''}
-                        >
-                          {event.ua || '—'}
+                  </TableHeader>
+                  <TableBody>
+                    {eventQuery.isFetching ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className='h-24 text-center'>
+                          加载中...
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className='h-28 text-center'>
-                        <div>暂无逐次时间明细</div>
-                        <div className='mt-1 text-xs text-muted-foreground'>
-                          历史聚合数据无法还原每次时间；升级后的新订阅会从这里开始记录。
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ) : eventQuery.isError ? (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          读取明细失败，请刷新重试。
+                        </TableCell>
+                      </TableRow>
+                    ) : eventRows.length > 0 ? (
+                      eventRows.map((event) => (
+                        <TableRow key={event.id}>
+                          <TableCell className='whitespace-nowrap'>
+                            {formatTimestamp(event.record_at)}
+                          </TableCell>
+                          <TableCell className='max-w-72 whitespace-normal'>
+                            <Badge
+                              variant={
+                                event.decision === 'limited' ||
+                                event.decision === 'paused'
+                                  ? 'destructive'
+                                  : 'outline'
+                              }
+                            >
+                              {event.decision
+                                ? decisions[event.decision]
+                                : '历史去重记录'}
+                            </Badge>
+                            {event.http_status != null && (
+                              <span className='ms-2 text-xs text-muted-foreground'>
+                                HTTP {event.http_status}
+                              </span>
+                            )}
+                            {event.reason && (
+                              <div className='mt-1 text-xs break-words'>
+                                {event.reason}
+                              </div>
+                            )}
+                            {event.retry_at && (
+                              <div className='text-xs text-muted-foreground'>
+                                {event.decision === 'paused'
+                                  ? '计划恢复'
+                                  : '窗口结束'}{' '}
+                                {formatTimestamp(event.retry_at)}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className='font-mono text-xs whitespace-nowrap'>
+                            {event.ip}
+                          </TableCell>
+                          <TableCell className='whitespace-nowrap'>
+                            {event.location || '—'}
+                          </TableCell>
+                          <TableCell
+                            className='max-w-[420px] truncate text-xs text-muted-foreground'
+                            title={event.ua || ''}
+                          >
+                            {event.ua || '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className='h-28 text-center'>
+                          <div>暂无请求明细</div>
+                          <div className='mt-1 text-xs text-muted-foreground'>
+                            新请求会在这里记录，早期记录可在历史汇总中查询。
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-            <SimplePagination
-              page={eventPage}
-              totalPages={eventMaxPage}
-              total={eventTotal}
-              pageSize={eventPageSize}
-              onPageChange={setEventPage}
-              onPageSizeChange={(size) => {
-                setEventPageSize(size)
-                setEventPage(1)
-              }}
-            />
-          </>
+              <SimplePagination
+                page={eventPage}
+                totalPages={eventMaxPage}
+                total={eventTotal}
+                pageSize={eventPageSize}
+                onPageChange={setEventPage}
+                onPageSizeChange={(size) => {
+                  setEventPageSize(size)
+                  setEventPage(1)
+                }}
+              />
+            </>
+          )
+        ) : tab === 'overview' ? (
+          <AccessOverview onSelect={openEvents} />
+        ) : tab === 'policy' ? (
+          <PolicyPanel />
+        ) : tab === 'audit' ? (
+          <AccessAudit />
         ) : (
           <>
             <div className='flex flex-wrap items-center gap-2'>
@@ -331,7 +444,7 @@ export function SubscriptionRecordsDialog({
                 variant='destructive'
                 size='sm'
                 className='ms-auto'
-                disabled={summaryTotal === 0}
+                disabled={summaryQuery.isPending || summaryQuery.isError}
                 onClick={() => setClearTarget({ kind: 'filtered', keyword })}
               >
                 <Trash2 className='size-4' />
@@ -355,7 +468,7 @@ export function SubscriptionRecordsDialog({
                       className='cursor-pointer whitespace-nowrap'
                       onClick={() => toggleSort('count')}
                     >
-                      订阅次数{sortIcon('count')}
+                      去重次数{sortIcon('count')}
                     </TableHead>
                     <TableHead className='whitespace-nowrap'>来源 IP</TableHead>
                     <TableHead className='max-w-[260px]'>最近客户端</TableHead>

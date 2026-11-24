@@ -11,7 +11,11 @@ export function formatBytes(bytes: number | null | undefined): string {
 
 /** GiB 数值 ↔ 字节，用于编辑表单（用户以 GB 输入流量）。 */
 export function bytesToGiB(bytes: number | null | undefined): number {
-  return Math.round(((Number(bytes ?? 0) / 1024 / 1024 / 1024) + Number.EPSILON) * 100) / 100
+  return (
+    Math.round(
+      (Number(bytes ?? 0) / 1024 / 1024 / 1024 + Number.EPSILON) * 100
+    ) / 100
+  )
 }
 export function giBToBytes(gib: number | null | undefined): number {
   return Math.round(Number(gib ?? 0) * 1024 * 1024 * 1024)
@@ -89,7 +93,10 @@ export function formatOnlineStatus(t: number | null | undefined): {
   else if (diff >= 3600) dur = `离线时长: ${Math.floor(diff / 3600)}小时`
   else if (diff >= 60) dur = `离线时长: ${Math.floor(diff / 60)}分钟`
   else dur = `离线时长: ${diff}秒`
-  return { text: `最后在线时间: ${formatTimestamp(last)}（${dur}）`, online: false }
+  return {
+    text: `最后在线时间: ${formatTimestamp(last)}（${dur}）`,
+    online: false,
+  }
 }
 
 /** 设备限制展示（对齐官方 columns.device_limit）。 */
@@ -102,4 +109,14 @@ export function formatDeviceLimit(limit: number | null | undefined): string {
 /** 金额（元）展示。 */
 export function formatMoney(amount: number | null | undefined): string {
   return `¥${Number(amount ?? 0).toFixed(2)}`
+}
+
+export function pauseLabel(until: number | null | undefined) {
+  if (until === null || until === undefined) return null
+  const ts = Number(until)
+  return ts === 0
+    ? '暂停至手动恢复'
+    : ts * 1000 > Date.now()
+      ? `暂停至 ${formatTimestamp(ts)}`
+      : null
 }

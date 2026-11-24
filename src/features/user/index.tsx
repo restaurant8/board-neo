@@ -296,9 +296,8 @@ export function UserPage() {
   }
   const [usagePrefill, setUsagePrefill] = useState<User>()
   const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
-  const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] = useState<
-    string | undefined
-  >(undefined)
+  const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] =
+    useState<User>()
   const [deleting, setDeleting] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
@@ -477,7 +476,7 @@ export function UserPage() {
   }
 
   const openSubscriptionRecordsForUser = (u: User) => {
-    setSubscriptionRecordsPrefill(u.email)
+    setSubscriptionRecordsPrefill(u)
     setSubscriptionRecordsOpen(true)
   }
 
@@ -606,7 +605,11 @@ export function UserPage() {
             <Users className='size-4 text-muted-foreground' />
             <span>
               仅显示邀请人 #{inviteUserId} 邀请的用户
-              {rows.length === 0 && <span className='text-muted-foreground'>（该用户未邀请任何用户）</span>}
+              {rows.length === 0 && (
+                <span className='text-muted-foreground'>
+                  （该用户未邀请任何用户）
+                </span>
+              )}
             </span>
             <Button
               variant='ghost'
@@ -1001,12 +1004,18 @@ export function UserPage() {
                               key='subscribe_remote'
                               className='bg-card'
                             >
-                              {remoteCell(u.subscribe_locations, u.subscribe_cities)}
+                              {remoteCell(
+                                u.subscribe_locations,
+                                u.subscribe_cities
+                              )}
                             </TableCell>
                           ),
                           connect_remote: () => (
                             <TableCell key='connect_remote' className='bg-card'>
-                              {remoteCell(u.connect_locations, u.connect_cities)}
+                              {remoteCell(
+                                u.connect_locations,
+                                u.connect_cities
+                              )}
                             </TableCell>
                           ),
                           banned: () => (
@@ -1206,7 +1215,7 @@ export function UserPage() {
       <SubscriptionRecordsDialog
         open={subscriptionRecordsOpen}
         onOpenChange={setSubscriptionRecordsOpen}
-        prefillKeyword={subscriptionRecordsPrefill}
+        prefillUser={subscriptionRecordsPrefill}
       />
 
       <UserAssignOrderDialog

@@ -222,6 +222,8 @@ export function UsageRecordsDialog({
       setClearMode(null)
       setPage(1)
       queryClient.invalidateQueries({ queryKey: ['usage-records'] })
+      queryClient.invalidateQueries({ queryKey: ['subscription-access'] })
+      queryClient.invalidateQueries({ queryKey: ['subscription-audit'] })
       queryClient.invalidateQueries({ queryKey: ['subscription-records'] })
       queryClient.invalidateQueries({
         queryKey: ['subscription-record-events'],

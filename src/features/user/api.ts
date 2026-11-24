@@ -374,7 +374,14 @@ export function fetchSubscriptionRecords(params: SubscriptionRecordsParams) {
   return get<SubscriptionRecordsResult>('/user/subscriptionRecords', clean)
 }
 
+export type SubscriptionDecision =
+  'allowed' | 'observed' | 'limited' | 'paused' | 'unavailable'
+
 export type SubscriptionRecordEvent = {
+  http_status: number | null
+  decision: SubscriptionDecision | null
+  reason: string | null
+  retry_at: number | null
   id: number
   user_id: number
   ip: string
@@ -401,6 +408,74 @@ export function fetchSubscriptionRecordEvents(params: {
     params
   )
 }
+
+export type SubscriptionTarget = { user_id: number; user_email: string | null }
+export type AccessFilter = 'all' | 'observed' | 'limited' | 'paused' | 'review'
+export type AccessRow = SubscriptionTarget & {
+  requests: number
+  limited: number
+  observed: number
+  last_at: number | null
+  paused_until: number | null
+  pause_reason: string | null
+  retry_at: number | null
+  max_requests: number | null
+  needs_review: number
+  hour_count: number
+  previous_count: number
+  new_ips: number
+  new_clients: number
+}
+export type SubscriptionRule = {
+  mode: 'off' | 'observe' | 'enforce'
+  max_requests: number
+  window_minutes: number
+}
+export type SubscriptionPolicy = {
+  global: SubscriptionRule
+  max_requests?: number | null
+  window_minutes?: number | null
+  paused_until?: number | null
+  pause_reason?: string | null
+  retry_at?: number | null
+  link_version?: string
+}
+export type PolicyChange =
+  | ({ action: 'global' } & SubscriptionRule)
+  | {
+      action: 'override'
+      user_id: number
+      max_requests: number
+      window_minutes: number
+    }
+  | { action: 'inherit' | 'resume'; user_id: number }
+  | { action: 'pause'; user_id: number; reason: string; paused_until: number }
+  | { action: 'rotate'; user_id: number; link_version: string }
+export type SubscriptionAudit = {
+  id: number
+  user_id: number | null
+  action: PolicyChange['action'] | 'clear'
+  admin_email: string
+  description: string
+  paused_until: number | null
+  record_at: number
+}
+export const fetchSubscriptionAccess = (params: {
+  keyword: string
+  filter: AccessFilter
+  page: number
+  page_size: number
+}) =>
+  get<{ data: AccessRow[]; total: number }>('/user/subscriptionAccess', params)
+export const fetchSubscriptionPolicy = (userId?: number) =>
+  get<SubscriptionPolicy>('/user/subscriptionPolicy', { user_id: userId })
+export const changeSubscriptionPolicy = (change: PolicyChange) =>
+  post<boolean>('/user/subscriptionPolicy', change)
+export const fetchSubscriptionAudit = (page: number, userId?: number) =>
+  get<{ data: SubscriptionAudit[]; total: number }>('/user/subscriptionAudit', {
+    page,
+    user_id: userId,
+  })
 
 // ----- 分配订单（OrderController::assign，复用 order 模块语义）-----
 
