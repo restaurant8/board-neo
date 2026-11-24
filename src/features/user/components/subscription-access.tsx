@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,9 +18,51 @@ import {
   fetchSubscriptionAccess,
   fetchSubscriptionAudit,
   type AccessFilter,
+  type AccessOrderBy,
+  type AuditOrderBy,
   type SubscriptionTarget,
+  type UsageOrderDir,
 } from '../api'
 import { formatTimestamp, pauseLabel } from '../format'
+
+export function SortableHead<K extends string>({
+  field,
+  activeField,
+  dir,
+  onToggle,
+  children,
+  className,
+}: {
+  field: K
+  activeField: K | null
+  dir: UsageOrderDir
+  onToggle: (field: K) => void
+  children: ReactNode
+  className?: string
+}) {
+  const active = activeField === field
+  const Icon = !active ? ArrowUpDown : dir === 'asc' ? ArrowUp : ArrowDown
+  return (
+    <TableHead
+      aria-sort={
+        !active ? 'none' : dir === 'asc' ? 'ascending' : 'descending'
+      }
+      className={cn('whitespace-nowrap select-none', className)}
+    >
+      <button
+        type='button'
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-foreground',
+          active && 'font-semibold text-foreground'
+        )}
+        onClick={() => onToggle(field)}
+      >
+        {children}
+        <Icon className={cn('size-3.5 shrink-0', !active && 'opacity-45')} />
+      </button>
+    </TableHead>
+  )
+}
 
 const filters: Record<AccessFilter, string> = {
   all: '全部',
@@ -36,9 +80,27 @@ export function AccessOverview({
   const [input, setInput] = useState('')
   const [keyword, setKeyword] = useState('')
   const [filter, setFilter] = useState<AccessFilter>('all')
+  const [orderBy, setOrderBy] = useState<AccessOrderBy | null>(null)
+  const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  const params = { keyword, filter, page, page_size: pageSize }
+  const toggleSort = (field: AccessOrderBy) => {
+    if (orderBy === field) {
+      setOrderDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setOrderBy(field)
+      setOrderDir('desc')
+    }
+    setPage(1)
+  }
+  const params = {
+    keyword,
+    filter,
+    order_by: orderBy ?? undefined,
+    order_dir: orderBy ? orderDir : undefined,
+    page,
+    page_size: pageSize,
+  }
   const query = useQuery({
     staleTime: 0,
     queryKey: ['subscription-access', params],
@@ -94,19 +156,57 @@ export function AccessOverview({
       )}
       <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
         <Table>
-          <TableHeader>
+          <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>
-              {[
-                '用户',
-                '近24小时请求',
-                '观察命中',
-                '限频拦截',
-                '当前状态 / 提醒',
-                '最近请求',
-                '操作',
-              ].map((label) => (
-                <TableHead key={label}>{label}</TableHead>
-              ))}
+              <SortableHead
+                field='user_id'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                用户
+              </SortableHead>
+              <SortableHead
+                field='requests'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                近24小时请求
+              </SortableHead>
+              <SortableHead
+                field='observed'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                观察命中
+              </SortableHead>
+              <SortableHead
+                field='limited'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                限频拦截
+              </SortableHead>
+              <SortableHead
+                field='status'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                当前状态 / 提醒
+              </SortableHead>
+              <SortableHead
+                field='last_at'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                最近请求
+              </SortableHead>
+              <TableHead className='whitespace-nowrap'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -200,20 +300,67 @@ const actions = {
 }
 export function AccessAudit({ userId }: { userId?: number }) {
   const [page, setPage] = useState(1)
+  const [orderBy, setOrderBy] = useState<AuditOrderBy>('record_at')
+  const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
+  const toggleSort = (field: AuditOrderBy) => {
+    if (orderBy === field) {
+      setOrderDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setOrderBy(field)
+      setOrderDir('desc')
+    }
+    setPage(1)
+  }
+  const params = {
+    page,
+    user_id: userId,
+    order_by: orderBy,
+    order_dir: orderDir,
+  }
   const query = useQuery({
     staleTime: 0,
-    queryKey: ['subscription-audit', userId, page],
-    queryFn: () => fetchSubscriptionAudit(page, userId),
+    queryKey: ['subscription-audit', params],
+    queryFn: () => fetchSubscriptionAudit(params),
   })
   return (
     <>
       <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
         <Table>
-          <TableHeader>
+          <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>
-              {['操作时间', '管理员', '范围', '操作', '详情'].map((label) => (
-                <TableHead key={label}>{label}</TableHead>
-              ))}
+              <SortableHead
+                field='record_at'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                操作时间
+              </SortableHead>
+              <SortableHead
+                field='admin_email'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                管理员
+              </SortableHead>
+              <SortableHead
+                field='user_id'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                范围
+              </SortableHead>
+              <SortableHead
+                field='action'
+                activeField={orderBy}
+                dir={orderDir}
+                onToggle={toggleSort}
+              >
+                操作
+              </SortableHead>
+              <TableHead>详情</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

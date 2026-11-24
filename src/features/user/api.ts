@@ -334,7 +334,19 @@ export function clearUsageRecords(params: ClearUsageParams) {
 
 // ----- 订阅记录（按用户汇总 + 逐次时间）-----
 
-export type SubscriptionRecordOrderBy = 'count' | 'first_at' | 'record_at'
+export type SubscriptionRecordOrderBy =
+  | 'user_id'
+  | 'count'
+  | 'ip_count'
+  | 'first_at'
+  | 'record_at'
+
+export type SubscriptionEventOrderBy =
+  | 'record_at'
+  | 'decision'
+  | 'ip'
+  | 'location'
+  | 'ua'
 
 export type SubscriptionRecord = {
   user_id: number
@@ -400,6 +412,8 @@ export type SubscriptionRecordEventsResult = {
 /** GET /user/subscriptionRecordEvents — 某个用户升级后的逐次订阅时间。 */
 export function fetchSubscriptionRecordEvents(params: {
   user_id: number
+  order_by?: SubscriptionEventOrderBy
+  order_dir?: UsageOrderDir
   page?: number
   page_size?: number
 }) {
@@ -411,6 +425,14 @@ export function fetchSubscriptionRecordEvents(params: {
 
 export type SubscriptionTarget = { user_id: number; user_email: string | null }
 export type AccessFilter = 'all' | 'observed' | 'limited' | 'paused' | 'review'
+export type AccessOrderBy =
+  | 'user_id'
+  | 'requests'
+  | 'observed'
+  | 'limited'
+  | 'status'
+  | 'last_at'
+export type AuditOrderBy = 'record_at' | 'admin_email' | 'user_id' | 'action'
 export type AccessRow = SubscriptionTarget & {
   requests: number
   limited: number
@@ -463,6 +485,8 @@ export type SubscriptionAudit = {
 export const fetchSubscriptionAccess = (params: {
   keyword: string
   filter: AccessFilter
+  order_by?: AccessOrderBy
+  order_dir?: UsageOrderDir
   page: number
   page_size: number
 }) =>
@@ -471,11 +495,16 @@ export const fetchSubscriptionPolicy = (userId?: number) =>
   get<SubscriptionPolicy>('/user/subscriptionPolicy', { user_id: userId })
 export const changeSubscriptionPolicy = (change: PolicyChange) =>
   post<boolean>('/user/subscriptionPolicy', change)
-export const fetchSubscriptionAudit = (page: number, userId?: number) =>
-  get<{ data: SubscriptionAudit[]; total: number }>('/user/subscriptionAudit', {
-    page,
-    user_id: userId,
-  })
+export const fetchSubscriptionAudit = (params: {
+  page: number
+  user_id?: number
+  order_by?: AuditOrderBy
+  order_dir?: UsageOrderDir
+}) =>
+  get<{ data: SubscriptionAudit[]; total: number }>(
+    '/user/subscriptionAudit',
+    params
+  )
 
 // ----- 分配订单（OrderController::assign，复用 order 模块语义）-----
 

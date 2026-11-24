@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowDown,
   ArrowLeft,
-  ArrowUp,
   History,
   RefreshCw,
   Search,
@@ -33,6 +31,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { UserEmailLink } from '@/components/user-email-link'
 import { SimplePagination } from '@/features/gift-card/components/simple-pagination'
 import {
+  type SubscriptionEventOrderBy,
   type SubscriptionRecord,
   type SubscriptionTarget,
   type User,
@@ -43,7 +42,7 @@ import {
   fetchSubscriptionRecords,
 } from '../api'
 import { formatTimestamp } from '../format'
-import { AccessAudit, AccessOverview } from './subscription-access'
+import { AccessAudit, AccessOverview, SortableHead } from './subscription-access'
 import { PolicyPanel } from './subscription-policy'
 
 const globalTabs = {
@@ -101,6 +100,9 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
   )
   const [eventPage, setEventPage] = useState(1)
   const [eventPageSize, setEventPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [eventOrderBy, setEventOrderBy] =
+    useState<SubscriptionEventOrderBy>('record_at')
+  const [eventOrderDir, setEventOrderDir] = useState<UsageOrderDir>('desc')
   const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null)
 
   const queryParams = {
@@ -121,12 +123,16 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
     queryKey: [
       'subscription-record-events',
       selected?.user_id,
+      eventOrderBy,
+      eventOrderDir,
       eventPage,
       eventPageSize,
     ],
     queryFn: () =>
       fetchSubscriptionRecordEvents({
         user_id: selected!.user_id,
+        order_by: eventOrderBy,
+        order_dir: eventOrderDir,
         page: eventPage,
         page_size: eventPageSize,
       }),
@@ -175,13 +181,14 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
     setPage(1)
   }
 
-  const sortIcon = (key: SubscriptionRecordOrderBy) => {
-    if (orderBy !== key) return null
-    return orderDir === 'asc' ? (
-      <ArrowUp className='ms-1 inline size-3' />
-    ) : (
-      <ArrowDown className='ms-1 inline size-3' />
-    )
+  const toggleEventSort = (key: SubscriptionEventOrderBy) => {
+    if (eventOrderBy === key) {
+      setEventOrderDir((value) => (value === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setEventOrderBy(key)
+      setEventOrderDir('desc')
+    }
+    setEventPage(1)
   }
 
   const applyKeyword = () => {
@@ -192,6 +199,8 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
   const openEvents = (record: SelectedUser) => {
     setUserTab('events')
     setSelected(record)
+    setEventOrderBy('record_at')
+    setEventOrderDir('desc')
     setEventPage(1)
   }
 
@@ -303,17 +312,48 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
                 <Table className='w-max min-w-full'>
                   <TableHeader className='sticky top-0 z-10 bg-background'>
                     <TableRow>
-                      <TableHead className='w-[180px] whitespace-nowrap'>
+                      <SortableHead
+                        field='record_at'
+                        activeField={eventOrderBy}
+                        dir={eventOrderDir}
+                        onToggle={toggleEventSort}
+                        className='w-[180px]'
+                      >
                         订阅时间
-                      </TableHead>
-                      <TableHead>结果 / 原因</TableHead>
-                      <TableHead className='whitespace-nowrap'>IP</TableHead>
-                      <TableHead className='whitespace-nowrap'>
+                      </SortableHead>
+                      <SortableHead
+                        field='decision'
+                        activeField={eventOrderBy}
+                        dir={eventOrderDir}
+                        onToggle={toggleEventSort}
+                      >
+                        结果 / 原因
+                      </SortableHead>
+                      <SortableHead
+                        field='ip'
+                        activeField={eventOrderBy}
+                        dir={eventOrderDir}
+                        onToggle={toggleEventSort}
+                      >
+                        IP
+                      </SortableHead>
+                      <SortableHead
+                        field='location'
+                        activeField={eventOrderBy}
+                        dir={eventOrderDir}
+                        onToggle={toggleEventSort}
+                      >
                         归属地
-                      </TableHead>
-                      <TableHead className='max-w-[420px]'>
+                      </SortableHead>
+                      <SortableHead
+                        field='ua'
+                        activeField={eventOrderBy}
+                        dir={eventOrderDir}
+                        onToggle={toggleEventSort}
+                        className='max-w-[420px]'
+                      >
                         User-Agent
-                      </TableHead>
+                      </SortableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -463,27 +503,48 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
               <Table className='w-max min-w-full'>
                 <TableHeader className='sticky top-0 z-10 bg-background'>
                   <TableRow>
-                    <TableHead className='w-[190px]'>用户</TableHead>
-                    <TableHead
-                      className='cursor-pointer whitespace-nowrap'
-                      onClick={() => toggleSort('count')}
+                    <SortableHead
+                      field='user_id'
+                      activeField={orderBy}
+                      dir={orderDir}
+                      onToggle={toggleSort}
+                      className='w-[190px]'
                     >
-                      去重次数{sortIcon('count')}
-                    </TableHead>
-                    <TableHead className='whitespace-nowrap'>来源 IP</TableHead>
+                      用户
+                    </SortableHead>
+                    <SortableHead
+                      field='count'
+                      activeField={orderBy}
+                      dir={orderDir}
+                      onToggle={toggleSort}
+                    >
+                      去重次数
+                    </SortableHead>
+                    <SortableHead
+                      field='ip_count'
+                      activeField={orderBy}
+                      dir={orderDir}
+                      onToggle={toggleSort}
+                    >
+                      来源 IP
+                    </SortableHead>
                     <TableHead className='max-w-[260px]'>最近客户端</TableHead>
-                    <TableHead
-                      className='cursor-pointer whitespace-nowrap'
-                      onClick={() => toggleSort('first_at')}
+                    <SortableHead
+                      field='first_at'
+                      activeField={orderBy}
+                      dir={orderDir}
+                      onToggle={toggleSort}
                     >
-                      首次订阅{sortIcon('first_at')}
-                    </TableHead>
-                    <TableHead
-                      className='cursor-pointer whitespace-nowrap'
-                      onClick={() => toggleSort('record_at')}
+                      首次订阅
+                    </SortableHead>
+                    <SortableHead
+                      field='record_at'
+                      activeField={orderBy}
+                      dir={orderDir}
+                      onToggle={toggleSort}
                     >
-                      最近订阅{sortIcon('record_at')}
-                    </TableHead>
+                      最近订阅
+                    </SortableHead>
                     <TableHead className='w-[110px]'>操作</TableHead>
                   </TableRow>
                 </TableHeader>
