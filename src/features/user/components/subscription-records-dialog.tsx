@@ -611,14 +611,15 @@ function RecordsPanelContent({
                   ) : summaryRows.length > 0 ? (
                     summaryRows.map((record) => (
                       <TableRow key={record.user_id}>
-                        <TableCell className='align-top'>
+                        <TableCell className='min-w-[200px] max-w-[260px] align-top'>
                           <div
-                            className='max-w-[190px] truncate'
+                            className='truncate whitespace-nowrap'
                             title={record.user_email || `#${record.user_id}`}
                           >
                             <UserEmailLink
                               email={record.user_email}
                               fallback={`#${record.user_id}`}
+                              className='break-normal whitespace-nowrap'
                               onNavigate={onNavigateAway}
                             />
                           </div>

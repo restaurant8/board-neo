@@ -530,8 +530,8 @@ export function UserConnectionsPage() {
           </Alert>
         )}
 
-        {/* 顶部 5 张实时指标与风控情报卡片 */}
-        <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5'>
+        {/* 顶部 5 张实时指标与风控情报卡片（桌面端单行横排） */}
+        <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5'>
           <Card className='gap-1.5 py-3.5'>
             <CardHeader className='flex flex-row items-center justify-between space-y-0 px-4 pb-0'>
               <CardTitle className='text-xs font-medium text-muted-foreground'>
@@ -923,10 +923,12 @@ export function UserConnectionsPage() {
 
         {/* 主表格：单用户并发连接数 + 风控评估 + 在线设备 IP + 所连节点合并视图 */}
         <div className='overflow-hidden rounded-md border bg-card'>
-          <Table>
+          <Table className='min-w-[1080px]'>
             <TableHeader>
               <TableRow>
-                <TableHead className='px-4'>用户</TableHead>
+                <TableHead className='min-w-[220px] px-4 whitespace-nowrap'>
+                  用户
+                </TableHead>
                 <TableHead className='px-4 whitespace-nowrap'>
                   <button
                     type='button'
@@ -1044,17 +1046,20 @@ export function UserConnectionsPage() {
                       onClick={() => openDetail(row)}
                     >
                       {/* 用户信息 */}
-                      <TableCell className='px-4'>
+                      <TableCell className='min-w-[220px] max-w-[300px] px-4'>
                         <div className='flex flex-col gap-0.5'>
-                          <div className='flex items-center gap-1.5'>
+                          <div
+                            className='flex items-center gap-1.5 whitespace-nowrap'
+                            title={row.user_email}
+                          >
                             <UserEmailLink
                               email={row.user_email}
-                              className='font-medium'
+                              className='inline-block max-w-[220px] truncate align-bottom font-medium break-normal whitespace-nowrap'
                             />
                             <button
                               type='button'
                               aria-label='复制邮箱'
-                              className='rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground'
+                              className='shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground'
                               onClick={(e) => {
                                 e.stopPropagation()
                                 navigator.clipboard
@@ -1067,7 +1072,7 @@ export function UserConnectionsPage() {
                             {row.banned ? (
                               <Badge
                                 variant='destructive'
-                                className='text-[10px]'
+                                className='shrink-0 text-[10px]'
                               >
                                 封禁
                               </Badge>
@@ -1075,22 +1080,29 @@ export function UserConnectionsPage() {
                             {row.speed_limit ? (
                               <Badge
                                 variant='outline'
-                                className='text-[10px] tabular-nums'
+                                className='shrink-0 text-[10px] tabular-nums'
                               >
                                 {row.speed_limit}M
                               </Badge>
                             ) : null}
                           </div>
-                          <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
-                            <span className='font-mono'>#{row.user_id}</span>
-                            <span>·</span>
-                            <span>{row.plan_name || '无套餐'}</span>
+                          <div className='flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground'>
+                            <span className='shrink-0 font-mono'>
+                              #{row.user_id}
+                            </span>
+                            <span className='shrink-0'>·</span>
+                            <span
+                              className='max-w-[160px] truncate'
+                              title={row.plan_name || '无套餐'}
+                            >
+                              {row.plan_name || '无套餐'}
+                            </span>
                             {row.site_name ? (
                               <>
-                                <span>·</span>
+                                <span className='shrink-0'>·</span>
                                 <Badge
                                   variant='secondary'
-                                  className='h-4 px-1.5 text-[10px]'
+                                  className='h-4 shrink-0 px-1.5 text-[10px]'
                                 >
                                   {row.site_name}
                                 </Badge>
@@ -1100,27 +1112,27 @@ export function UserConnectionsPage() {
                         </div>
                       </TableCell>
 
-                      {/* 风控评估 */}
-                      <TableCell className='px-4'>
+                      {/* 风控评估（等级徽章与规则标签横排展示） */}
+                      <TableCell className='px-4 whitespace-nowrap'>
                         {row.risk_reasons.length > 0 ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className='flex flex-col items-start gap-1'>
+                              <div className='flex flex-nowrap items-center gap-1.5 whitespace-nowrap'>
                                 <Badge
                                   variant='outline'
                                   className={cn(
-                                    'font-mono text-xs font-semibold tabular-nums',
+                                    'shrink-0 font-mono text-xs font-semibold tabular-nums',
                                     riskBadgeClass(row.risk_level)
                                   )}
                                 >
                                   {riskLabel(row.risk_level)} · {row.risk_score}
                                 </Badge>
-                                <div className='flex flex-wrap gap-1'>
+                                <div className='flex flex-nowrap items-center gap-1'>
                                   {row.risk_reasons.slice(0, 2).map((r) => (
                                     <span
                                       key={r.code}
                                       className={cn(
-                                        'inline-block rounded px-1.5 py-0.5 text-[11px] leading-tight',
+                                        'inline-block shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-tight whitespace-nowrap',
                                         r.level === 'critical'
                                           ? 'bg-destructive/15 text-destructive'
                                           : r.level === 'warning'
@@ -1132,7 +1144,7 @@ export function UserConnectionsPage() {
                                     </span>
                                   ))}
                                   {row.risk_reasons.length > 2 && (
-                                    <span className='text-[11px] text-muted-foreground'>
+                                    <span className='shrink-0 text-[11px] text-muted-foreground'>
                                       +{row.risk_reasons.length - 2}
                                     </span>
                                   )}
@@ -1252,7 +1264,7 @@ export function UserConnectionsPage() {
                       </TableCell>
 
                       {/* 所连节点及各自连接数 */}
-                      <TableCell className='px-4'>
+                      <TableCell className='min-w-[180px] px-4'>
                         <div className='flex flex-wrap items-center gap-1.5'>
                           {row.nodes.slice(0, 2).map((nd) => (
                             <Badge
@@ -1288,7 +1300,7 @@ export function UserConnectionsPage() {
                       </TableCell>
 
                       {/* 实时客户端 IP 预览 */}
-                      <TableCell className='px-4'>
+                      <TableCell className='min-w-[210px] px-4 whitespace-nowrap'>
                         {row.ips.length > 0 ? (
                           <div className='flex flex-col gap-1'>
                             {row.ips.slice(0, 2).map((ipItem) => (

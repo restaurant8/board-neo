@@ -465,7 +465,11 @@ export function UsageRecordsPanel({
         <Table className='w-max min-w-full'>
           <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>
-              {!lockedUser && <TableHead className='w-[180px]'>用户</TableHead>}
+              {!lockedUser && (
+                <TableHead className='min-w-[200px] whitespace-nowrap'>
+                  用户
+                </TableHead>
+              )}
               <TableHead
                 className='w-[72px] cursor-pointer whitespace-nowrap select-none'
                 onClick={() => toggleSort('online')}
@@ -518,14 +522,15 @@ export function UsageRecordsPanel({
               rows.map((r) => (
                 <TableRow key={r.id}>
                   {!lockedUser && (
-                    <TableCell className='align-top'>
+                    <TableCell className='min-w-[200px] max-w-[260px] align-top'>
                       <div
-                        className='truncate'
+                        className='truncate whitespace-nowrap'
                         title={r.user_email || `#${r.user_id}`}
                       >
                         <UserEmailLink
                           email={r.user_email}
                           fallback={`#${r.user_id}`}
+                          className='break-normal whitespace-nowrap'
                           onNavigate={onNavigateAway}
                         />
                       </div>

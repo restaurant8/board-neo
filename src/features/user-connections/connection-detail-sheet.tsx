@@ -178,7 +178,7 @@ export function ConnectionDetailSheet({
                   <UserEmailLink
                     email={row.user_email}
                     onNavigate={() => onOpenChange(false)}
-                    className='font-semibold'
+                    className='font-semibold break-normal'
                   />
                   <Badge variant='outline' className='font-mono text-xs'>
                     UID #{row.user_id}
@@ -393,7 +393,7 @@ export function ConnectionDetailSheet({
                 </div>
 
                 {row.risk_reasons.length > 0 ? (
-                  <div className='mt-2.5 space-y-1.5'>
+                  <div className='mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2'>
                     {row.risk_reasons.map((r) => (
                       <div
                         key={r.code}

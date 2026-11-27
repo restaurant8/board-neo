@@ -155,7 +155,7 @@ export function AccessOverview({
         </p>
       )}
       <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
-        <Table>
+        <Table className='min-w-[820px]'>
           <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>
               <SortableHead
@@ -212,9 +212,14 @@ export function AccessOverview({
           <TableBody>
             {query.data?.data.map((row) => (
               <TableRow key={row.user_id}>
-                <TableCell>
-                  {row.user_email}
-                  <div className='text-xs text-muted-foreground'>
+                <TableCell className='min-w-[200px] max-w-[260px]'>
+                  <div
+                    className='truncate whitespace-nowrap'
+                    title={row.user_email}
+                  >
+                    {row.user_email}
+                  </div>
+                  <div className='text-xs whitespace-nowrap text-muted-foreground'>
                     ID {row.user_id}
                   </div>
                 </TableCell>
@@ -325,7 +330,7 @@ export function AccessAudit({ userId }: { userId?: number }) {
   return (
     <>
       <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
-        <Table>
+        <Table className='min-w-[820px]'>
           <TableHeader className='sticky top-0 z-10 bg-background'>
             <TableRow>
               <SortableHead
