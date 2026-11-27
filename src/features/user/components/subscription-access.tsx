@@ -215,7 +215,7 @@ export function AccessOverview({
                 <TableCell className='min-w-[200px] max-w-[260px]'>
                   <div
                     className='truncate whitespace-nowrap'
-                    title={row.user_email}
+                    title={row.user_email ?? undefined}
                   >
                     {row.user_email}
                   </div>
