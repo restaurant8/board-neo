@@ -54,10 +54,17 @@ export function TrafficStatPage() {
   const [days, setDays] = useState(0)
   const [mode, setMode] = useState<'all' | 'privacy' | 'diagnostic'>('all')
   const [keyword, setKeyword] = useState('')
-  const [userKeyword, setUserKeyword] = useState('')
-  // tab 由 URL 驱动，便于侧栏「流量统计 / 流量审计」两个菜单直达对应页签
-  const { tab: tabParam } = route.useSearch()
+  // tab 由 URL 驱动，便于侧栏「流量统计 / 流量审计」或风控抽屉直达对应页签与用户
+  const { tab: tabParam, user: urlUser } = route.useSearch()
   const navigate = route.useNavigate()
+  const [userKeyword, setUserKeyword] = useState(urlUser ?? '')
+  const [syncedUrlUser, setSyncedUrlUser] = useState(urlUser)
+  if (urlUser !== syncedUrlUser) {
+    setSyncedUrlUser(urlUser)
+    if (urlUser !== undefined) {
+      setUserKeyword(urlUser)
+    }
+  }
   const tab: 'diagnostics' | 'audit' = tabParam ?? 'diagnostics'
   const setTab = (v: 'diagnostics' | 'audit') =>
     navigate({ search: (prev) => ({ ...prev, tab: v }) })

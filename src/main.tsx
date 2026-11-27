@@ -9,6 +9,7 @@ import {
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { createAuthMutationCache } from '@/lib/auth-mutation-cache'
 import { handleServerError } from '@/lib/handle-server-error'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
@@ -18,6 +19,16 @@ import { config, routeBasePath } from '@/lib/config'
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
+
+function redirectToSignInOnUnauthorized() {
+  useAuthStore.getState().auth.reset()
+  const currentPath = router.history.location.pathname
+  if (!currentPath.endsWith('/sign-in')) {
+    toast.error('Session expired!')
+    const redirect = `${router.history.location.href}`
+    router.navigate({ to: '/sign-in', search: { redirect } })
+  }
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +50,10 @@ const queryClient = new QueryClient({
     },
     mutations: {
       onError: (error) => {
+        if (error instanceof AxiosError && error.response?.status === 401) {
+          return
+        }
+
         handleServerError(error)
 
         if (error instanceof AxiosError) {
@@ -49,14 +64,12 @@ const queryClient = new QueryClient({
       },
     },
   },
+  mutationCache: createAuthMutationCache(redirectToSignInOnUnauthorized),
   queryCache: new QueryCache({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          toast.error('Session expired!')
-          useAuthStore.getState().auth.reset()
-          const redirect = `${router.history.location.href}`
-          router.navigate({ to: '/sign-in', search: { redirect } })
+          redirectToSignInOnUnauthorized()
         }
         // 单个数据接口 500/403 只提示，不要把整个面板跳转到错误页
         // （仪表盘有多个并行查询，某个统计接口失败不应接管整个 UI）。

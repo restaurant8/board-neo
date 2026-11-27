@@ -36,6 +36,7 @@ import { Route as AuthenticatedKnowledgeIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedGiftCardIndexRouteImport } from './routes/_authenticated/gift-card/index'
 import { Route as AuthenticatedCouponIndexRouteImport } from './routes/_authenticated/coupon/index'
 import { Route as AuthenticatedConfigIndexRouteImport } from './routes/_authenticated/config/index'
+import { Route as AuthenticatedUserConnectionsRouteImport } from './routes/_authenticated/user/connections'
 import { Route as AuthenticatedResellerTiersRouteImport } from './routes/_authenticated/reseller/tiers'
 import { Route as AuthenticatedResellerSettlementsRouteImport } from './routes/_authenticated/reseller/settlements'
 import { Route as AuthenticatedResellerPricingRouteImport } from './routes/_authenticated/reseller/pricing'
@@ -198,6 +199,12 @@ const AuthenticatedConfigIndexRoute =
     path: '/config/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedUserConnectionsRoute =
+  AuthenticatedUserConnectionsRouteImport.update({
+    id: '/user/connections',
+    path: '/user/connections',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedResellerTiersRoute =
   AuthenticatedResellerTiersRouteImport.update({
     id: '/reseller/tiers',
@@ -284,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/reseller/pricing': typeof AuthenticatedResellerPricingRoute
   '/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
   '/reseller/tiers': typeof AuthenticatedResellerTiersRoute
+  '/user/connections': typeof AuthenticatedUserConnectionsRoute
   '/config/': typeof AuthenticatedConfigIndexRoute
   '/coupon/': typeof AuthenticatedCouponIndexRoute
   '/gift-card/': typeof AuthenticatedGiftCardIndexRoute
@@ -324,6 +332,7 @@ export interface FileRoutesByTo {
   '/reseller/pricing': typeof AuthenticatedResellerPricingRoute
   '/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
   '/reseller/tiers': typeof AuthenticatedResellerTiersRoute
+  '/user/connections': typeof AuthenticatedUserConnectionsRoute
   '/config': typeof AuthenticatedConfigIndexRoute
   '/coupon': typeof AuthenticatedCouponIndexRoute
   '/gift-card': typeof AuthenticatedGiftCardIndexRoute
@@ -366,6 +375,7 @@ export interface FileRoutesById {
   '/_authenticated/reseller/pricing': typeof AuthenticatedResellerPricingRoute
   '/_authenticated/reseller/settlements': typeof AuthenticatedResellerSettlementsRoute
   '/_authenticated/reseller/tiers': typeof AuthenticatedResellerTiersRoute
+  '/_authenticated/user/connections': typeof AuthenticatedUserConnectionsRoute
   '/_authenticated/config/': typeof AuthenticatedConfigIndexRoute
   '/_authenticated/coupon/': typeof AuthenticatedCouponIndexRoute
   '/_authenticated/gift-card/': typeof AuthenticatedGiftCardIndexRoute
@@ -408,6 +418,7 @@ export interface FileRouteTypes {
     | '/reseller/pricing'
     | '/reseller/settlements'
     | '/reseller/tiers'
+    | '/user/connections'
     | '/config/'
     | '/coupon/'
     | '/gift-card/'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/reseller/pricing'
     | '/reseller/settlements'
     | '/reseller/tiers'
+    | '/user/connections'
     | '/config'
     | '/coupon'
     | '/gift-card'
@@ -489,6 +501,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reseller/pricing'
     | '/_authenticated/reseller/settlements'
     | '/_authenticated/reseller/tiers'
+    | '/_authenticated/user/connections'
     | '/_authenticated/config/'
     | '/_authenticated/coupon/'
     | '/_authenticated/gift-card/'
@@ -718,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfigIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/user/connections': {
+      id: '/_authenticated/user/connections'
+      path: '/user/connections'
+      fullPath: '/user/connections'
+      preLoaderRoute: typeof AuthenticatedUserConnectionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reseller/tiers': {
       id: '/_authenticated/reseller/tiers'
       path: '/reseller/tiers'
@@ -812,6 +832,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedResellerPricingRoute: typeof AuthenticatedResellerPricingRoute
   AuthenticatedResellerSettlementsRoute: typeof AuthenticatedResellerSettlementsRoute
   AuthenticatedResellerTiersRoute: typeof AuthenticatedResellerTiersRoute
+  AuthenticatedUserConnectionsRoute: typeof AuthenticatedUserConnectionsRoute
   AuthenticatedConfigIndexRoute: typeof AuthenticatedConfigIndexRoute
   AuthenticatedCouponIndexRoute: typeof AuthenticatedCouponIndexRoute
   AuthenticatedGiftCardIndexRoute: typeof AuthenticatedGiftCardIndexRoute
@@ -848,6 +869,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedResellerPricingRoute: AuthenticatedResellerPricingRoute,
   AuthenticatedResellerSettlementsRoute: AuthenticatedResellerSettlementsRoute,
   AuthenticatedResellerTiersRoute: AuthenticatedResellerTiersRoute,
+  AuthenticatedUserConnectionsRoute: AuthenticatedUserConnectionsRoute,
   AuthenticatedConfigIndexRoute: AuthenticatedConfigIndexRoute,
   AuthenticatedCouponIndexRoute: AuthenticatedCouponIndexRoute,
   AuthenticatedGiftCardIndexRoute: AuthenticatedGiftCardIndexRoute,

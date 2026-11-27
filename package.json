@@ -12,6 +12,8 @@
     "test:columns": "node --experimental-strip-types --test tests/table-column-preferences.test.mjs",
     "test:site-scoping": "node --experimental-strip-types --test tests/site-scoping.test.mjs",
     "test:node-rate": "node --experimental-strip-types --test tests/node-rate.test.mjs",
+    "test:security": "node --experimental-strip-types --test tests/security-xss-cookie.test.mjs tests/auth-mutation-cache.test.mjs",
+    "test:connections": "node --experimental-strip-types --test tests/user-connections-state.test.mjs tests/traffic-evidence-query.test.mjs",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "knip": "knip"

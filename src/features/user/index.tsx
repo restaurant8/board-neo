@@ -27,7 +27,7 @@ import {
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { adminApi } from '@/lib/api-client'
-import { getCookie, setCookie } from '@/lib/cookies'
+import { getCookie } from '@/lib/cookies'
 import { handleServerError } from '@/lib/handle-server-error'
 import { cn } from '@/lib/utils'
 import {
@@ -88,8 +88,6 @@ import {
   resetSecret,
   resetUserTraffic,
 } from './api'
-import { SubscriptionRecordsDialog } from './components/subscription-records-dialog'
-import { UsageRecordsDialog } from './components/usage-records-dialog'
 import {
   UserAdvancedFilter,
   type FilterCondition,
@@ -230,23 +228,46 @@ export function UserPage() {
       </TableHead>
     )
   }
-  // 异地登录单元格：去重城市数 >1 标红「异地·N」，=1 显示 1，0 显示 —；悬停列出各城市及 IP 数
-  const remoteCell = (n?: number, cities?: RemoteCity[]) => {
+  // 异地登录单元格：去重城市数 >1 标红「异地·N」，=1 显示 1，0 显示 —；悬停列出各城市及 IP 数，点击直达连接与风控工作台核查
+  const remoteCell = (
+    n?: number,
+    cities?: RemoteCity[],
+    onClick?: () => void
+  ) => {
     const c = n ?? 0
     if (c <= 0) return <span className='text-muted-foreground'>—</span>
-    const content =
+    const inner =
       c > 1 ? (
-        <Badge variant='destructive' className='whitespace-nowrap'>
+        <Badge
+          variant='destructive'
+          className={cn('whitespace-nowrap', onClick && 'cursor-pointer')}
+        >
           异地 · {c}
         </Badge>
       ) : (
-        <span>{c}</span>
+        <span className={onClick ? 'cursor-pointer hover:underline' : undefined}>
+          {c}
+        </span>
       )
+    const content = onClick ? (
+      <button
+        type='button'
+        className='cursor-pointer'
+        onClick={onClick}
+        title='点击前往「连接与风控」工作台查看明细'
+      >
+        {inner}
+      </button>
+    ) : (
+      inner
+    )
     if (!cities?.length) return content
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className='cursor-help'>{content}</span>
+          <span className={onClick ? 'cursor-pointer' : 'cursor-help'}>
+            {content}
+          </span>
         </TooltipTrigger>
         <TooltipContent side='left' className='max-w-xs'>
           <div className='grid gap-0.5 text-xs'>
@@ -284,20 +305,7 @@ export function UserPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [mailOpen, setMailOpen] = useState(false)
-  const [usageOpen, setUsageOpen] = useState(false)
-  const [includeForeignLocations, setIncludeForeignLocations] = useState(
-    () => getCookie(FOREIGN_LOCATIONS_COOKIE) === '1'
-  )
-  const changeForeignLocations = (enabled: boolean) => {
-    setIncludeForeignLocations(enabled)
-    setCookie(FOREIGN_LOCATIONS_COOKIE, enabled ? '1' : '0', 365 * 86400)
-    setPage(1)
-    setSelected([])
-  }
-  const [usagePrefill, setUsagePrefill] = useState<User>()
-  const [subscriptionRecordsOpen, setSubscriptionRecordsOpen] = useState(false)
-  const [subscriptionRecordsPrefill, setSubscriptionRecordsPrefill] =
-    useState<User>()
+  const includeForeignLocations = getCookie(FOREIGN_LOCATIONS_COOKIE) === '1'
   const [deleting, setDeleting] = useState<User | null>(null)
   // 行操作：分配订单 / TA的订单 / TA的邀请 / TA的流量记录 / 重置流量
   const [assignTarget, setAssignTarget] = useState<User | null>(null)
@@ -471,13 +479,17 @@ export function UserPage() {
   }
 
   const openUsageForUser = (u: User) => {
-    setUsagePrefill(u)
-    setUsageOpen(true)
+    navigate({
+      to: '/user/connections',
+      search: { tab: 'usage', user_id: u.id, keyword: u.email },
+    })
   }
 
   const openSubscriptionRecordsForUser = (u: User) => {
-    setSubscriptionRecordsPrefill(u)
-    setSubscriptionRecordsOpen(true)
+    navigate({
+      to: '/user/connections',
+      search: { tab: 'subscription', user_id: u.id, keyword: u.email },
+    })
   }
 
   const copyUrl = (u: User) => {
@@ -510,24 +522,6 @@ export function UserPage() {
             </p>
           </div>
           <div className='flex flex-wrap gap-2'>
-            <Button
-              variant='outline'
-              onClick={() => {
-                setSubscriptionRecordsPrefill(undefined)
-                setSubscriptionRecordsOpen(true)
-              }}
-            >
-              <History className='size-4' /> 订阅记录
-            </Button>
-            <Button
-              variant='outline'
-              onClick={() => {
-                setUsagePrefill(undefined)
-                setUsageOpen(true)
-              }}
-            >
-              <ScrollText className='size-4' /> 使用记录
-            </Button>
             <Button variant='outline' onClick={() => setMailOpen(true)}>
               <Mail className='size-4' /> 发送邮件
             </Button>
@@ -978,24 +972,35 @@ export function UserPage() {
                             <TableCell
                               key='online_count'
                               className='bg-card'
-                              title={formatDeviceLimit(u.device_limit)}
+                              title={`${formatDeviceLimit(u.device_limit)}（点击查看实时连接与节点明细）`}
                             >
                               <div className='flex items-center gap-1.5'>
-                                <Badge
-                                  variant='outline'
-                                  className={cn(
-                                    'min-w-[4rem] justify-center',
-                                    u.device_limit != null &&
-                                      (u.online_count ?? 0) >= u.device_limit
-                                      ? 'border-destructive/50 bg-destructive/10 text-destructive'
-                                      : 'border-primary/40 bg-primary/5 text-primary/90'
-                                  )}
+                                <button
+                                  type='button'
+                                  className='cursor-pointer'
+                                  onClick={() =>
+                                    navigate({
+                                      to: '/user/connections',
+                                      search: { keyword: u.email },
+                                    })
+                                  }
                                 >
-                                  {u.online_count ?? 0} /{' '}
-                                  {u.device_limit == null
-                                    ? '∞'
-                                    : u.device_limit}
-                                </Badge>
+                                  <Badge
+                                    variant='outline'
+                                    className={cn(
+                                      'min-w-[4rem] justify-center transition-colors hover:bg-muted',
+                                      u.device_limit != null &&
+                                        (u.online_count ?? 0) >= u.device_limit
+                                        ? 'border-destructive/50 bg-destructive/10 text-destructive'
+                                        : 'border-primary/40 bg-primary/5 text-primary/90'
+                                    )}
+                                  >
+                                    {u.online_count ?? 0} /{' '}
+                                    {u.device_limit == null
+                                      ? '∞'
+                                      : u.device_limit}
+                                  </Badge>
+                                </button>
                               </div>
                             </TableCell>
                           ),
@@ -1006,7 +1011,8 @@ export function UserPage() {
                             >
                               {remoteCell(
                                 u.subscribe_locations,
-                                u.subscribe_cities
+                                u.subscribe_cities,
+                                () => openSubscriptionRecordsForUser(u)
                               )}
                             </TableCell>
                           ),
@@ -1014,7 +1020,8 @@ export function UserPage() {
                             <TableCell key='connect_remote' className='bg-card'>
                               {remoteCell(
                                 u.connect_locations,
-                                u.connect_cities
+                                u.connect_cities,
+                                () => openUsageForUser(u)
                               )}
                             </TableCell>
                           ),
@@ -1204,18 +1211,6 @@ export function UserPage() {
         includeForeignLocations={includeForeignLocations}
         selectedIds={selected}
         sort={sort}
-      />
-      <UsageRecordsDialog
-        open={usageOpen}
-        onOpenChange={setUsageOpen}
-        prefillUser={usagePrefill}
-        includeForeignLocations={includeForeignLocations}
-        onForeignLocationsChange={changeForeignLocations}
-      />
-      <SubscriptionRecordsDialog
-        open={subscriptionRecordsOpen}
-        onOpenChange={setSubscriptionRecordsOpen}
-        prefillUser={subscriptionRecordsPrefill}
       />
 
       <UserAssignOrderDialog

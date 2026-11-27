@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
-import MarkdownIt from 'markdown-it'
 import MdEditor from 'react-markdown-editor-lite'
 import 'react-markdown-editor-lite/lib/index.css'
+import { renderSafeMarkdown } from '@/lib/markdown'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,14 +10,6 @@ import { cn } from '@/lib/utils'
  * 标题字号、加粗、斜体、下划线、删除线、无序/有序列表、引用、行内代码、
  * 代码块、表格、图片、链接、清除、撤销/重做，以及视图/全屏切换。
  */
-
-// markdown-it 渲染器，供实时预览使用。
-const mdParser = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  breaks: true,
-})
 
 type MarkdownEditorProps = {
   value: string
@@ -36,12 +27,6 @@ export function MarkdownEditor({
   placeholder,
   className,
 }: MarkdownEditorProps) {
-  // editor 实例稳定，避免每次渲染重建解析器。
-  const renderHTML = useMemo(
-    () => (text: string) => mdParser.render(text),
-    []
-  )
-
   return (
     <MdEditor
       // shadcn 风格：圆角 + 边框，与其它表单控件对齐。
@@ -49,7 +34,7 @@ export function MarkdownEditor({
       style={{ height }}
       value={value ?? ''}
       placeholder={placeholder}
-      renderHTML={renderHTML}
+      renderHTML={renderSafeMarkdown}
       onChange={({ text }) => onChange(text)}
     />
   )

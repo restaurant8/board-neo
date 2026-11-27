@@ -108,6 +108,7 @@ export const sidebarData: SidebarData = {
           icon: Users,
           items: [
             { title: '用户管理', url: '/user', icon: Users },
+            { title: '连接与风控', url: '/user/connections', icon: Activity },
             { title: '工单管理', url: '/ticket', icon: LifeBuoy },
             { title: '流量统计', url: '/traffic-stat', icon: BarChart3 },
             { title: '流失召回', url: '/winback', icon: UserCheck },

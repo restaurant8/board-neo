@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PlusCircledIcon, CheckIcon } from '@radix-ui/react-icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ArrowDown,
   ArrowUp,
@@ -1582,12 +1583,25 @@ export function ServerManagePage() {
                             ),
                             online: () => (
                               <TableCell key='online' className='bg-card px-4'>
-                                <div className='flex items-center space-x-2 px-4'>
-                                  <User className='size-4' />
-                                  <span className='font-medium'>
-                                    {n.online ?? 0}
-                                  </span>
-                                </div>
+                                <Link
+                                  to='/user/connections'
+                                  search={{ server_id: n.parent_id ?? n.id }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  title='点击查看该节点的实时在线用户与连接数'
+                                  className='inline-flex flex-col gap-0.5 px-4 hover:text-primary hover:underline'
+                                >
+                                  <div className='flex items-center space-x-2'>
+                                    <User className='size-4' />
+                                    <span className='font-medium tabular-nums'>
+                                      {n.online ?? 0}
+                                    </span>
+                                  </div>
+                                  {(n.online_conn ?? 0) > 0 && (
+                                    <span className='text-xs text-muted-foreground tabular-nums'>
+                                      {n.online_conn} 连接
+                                    </span>
+                                  )}
+                                </Link>
                               </TableCell>
                             ),
                             rate: () => (

@@ -71,19 +71,65 @@ type ClearTarget =
   | { kind: 'filtered'; keyword: string }
   | { kind: 'user'; record: SubscriptionTarget }
 
-type Props = {
+export type SubscriptionRecordsPanelProps = {
+  /** 是否激活（用于 Tab / 抽屉按需拉取，默认 true） */
+  active?: boolean
+  /** 预填用户（可返回全局列表） */
+  prefillUser?: { id: number; email?: string }
+  /** 锁定单用户（用于取证抽屉：直接显示该用户的明细/策略/审计，不可退回全局列表） */
+  lockedUser?: { id: number; email?: string }
+  /** 路由跳转离开时的回调 */
+  onNavigateAway?: () => void
+}
+
+type DialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   prefillUser?: Pick<User, 'id' | 'email'>
 }
 
-export function SubscriptionRecordsDialog(props: Props) {
-  return props.open ? (
-    <RecordsContent key={props.prefillUser?.id ?? 'all'} {...props} />
-  ) : null
+export function SubscriptionRecordsPanel(props: SubscriptionRecordsPanelProps) {
+  if (props.active === false) return null
+  const keyUser = props.lockedUser?.id ?? props.prefillUser?.id ?? 'all'
+  return <RecordsPanelContent key={`${keyUser}-${props.lockedUser ? 'locked' : 'free'}`} {...props} />
 }
 
-function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
+export function SubscriptionRecordsDialog({
+  open,
+  onOpenChange,
+  prefillUser,
+}: DialogProps) {
+  if (!open) return null
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
+        <DialogHeader>
+          <DialogTitle>
+            {prefillUser ? prefillUser.email || `用户 #${prefillUser.id}` : '订阅记录'}
+          </DialogTitle>
+          <DialogDescription>
+            查看近 24 小时的订阅请求、历史汇总与限频策略。
+          </DialogDescription>
+        </DialogHeader>
+        <div className='flex min-h-0 flex-1 flex-col gap-3'>
+          <SubscriptionRecordsPanel
+            active={open}
+            prefillUser={prefillUser}
+            onNavigateAway={() => onOpenChange(false)}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RecordsPanelContent({
+  active = true,
+  prefillUser,
+  lockedUser,
+  onNavigateAway,
+}: SubscriptionRecordsPanelProps) {
+  const initialTarget = lockedUser ?? prefillUser
   const [tab, setTab] = useState<keyof typeof globalTabs>('overview')
   const [userTab, setUserTab] = useState<keyof typeof userTabs>('events')
   const queryClient = useQueryClient()
@@ -94,8 +140,8 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
   const [orderBy, setOrderBy] = useState<SubscriptionRecordOrderBy>('record_at')
   const [orderDir, setOrderDir] = useState<UsageOrderDir>('desc')
   const [selected, setSelected] = useState<SelectedUser | null>(
-    prefillUser
-      ? { user_id: prefillUser.id, user_email: prefillUser.email }
+    initialTarget
+      ? { user_id: initialTarget.id, user_email: initialTarget.email ?? '' }
       : null
   )
   const [eventPage, setEventPage] = useState(1)
@@ -115,7 +161,7 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
   const summaryQuery = useQuery({
     queryKey: ['subscription-records', queryParams],
     queryFn: () => fetchSubscriptionRecords(queryParams),
-    enabled: open && !selected && tab === 'history',
+    enabled: active && !selected && tab === 'history',
   })
 
   const eventQuery = useQuery({
@@ -136,7 +182,7 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
         page: eventPage,
         page_size: eventPageSize,
       }),
-    enabled: open && !!selected && userTab === 'events',
+    enabled: active && !!selected && userTab === 'events',
   })
 
   const clearMutation = useMutation({
@@ -155,7 +201,9 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
       )
       setClearTarget(null)
       if (target.kind === 'user') {
-        setSelected(null)
+        if (!lockedUser) {
+          setSelected(null)
+        }
         setEventPage(1)
       }
       setPage(1)
@@ -212,33 +260,21 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
   const eventMaxPage = Math.max(1, Math.ceil(eventTotal / eventPageSize))
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='flex h-[85dvh] max-h-[85dvh] w-[95vw] max-w-6xl flex-col gap-3 sm:max-w-6xl'>
-        <DialogHeader>
-          <DialogTitle>
-            {selected
-              ? selected.user_email || `用户 #${selected.user_id}`
-              : '订阅记录'}
-          </DialogTitle>
-          <DialogDescription>
-            {selected
-              ? `订阅记录 · 用户 #${selected.user_id}`
-              : tab === 'history'
-                ? '历史汇总按用户和 IP 去重，同一来源 30 秒内计一次。'
-                : '查看近 24 小时的请求、管理订阅下载和拉取频率。'}
-          </DialogDescription>
-        </DialogHeader>
-        <div className='flex flex-wrap items-center gap-1 border-b pb-2'>
+    <div className='flex min-h-0 flex-1 flex-col gap-3'>
+      <div className='flex flex-wrap items-center justify-between gap-2 border-b pb-2'>
+        <div className='flex flex-wrap items-center gap-1'>
           {selected ? (
             <>
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={() => setSelected(null)}
-              >
-                <ArrowLeft className='size-4' />
-                返回列表
-              </Button>
+              {!lockedUser && (
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setSelected(null)}
+                >
+                  <ArrowLeft className='size-4' />
+                  返回列表
+                </Button>
+              )}
               {(Object.keys(userTabs) as (keyof typeof userTabs)[]).map(
                 (key) => (
                   <Button
@@ -269,6 +305,23 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
             )
           )}
         </div>
+        {selected && !lockedUser && (
+          <div className='text-xs text-muted-foreground'>
+            正在查看：
+            <span className='font-medium text-foreground'>
+              {selected.user_email || `用户 #${selected.user_id}`}
+            </span>{' '}
+            (ID #{selected.user_id})
+          </div>
+        )}
+        {!selected && (
+          <div className='text-xs text-muted-foreground'>
+            {tab === 'history'
+              ? '历史汇总按用户和 IP 去重，同一来源 30 秒内计一次。'
+              : '查看近 24 小时订阅拉取请求、待核查异常，并管理限频与暂停策略。'}
+          </div>
+        )}
+      </div>
         {selected ? (
           userTab === 'policy' ? (
             <PolicyPanel user={selected} />
@@ -566,7 +619,7 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
                             <UserEmailLink
                               email={record.user_email}
                               fallback={`#${record.user_id}`}
-                              onNavigate={() => onOpenChange(false)}
+                              onNavigate={onNavigateAway}
                             />
                           </div>
                           <div className='text-xs text-muted-foreground'>
@@ -648,7 +701,6 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
             />
           </>
         )}
-      </DialogContent>
       <ConfirmDialog
         open={!!clearTarget}
         onOpenChange={(nextOpen) => !nextOpen && setClearTarget(null)}
@@ -672,6 +724,6 @@ function RecordsContent({ open, onOpenChange, prefillUser }: Props) {
         isLoading={clearMutation.isPending}
         handleConfirm={() => clearTarget && clearMutation.mutate(clearTarget)}
       />
-    </Dialog>
+    </div>
   )
 }
